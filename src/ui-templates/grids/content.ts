@@ -39,6 +39,11 @@ type SpatialTree = {
   state: TEMPLATES.SpatialTreePanelState;
 };
 
+type GlobalPropsManager = {
+  name: "globalProps";
+  state: TEMPLATES.GlobalPropsSectionState;
+};
+
 export type ContentGridElements = [
   Viewer,
   Models,
@@ -47,6 +52,7 @@ export type ContentGridElements = [
   Queries,
   SpatialTree,
   ViewTemplater,
+  GlobalPropsManager
 ];
 
 export type ContentGridLayouts = ["Viewer", "Queries", "FullScreen"];
@@ -92,6 +98,10 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.viewpointsPanelTemplate,
         initialState: { components },
       },
+      globalProps: {
+        template: TEMPLATES.globalPropsPanelTemplate,
+        initialState: { components },
+      },
       viewer: state.viewportTemplate,
     };
 
@@ -99,9 +109,9 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       Viewer: {
         template: `
           "models viewer elementData" auto
-          "spatialTree viewer elementData" 1fr
+          "spatialTree viewer globalProps" 1fr
           "spatialTree viewer viewTemplater" auto
-          /${SMALL_COLUMN_WIDTH} 1fr ${SMALL_COLUMN_WIDTH}
+          / ${SMALL_COLUMN_WIDTH} 1fr ${SMALL_COLUMN_WIDTH}
         `,
       },
       Queries: {

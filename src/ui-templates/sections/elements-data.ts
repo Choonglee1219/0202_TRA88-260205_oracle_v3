@@ -3,6 +3,7 @@ import * as CUI from "@thatopen/ui-obc";
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import { appIcons } from "../../globals";
+import { GlobalPropertiesManager } from "../../bim-components/GlobalPropsManager";
 
 export interface ElementsDataPanelState {
   components: OBC.Components;
@@ -15,6 +16,7 @@ export const elementsDataPanelTemplate: BUI.StatefullComponent<
 
   // const fragments = components.get(OBC.FragmentsManager);
   const highlighter = components.get(OBF.Highlighter);
+  const globalProps = components.get(GlobalPropertiesManager);
 
   const [propsTable, updatePropsTable] = CUI.tables.itemsData({
     components,
@@ -97,16 +99,26 @@ export const elementsDataPanelTemplate: BUI.StatefullComponent<
   propsTable.preserveStructureOnFilter = true;
   // fragments.onFragmentsDisposed.add(() => updatePropsTable());
 
-  highlighter.events.select.onHighlight.add((modelIdMap) => {
-    // const panel = document.getElementById("data")!;
-    // panel.style.removeProperty("display");
-    updatePropsTable({ modelIdMap });
-  });
+  if (highlighter.events.select) {
+    highlighter.events.select.onHighlight.add((modelIdMap) => {
+      // const panel = document.getElementById("data")!;
+      // panel.style.removeProperty("display");
+      updatePropsTable({ modelIdMap });
+    });
 
-  highlighter.events.select.onClear.add(() => {
-    // const panel = document.getElementById("data")!;
-    // panel.style.display = "none";
-    updatePropsTable({ modelIdMap: {} });
+    highlighter.events.select.onClear.add(() => {
+      // const panel = document.getElementById("data")!;
+      // panel.style.display = "none";
+      updatePropsTable({ modelIdMap: {} });
+    });
+  }
+
+  globalProps.onPropertiesUpdated.add(() => {
+    const selection = highlighter.selection.select;
+    if (selection && Object.keys(selection).length > 0) {
+      updatePropsTable({ modelIdMap: {} });
+      setTimeout(() => updatePropsTable({ modelIdMap: selection }), 100);
+    }
   });
 
   const search = (e: Event) => {
@@ -125,7 +137,7 @@ export const elementsDataPanelTemplate: BUI.StatefullComponent<
       <div style="display: flex; gap: 0.375rem;">
         <bim-text-input @input=${search} vertical placeholder="Search..." debounce="200"></bim-text-input>
         <bim-button style="flex: 0;" @click=${toggleExpanded} icon=${appIcons.EXPAND}></bim-button>
-        <bim-button style="flex: 0;" @click=${() => propsTable.downloadData("ElementData", "tsv")} icon=${appIcons.EXPORT} tooltip-title="Export Data" tooltip-text="Export the shown properties to TSV."></bim-button>
+        <bim-button style="flex: 0;" @click=${() => propsTable.downloadData("ElementData", "csv")} icon=${appIcons.EXPORT} tooltip-title="Export Data" tooltip-text="Export the shown properties to CSV."></bim-button>
       </div>
       ${propsTable}
     </bim-panel-section> 
