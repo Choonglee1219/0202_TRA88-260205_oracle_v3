@@ -3,6 +3,7 @@ import * as CUI from "@thatopen/ui-obc";
 import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
 import { SharedModel } from './../../bim-components/SharedModel';
+import { PropertiesManager } from "../../bim-components/PropsManager";
 
 export interface ModelsPanelState {
   components: OBC.Components;
@@ -52,7 +53,19 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
   const onAddIfcModel = createFileInputHandler(".ifc", false, async (file) => {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
-    await ifcLoader.load(bytes, true, file.name.replace(".ifc", ""));
+    const model = await ifcLoader.load(bytes, true, file.name.replace(".ifc", ""));
+    (model as any).name = file.name.replace(".ifc", "");
+    const globalProps = components.get(PropertiesManager);
+    let modelId = (model as any).uuid;
+    if (!modelId) {
+      for (const [id, m] of fragments.list) {
+        if (m === model) {
+          modelId = id;
+          break;
+        }
+      }
+    }
+    if (modelId) globalProps.loadedFiles.set(modelId, bytes);
     if (confirm("데이터베이스에 저장하시겠습니까?")) {
       const success = await saveToDB(file);
       if (!success) {
@@ -99,7 +112,19 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
   const loadIFCModel = async (ifcId: number) => {
     const ifc = await sharedModel.loadIFC(ifcId);
     if (ifc && ifc.content) {
-      await ifcLoader.load(ifc.content, true, ifc.name);
+      const model = await ifcLoader.load(ifc.content, true, ifc.name);
+      (model as any).name = ifc.name;
+      const globalProps = components.get(PropertiesManager);
+      let modelId = (model as any).uuid;
+      if (!modelId) {
+        for (const [id, m] of fragments.list) {
+          if (m === model) {
+            modelId = id;
+            break;
+          }
+        }
+      }
+      if (modelId) globalProps.loadedFiles.set(modelId, ifc.content);
     }
   };
   

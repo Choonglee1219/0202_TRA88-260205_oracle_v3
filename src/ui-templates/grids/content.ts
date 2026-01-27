@@ -39,8 +39,8 @@ type SpatialTree = {
   state: TEMPLATES.SpatialTreePanelState;
 };
 
-type GlobalPropsManager = {
-  name: "globalProps";
+type PropsManager = {
+  name: "propsManager";
   state: TEMPLATES.GlobalPropsSectionState;
 };
 
@@ -52,10 +52,10 @@ export type ContentGridElements = [
   Queries,
   SpatialTree,
   ViewTemplater,
-  GlobalPropsManager
+  PropsManager,
 ];
 
-export type ContentGridLayouts = ["Viewer", "Queries", "FullScreen"];
+export type ContentGridLayouts = ["Viewer", "Queries", "Properties", "FullScreen"];
 
 export interface ContentGridState {
   components: OBC.Components;
@@ -98,7 +98,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.viewpointsPanelTemplate,
         initialState: { components },
       },
-      globalProps: {
+      propsManager: {
         template: TEMPLATES.globalPropsPanelTemplate,
         initialState: { components },
       },
@@ -109,7 +109,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       Viewer: {
         template: `
           "models viewer elementData" auto
-          "spatialTree viewer globalProps" 1fr
+          "spatialTree viewer elementData" 1fr
           "spatialTree viewer viewTemplater" auto
           / ${SMALL_COLUMN_WIDTH} 1fr ${SMALL_COLUMN_WIDTH}
         `,
@@ -117,6 +117,13 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       Queries: {
         template: `
           "queries viewer" auto
+          "elementData viewer" 1fr
+          / 1fr 1fr
+        `,
+      },
+      Properties: {
+        template: `
+          "propsManager viewer" auto
           "elementData viewer" 1fr
           / 1fr 1fr
         `,

@@ -1,16 +1,17 @@
 import * as OBC from "@thatopen/components";
 import * as WEBIFC from "web-ifc";
 
-export class GlobalPropertiesManager extends OBC.Component {
+export class PropertiesManager extends OBC.Component {
   static uuid = "f6e5bc78-8e0f-4f49-94ac-f337e729083f" as const;
   enabled = true;
 
   readonly list = new OBC.DataSet<{ name: string; type: string }>();
   readonly onPropertiesUpdated = new OBC.Event<void>();
+  readonly loadedFiles = new Map<string, Uint8Array>();
 
   constructor(components: OBC.Components) {
     super(components);
-    components.add(GlobalPropertiesManager.uuid, this);
+    components.add(PropertiesManager.uuid, this);
     this.list.guard = ({ name }) => {
       const existing = [...this.list].find(({ name: n }) => n === name);
       return !existing;
@@ -58,21 +59,25 @@ export class GlobalPropertiesManager extends OBC.Component {
         if (!pset) continue;
         const { type } = property;
 
-        let ifcType = WEBIFC.IFCLABEL;
+        let ifcType = WEBIFC.IFCTEXT;
         const typeUpper = type.toUpperCase();
-        if (typeUpper === "IFCTEXT") ifcType = WEBIFC.IFCTEXT;
-        else if (typeUpper === "IFCBOOLEAN") ifcType = WEBIFC.IFCBOOLEAN;
-        else if (typeUpper === "IFCIDENTIFIER") ifcType = WEBIFC.IFCIDENTIFIER;
+        if (typeUpper === "IFCBOOLEAN") ifcType = WEBIFC.IFCBOOLEAN;
         else if (typeUpper === "IFCINTEGER") ifcType = WEBIFC.IFCINTEGER;
         else if (typeUpper === "IFCREAL") ifcType = WEBIFC.IFCREAL;
 
         let finalValue = value;
-        if (ifcType === WEBIFC.IFCBOOLEAN && typeof value === "string") finalValue = value.toLowerCase() === "true";
-        else if ((ifcType === WEBIFC.IFCINTEGER || ifcType === WEBIFC.IFCREAL) && typeof value === "string") finalValue = Number(value);
+        if (ifcType === WEBIFC.IFCBOOLEAN && typeof value === "string") {
+          finalValue = value.toLowerCase() === "true" || value === "T";
+        } else if (ifcType === WEBIFC.IFCINTEGER && typeof value === "string") {
+          finalValue = parseInt(value, 10);
+        } else if (ifcType === WEBIFC.IFCREAL && typeof value === "string") {
+          finalValue = parseFloat(value);
+        }
 
         await editor.createItem(modelID, {
           category: "IFCPROPERTYSINGLEVALUE",
-          data: { Name: { value: name, type: WEBIFC.IFCIDENTIFIER as any }, NominalValue: { value: finalValue, type: ifcType as any } },
+          data: { Name: { value: name, type: WEBIFC.IFCTEXT as any }, 
+          NominalValue: { value: finalValue, type: ifcType as any } },
         });
 
         const [propId] = await editor.applyChanges(modelID);

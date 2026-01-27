@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { GlobalPropertiesManager } from "..";
+import { PropertiesManager } from "..";
 
 interface GlobalPropsListState {
   components: OBC.Components;
@@ -8,7 +8,7 @@ interface GlobalPropsListState {
 
 const listTemplate: BUI.StatefullComponent<GlobalPropsListState> = (state) => {
   const { components } = state;
-  const globalProps = components.get(GlobalPropertiesManager);
+  const globalProps = components.get(PropertiesManager);
 
   const onCreated = (table?: Element) => {
     if (!(table instanceof BUI.Table)) return;

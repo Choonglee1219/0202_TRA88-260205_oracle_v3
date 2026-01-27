@@ -3,7 +3,7 @@ import * as CUI from "@thatopen/ui-obc";
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import { appIcons } from "../../globals";
-import { GlobalPropertiesManager } from "../../bim-components/GlobalPropsManager";
+import { PropertiesManager } from "../../bim-components/PropsManager";
 
 export interface ElementsDataPanelState {
   components: OBC.Components;
@@ -16,7 +16,7 @@ export const elementsDataPanelTemplate: BUI.StatefullComponent<
 
   // const fragments = components.get(OBC.FragmentsManager);
   const highlighter = components.get(OBF.Highlighter);
-  const globalProps = components.get(GlobalPropertiesManager);
+  const globalProps = components.get(PropertiesManager);
 
   const [propsTable, updatePropsTable] = CUI.tables.itemsData({
     components,

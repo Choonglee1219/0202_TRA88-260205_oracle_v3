@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { GlobalPropertiesManager } from "..";
+import { PropertiesManager } from "..";
 
 interface NewPropModalState {
   components: OBC.Components;
@@ -11,7 +11,7 @@ const template: BUI.StatefullComponent<NewPropModalState> = (state) => {
   const { components, onSubmit } = state;
 
   const panelSectionID = `form-${BUI.Manager.newRandomId()}`;
-  const globalProps = components.get(GlobalPropertiesManager);
+  const globalProps = components.get(PropertiesManager);
 
   const onAdd = () => {
     const panelSection = document.getElementById(
@@ -31,8 +31,8 @@ const template: BUI.StatefullComponent<NewPropModalState> = (state) => {
           <bim-dropdown name="type" label="Type">
             <bim-option label="IfcText"></bim-option> 
             <bim-option label="IfcBoolean"></bim-option> 
-            <bim-option label="IfcLabel"></bim-option> 
-            <bim-option label="IfcIdentifier"></bim-option> 
+            <bim-option label="IfcInteger"></bim-option> 
+            <bim-option label="IfcReal"></bim-option> 
           </bim-dropdown>
           <bim-button label="Add"  @click=${onAdd}></bim-button>
         </bim-panel-section>

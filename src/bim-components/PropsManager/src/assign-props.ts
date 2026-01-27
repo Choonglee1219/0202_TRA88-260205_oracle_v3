@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
-import { GlobalPropertiesManager } from "..";
+import { PropertiesManager } from "..";
 
 interface AssignPropsModalState {
   components: OBC.Components;
@@ -14,7 +14,7 @@ const template: BUI.StatefullComponent<AssignPropsModalState> = (state) => {
   const { components, names, psets, onSubmit } = state;
 
   const panelSectionID = `form-${BUI.Manager.newRandomId()}`;
-  const globalProps = components.get(GlobalPropertiesManager);
+  const globalProps = components.get(PropertiesManager);
   const highlighter = components.get(OBF.Highlighter);
 
   const onAdd = async ({ target }: { target: BUI.Button }) => {
@@ -24,13 +24,19 @@ const template: BUI.StatefullComponent<AssignPropsModalState> = (state) => {
     if (!panelSection) return;
     target.loading = true;
     const formData = panelSection.value;
+    const pset = formData.pset?.[0];
+    if (typeof pset !== "string") {
+      alert("Please select a Property Set.");
+      target.loading = false;
+      return;
+    }
     for (const name of names) {
       const value = formData[name];
       if (value === undefined) continue;
       await globalProps.assign(
         name,
         value,
-        formData.pset?.[0],
+        pset,
         highlighter.selection.select,
       );
     }
