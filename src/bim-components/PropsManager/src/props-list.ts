@@ -17,7 +17,11 @@ const listTemplate: BUI.StatefullComponent<GlobalPropsListState> = (state) => {
     });
   };
 
-  return BUI.html`<bim-table ${BUI.ref(onCreated)} headers-hidden no-indentation selectable-rows></bim-table>`;
+  return BUI.html`<bim-table ${BUI.ref(onCreated)} no-indentation selectable-rows>
+    <div slot="missing-data">
+      <bim-label>No global parameters to display!</bim-label>
+    </div>
+  </bim-table>`;
 };
 
 export const globalPropsList = (state: GlobalPropsListState) => {

@@ -81,6 +81,22 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
     assignProps.showModal();
   };
 
+  const onImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".csv";
+    input.multiple = false;
+
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const data = await file.text();
+      globalProps.addFromText(data);
+    });
+
+    input.click();
+  }
+
   const onDownload = async ({ target }: { target: BUI.Button }) => {
     console.log("Download started");
     target.loading = true;
@@ -269,6 +285,7 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       <div style="display: flex; gap: 0.25rem">
         <bim-button label="Create" @click=${() => newProps.showModal()} icon=${appIcons.REF}></bim-button>
         <bim-button label="Assign" @click=${onAdd} icon=${appIcons.ADD}></bim-button>
+        <bim-button label="Import" @click=${onImport} icon=${appIcons.IMPORT}></bim-button>
         <bim-button label="Download" @click=${onDownload} icon=${appIcons.EXPORT}></bim-button>
       </div>
     </bim-panel-section>

@@ -89,6 +89,18 @@ export class PropertiesManager extends OBC.Component {
     }
     this.onPropertiesUpdated.trigger();
   }
+
+  addFromText(text: string, delimeter = ",") {
+    const splitText = text.split("\r\n").slice(1);
+    const properties = splitText.map((value) => {
+      const [name, type] = value.split(delimeter);
+      const propData = { name: name.trim(), type: type.trim() };
+      return propData;
+    });
+    for (const prop of properties) {
+      this.list.add(prop);
+    }
+  }
 }
 
 export * from "./src";

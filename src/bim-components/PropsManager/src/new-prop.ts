@@ -24,7 +24,7 @@ const template: BUI.StatefullComponent<NewPropModalState> = (state) => {
   };
 
   return BUI.html`
-    <dialog style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden;">
+    <dialog class="new-prop-modal" style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden;">
       <bim-panel style="width: 20rem;">
         <bim-panel-section id=${panelSectionID} label="New Global Property" fixed>
           <bim-text-input name="name" label="Name"></bim-text-input>
@@ -41,12 +41,28 @@ const template: BUI.StatefullComponent<NewPropModalState> = (state) => {
   `;
 };
 
+const addBackdropStyles = () => {
+  const styleId = "new-prop-modal-styles";
+  if (document.getElementById(styleId)) return;
+  const styles = `
+    dialog.new-prop-modal::backdrop {
+      backdrop-filter: blur(4px);
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+  `;
+  const styleElement = document.createElement("style");
+  styleElement.id = styleId;
+  styleElement.textContent = styles;
+  document.head.append(styleElement);
+};
+
 export const newPropModal = (state: NewPropModalState) => {
   const component = BUI.Component.create<HTMLDialogElement, NewPropModalState>(
     template,
     state,
   );
 
+  addBackdropStyles();
   document.body.append(component[0]);
 
   return component;

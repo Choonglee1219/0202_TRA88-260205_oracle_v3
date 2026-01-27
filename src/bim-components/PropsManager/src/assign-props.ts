@@ -45,7 +45,7 @@ const template: BUI.StatefullComponent<AssignPropsModalState> = (state) => {
   };
 
   return BUI.html`
-    <dialog style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden;">
+    <dialog class="assign-props-modal" style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden;">
       <bim-panel style="width: 20rem;">
         <bim-panel-section id=${panelSectionID} label="New Props Config" fixed>
           ${names.map(
@@ -63,12 +63,28 @@ const template: BUI.StatefullComponent<AssignPropsModalState> = (state) => {
   `;
 };
 
+const addBackdropStyles = () => {
+  const styleId = "assign-props-modal-styles";
+  if (document.getElementById(styleId)) return;
+  const styles = `
+    dialog.assign-props-modal::backdrop {
+      backdrop-filter: blur(4px);
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+  `;
+  const styleElement = document.createElement("style");
+  styleElement.id = styleId;
+  styleElement.textContent = styles;
+  document.head.append(styleElement);
+};
+
 export const assignPropsModal = (state: AssignPropsModalState) => {
   const component = BUI.Component.create<
     HTMLDialogElement,
     AssignPropsModalState
   >(template, state);
 
+  addBackdropStyles();
   document.body.append(component[0]);
 
   return component;

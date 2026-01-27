@@ -15,6 +15,7 @@ export const appIcons = {
   COLORIZE: "/icons/famicons--color-fill.svg",
   EXPAND: "/icons/eva--expand-fill.svg",
   EXPORT: "/icons/ph--export-fill.svg",
+  IMPORT: "/icons/mdi--import.svg",
   TASK: "/icons/material-symbols--task.svg",
   CAMERA: "/icons/solar--camera-bold.svg",
   FOCUS: "/icons/ri--focus-mode.svg",
@@ -35,6 +36,7 @@ export const appIcons = {
   OPEN: "/icons/mdi--open-in-app.svg",
   DOWNLOAD: "/icons/oi--cloud-download.svg",
   DELETE: "/icons/mdi--delete-forever.svg",
+  EDIT: "/icons/mdi--edit.svg",
 };
 
 export const tooltips = {
