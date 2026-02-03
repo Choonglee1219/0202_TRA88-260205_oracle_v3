@@ -5,3 +5,4 @@ export * from "./queries";
 export * from "./spatial-tree";
 export * from "./props-manager";
 export * from "./view-templates";
+export * from "./bcf-manager";

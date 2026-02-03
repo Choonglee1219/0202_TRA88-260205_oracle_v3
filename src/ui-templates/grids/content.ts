@@ -44,6 +44,11 @@ type PropsManager = {
   state: TEMPLATES.GlobalPropsSectionState;
 };
 
+type BCFManager = {
+  name: "bcfManager";
+  state: TEMPLATES.BCFManagerState;
+};
+
 export type ContentGridElements = [
   Viewer,
   Models,
@@ -53,9 +58,10 @@ export type ContentGridElements = [
   SpatialTree,
   ViewTemplater,
   PropsManager,
+  BCFManager,
 ];
 
-export type ContentGridLayouts = ["Viewer", "Queries", "Properties", "FullScreen"];
+export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "FullScreen"];
 
 export interface ContentGridState {
   components: OBC.Components;
@@ -102,6 +108,10 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.globalPropsPanelTemplate,
         initialState: { components },
       },
+      bcfManager: {
+        template: TEMPLATES.bcfManagerTemplate,
+        initialState: { components },
+      },
       viewer: state.viewportTemplate,
     };
 
@@ -114,9 +124,16 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
           / ${SMALL_COLUMN_WIDTH} 1fr ${SMALL_COLUMN_WIDTH}
         `,
       },
+      BCFManager: {
+        template: `
+          "models viewer" 1fr
+          "bcfManager bcfManager" 1fr
+          / ${SMALL_COLUMN_WIDTH} 1fr
+        `,
+      },
       Queries: {
         template: `
-          "queries viewer" auto
+          "queries viewer" 1fr
           "elementData viewer" 1fr
           / 1fr 1fr
         `,

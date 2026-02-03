@@ -307,6 +307,7 @@ contentGrid.addEventListener("layoutchange", () => {
 
 const contentGridIcons: Record<TEMPLATES.ContentGridLayouts[number], string> = {
   Viewer: appIcons.MODEL,
+  BCFManager: appIcons.REF,
   Queries: appIcons.SEARCH,
   Properties: appIcons.EDIT,
   FullScreen: appIcons.FULLSCREEN,

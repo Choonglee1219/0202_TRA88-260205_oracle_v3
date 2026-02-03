@@ -1,3 +1,5 @@
+import * as CUI from "@thatopen/ui-obc";
+
 export const CONTENT_GRID_ID = "app-content";
 export const CONTENT_GRID_GAP = "1rem";
 export const SMALL_COLUMN_WIDTH = "22rem";
@@ -59,5 +61,23 @@ export const tooltips = {
   SHOW_ALL: {
     TITLE: "Show All Items",
     TEXT: "Reset the visibility of all hidden items, so they become visible again.",
+  },
+};
+
+export const users: CUI.TopicUserStyles = {
+  "jhon.doe@example.com": {
+    name: "Jhon Doe",
+    picture:
+      "https://www.profilebakery.com/wp-content/uploads/2023/04/Profile-Image-AI.jpg",
+  },
+  "user_a@something.com": {
+    name: "User A",
+    picture:
+      "https://www.profilebakery.com/wp-content/uploads/2023/04/Portrait-Photography.jpg",
+  },
+  "user_b@something.com": {
+    name: "User B",
+    picture:
+      "https://www.profilebakery.com/wp-content/uploads/2023/04/AI-Portrait.jpg",
   },
 };
