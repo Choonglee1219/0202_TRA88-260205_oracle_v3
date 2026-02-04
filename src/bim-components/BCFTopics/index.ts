@@ -10,6 +10,7 @@ export class BCFTopics extends OBC.Component {
   static uuid = "e7526972-853c-4392-b6c6-33435e123456" as const;
   enabled = true;
   private _bcf: OBC.BCFTopics;
+  private _loading = false;
 
   get list() {
     return this._bcf.list;
@@ -27,7 +28,7 @@ export class BCFTopics extends OBC.Component {
       labels: new Set(["A", "C", "E", "J", "M", "P", "R"]),
       stages: new Set(["Concept Design", "Basic Design", "Detailed Design", "Construction", "As-Build"]),
       users: new Set(Object.keys(users)),
-      version: "3",
+      version: "2.1",
     });
 
     OBC.Topic.default = {
@@ -40,6 +41,7 @@ export class BCFTopics extends OBC.Component {
 
     const viewpoints = components.get(OBC.Viewpoints);
     this._bcf.list.onItemSet.add(async ({ value: topic }) => {
+      if (this._loading) return;
       const viewpoint = viewpoints.create();
       const worlds = components.get(OBC.Worlds);
       const world = worlds.list.values().next().value;
@@ -140,9 +142,22 @@ export class BCFTopics extends OBC.Component {
     input.addEventListener("change", async () => {
       const file = input.files?.[0];
       if (!file) return;
-      const buffer = await file.arrayBuffer();
-      const { topics, viewpoints } = await this._bcf.load(new Uint8Array(buffer));
-      console.log(topics, viewpoints);
+      this._loading = true;
+      try {
+        const buffer = await file.arrayBuffer();
+        const { topics, viewpoints } = await this._bcf.load(new Uint8Array(buffer));
+        
+        const worlds = this.components.get(OBC.Worlds);
+        const world = worlds.list.values().next().value;
+        if (world) {
+          for (const viewpoint of viewpoints) {
+            viewpoint.world = world;
+          }
+        }
+        console.log(topics, viewpoints);
+      } finally {
+        this._loading = false;
+      }
     });
 
     input.click();
