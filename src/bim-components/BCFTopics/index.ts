@@ -20,18 +20,22 @@ export class BCFTopics extends OBC.Component {
     super(components);
     this._bcf = components.get(OBC.BCFTopics);
     this._bcf.setup({
-      author: "Choong",
-      types: new Set(["Information", "Coordination"]),
-      statuses: new Set(["Active", "In Progress", "Done", "In Review", "Closed"]),
+      author: "Admin",
+      types: new Set(["Error", "Info", "Unknown", "Warning"]),
+      priorities: new Set(["On hold", "Minor", "Normal", "Major", "Critical"]),
+      statuses: new Set(["Open", "Assigned", "Closed", "Resolved"]),
+      labels: new Set(["A", "C", "E", "J", "M", "P", "R"]),
+      stages: new Set(["Concept Design", "Basic Design", "Detailed Design", "Construction", "As-Build"]),
       users: new Set(Object.keys(users)),
       version: "3",
     });
 
     OBC.Topic.default = {
-      title: "Custom Default Title",
-      type: "Custom Default Topic Type",
-      status: "Custom Default Topic Status",
-      priority: "Custom Default Priority",
+      title: "",
+      type: "Info",
+      status: "Open",
+      priority: "Normal",
+      labels: new Set(["R"])
     };
 
     const viewpoints = components.get(OBC.Viewpoints);
@@ -70,7 +74,7 @@ export class BCFTopics extends OBC.Component {
     });
   }
 
-  private _getSelectedTopics(selection: Set<any>) {
+  getSelectedTopics(selection: Set<any>) {
     const topics: OBC.Topic[] = [];
     for (const item of selection) {
       const guid = (item as any).Guid;
@@ -80,14 +84,6 @@ export class BCFTopics extends OBC.Component {
       }
     }
     return topics;
-  }
-
-  // Open Topic Details
-  openDetails(selection: Set<any>, detailsModal: any) {
-    const selectedTopics = this._getSelectedTopics(selection);
-    if (selectedTopics.length > 0) {
-      detailsModal.updateForm(selectedTopics);
-    }
   }
 
   async restoreViewpoint(topic: OBC.Topic) {
@@ -123,7 +119,7 @@ export class BCFTopics extends OBC.Component {
   // Deleting Topics
   delete(selection: Set<any>) {
     if (selection.size === 0) return;
-    const topics = this._getSelectedTopics(selection);
+    const topics = this.getSelectedTopics(selection);
     if (topics.length === 0) return;
     const confirmation = confirm(`Delete ${topics.length} topic(s)?`);
     if (confirmation) {
