@@ -153,6 +153,21 @@ export class BCFTopics extends OBC.Component {
         if (world) {
           for (const viewpoint of viewpoints) {
             viewpoint.world = world;
+
+            const cam = viewpoint.camera;
+            const pos = cam.camera_view_point;
+            const dir = cam.camera_direction;
+
+            if ((cam as any).view_to_world_scale) {
+              // If the Camera mode is OrthogonalCamera, Move the camera back along the direction vector to prevent near plane clipping.
+              const offset = 80;
+              pos.x -= dir.x * offset;
+              pos.y -= dir.y * offset;
+              pos.z -= dir.z * offset;
+              (cam as any).view_to_world_scale = 1;
+              (cam as any).aspect_ratio = 3;
+              (cam as any).field_of_view = 60;
+            }
           }
         }
         console.log(topics, viewpoints);

@@ -68,6 +68,8 @@ const worldGrid = components.get(OBC.Grids).create(world);
 worldGrid.material.uniforms.uColor.value = new THREE.Color(0x494b50);
 worldGrid.material.uniforms.uSize1.value = 2;
 worldGrid.material.uniforms.uSize2.value = 10;
+worldGrid.visible = false;
+worldGrid.three.position.y = -20;
 
 const resizeWorld = () => {
   world.renderer?.resize();
