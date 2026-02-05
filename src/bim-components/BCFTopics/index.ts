@@ -1,10 +1,11 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
+import JSZip from "jszip";
 import { users } from "../../globals";
 
 export * from "./src/new-topic";
-export * from "./src/detail-topic";
+export * from "./src/update-topic";
 
 export class BCFTopics extends OBC.Component {
   static uuid = "e7526972-853c-4392-b6c6-33435e123456" as const;
@@ -166,11 +167,92 @@ export class BCFTopics extends OBC.Component {
   // Exporting BCF Files
   async export(name = "topics.bcf") {
     const blob = await this._bcf.export();
-    const bcfFile = new File([blob], name);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(bcfFile);
-    a.download = bcfFile.name;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    try {
+      const zip = new JSZip();
+      await zip.loadAsync(blob);
+      const topicFolders = new Set<string>();
+      zip.forEach((relativePath) => {
+        if (relativePath.endsWith("markup.bcf")) {
+          const folder = relativePath.substring(0, relativePath.lastIndexOf("/") + 1);
+          topicFolders.add(folder);
+        }
+      });
+      for (const folder of topicFolders) {
+        const markupPath = folder + "markup.bcf";
+        const markupFile = zip.file(markupPath);
+        if (markupFile) {
+          const xmlStr = await markupFile.async("string");
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+          const viewpoints = xmlDoc.getElementsByTagName("Viewpoint");
+          for (let i = 0; i < viewpoints.length; i++) {
+            viewpoints[i].textContent = "viewpoint.bcfv";
+          }
+          const snapshots = xmlDoc.getElementsByTagName("Snapshot");
+          for (let i = 0; i < snapshots.length; i++) {
+            snapshots[i].textContent = "snapshot.png";
+          }
+          const serializer = new XMLSerializer();
+          const newXmlStr = serializer.serializeToString(xmlDoc);
+          zip.file(markupPath, newXmlStr);
+        }
+        const folderZip = zip.folder(folder);
+        if (folderZip) {
+          const bcfvFiles = folderZip.file(/.*\.bcfv$/);
+          for (const file of bcfvFiles) {
+            const xmlStr = await file.async("string");
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+            const visibility = xmlDoc.getElementsByTagName("Visibility");
+            if (visibility.length > 0) {
+              const visTag = visibility[0];
+              while (visTag.firstChild) {
+                visTag.removeChild(visTag.firstChild);
+              }
+            }
+            const cameraUpVectors = xmlDoc.getElementsByTagName("CameraUpVector");
+            if (cameraUpVectors.length > 0) {
+              const cameraUpVector = cameraUpVectors[0];
+              const yNode = cameraUpVector.getElementsByTagName("Y")[0];
+              const zNode = cameraUpVector.getElementsByTagName("Z")[0];
+              if (yNode && zNode) {
+                const yValue = yNode.textContent;
+                yNode.textContent = zNode.textContent;
+                zNode.textContent = yValue;
+              }
+            }
+            const serializer = new XMLSerializer();
+            const newXmlStr = serializer.serializeToString(xmlDoc);
+            zip.file(folder + "viewpoint.bcfv", newXmlStr);
+            if (!file.name.endsWith("viewpoint.bcfv")) {
+              zip.remove(file.name);
+            }
+          }
+          const pngFiles = folderZip.file(/.*\.png$/);
+          for (const file of pngFiles) {
+            if (!file.name.endsWith("snapshot.png")) {
+              const content = await file.async("blob");
+              zip.file(folder + "snapshot.png", content);
+              zip.remove(file.name);
+            }
+          }
+        }
+      }
+      const newBlob = await zip.generateAsync({ type: "blob" });
+      const bcfFile = new File([newBlob], name);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(bcfFile);
+      a.download = bcfFile.name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      console.error("Error post-processing BCF:", e);
+      const bcfFile = new File([blob], name);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(bcfFile);
+      a.download = bcfFile.name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
   }
 }

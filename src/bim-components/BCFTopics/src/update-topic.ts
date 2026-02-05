@@ -1,13 +1,19 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
+import { appIcons } from "../../../globals";
 
 const addBackdropStyles = () => {
-  const styleId = "detail-topic-modal-styles";
+  const styleId = "update-topic-modal-styles";
   if (document.getElementById(styleId)) return;
   const styles = `
-    dialog.detail-topic-modal::backdrop {
+    dialog.update-topic-modal::backdrop {
       backdrop-filter: blur(4px);
       background-color: rgba(0, 0, 0, 0.4);
+    }
+    .update-topic-modal .cancel-btn:hover {
+      --bim-ui_main-base: #6528d7;
+      --bim-ui_main-contrast: red;
+      --bim-icon--c: red;
     }
   `;
   const styleElement = document.createElement("style");
@@ -16,7 +22,7 @@ const addBackdropStyles = () => {
   document.head.append(styleElement);
 };
 
-export const detailTopic = (bcfTopics: any) => {
+export const updateTopic = (bcfTopics: any) => {
   const components = bcfTopics.components as OBC.Components;
   const bcf = components.get(OBC.BCFTopics);
 
@@ -93,9 +99,9 @@ export const detailTopic = (bcfTopics: any) => {
 
   const modal = BUI.Component.create<HTMLDialogElement>(() => {
     return BUI.html`
-      <dialog class="detail-topic-modal" style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden;">
+      <dialog class="update-topic-modal" style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden;">
        <bim-panel style="width: 50rem;">
-        <bim-panel-section label="Topic Details" fixed>
+        <bim-panel-section label="Update Topic" fixed>
           ${titleInput}
           <div style="display: flex; gap: 0.5rem;">
             ${typeDropdown}
@@ -112,8 +118,8 @@ export const detailTopic = (bcfTopics: any) => {
         ${descriptionInput}
           <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; align-items: flex-end;">
             ${statusDropdown}
-            <bim-button style="flex: 0;" label="Cancel" icon="close" @click=${onCancel}></bim-button>
-            <bim-button style="flex: 0;" label="Update" icon="done" @click=${onUpdate}></bim-button>
+            <bim-button class="cancel-btn" style="flex: 0;" label="Cancel" @click=${onCancel}></bim-button>
+            <bim-button style="flex: 0;" label="Update" icon=${appIcons.EDIT} @click=${onUpdate}></bim-button>
           </div>
         </bim-panel-section>
        </bim-panel> 

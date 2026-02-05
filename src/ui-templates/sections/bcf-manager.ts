@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { BCFTopics, newTopic, detailTopic } from "../../bim-components/BCFTopics";
+import { BCFTopics, newTopic, updateTopic } from "../../bim-components/BCFTopics";
 import { topicsListTable } from "../../ui-components/TopicsList";
 import { appIcons } from "../../globals";
 
@@ -15,7 +15,7 @@ export const bcfManagerTemplate: BUI.StatefullComponent<
   const bcfTopics = components.get(BCFTopics);
   const table = topicsListTable(components);
   const newTopicModal = newTopic(components);
-  const detailTopicModal = detailTopic(bcfTopics);
+  const updateTopicModal = updateTopic(bcfTopics);
 
   bcfTopics.setupTable(table);
 
@@ -25,7 +25,7 @@ export const bcfManagerTemplate: BUI.StatefullComponent<
         <bim-button @click=${() => bcfTopics.export()} label="Export BCF" icon=${appIcons.EXPORT}></bim-button>
         <bim-button @click=${() => bcfTopics.loadBCF()} label="Load BCF" icon=${appIcons.IMPORT}></bim-button>
         <bim-button @click=${() => newTopicModal.showModal()} label="Create Topic" icon=${appIcons.ADD}></bim-button>
-        <bim-button @click=${() => detailTopicModal.showModal(table.selection)} label="Update Topic" icon=${appIcons.REF}></bim-button>
+        <bim-button @click=${() => updateTopicModal.showModal(table.selection)} label="Update Topic" icon=${appIcons.REF}></bim-button>
         <bim-button @click=${() => bcfTopics.delete(table.selection)} label="Delete" icon=${appIcons.DELETE}></bim-button>
       </div>
       ${table}

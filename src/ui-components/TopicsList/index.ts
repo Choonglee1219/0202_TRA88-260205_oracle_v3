@@ -10,5 +10,18 @@ export const topicsListTable = (components: OBC.Components) => {
 
   table.selectableRows = true;
 
+  table.addEventListener("click", () => {
+    setTimeout(() => {
+      if (table.selection.size > 1) {
+        const lastSelected = Array.from(table.selection).pop();
+        table.selection.clear();
+        if (lastSelected) {
+          table.selection.add(lastSelected);
+        }
+        table.requestUpdate();
+      }
+    });
+  });
+
   return table;
 };
