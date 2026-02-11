@@ -16,7 +16,8 @@ const originalColors = new Map<
   { color: number; transparent: boolean; opacity: number }
 >();
 
-const setModelTransparent = (components: OBC.Components) => {
+export const setModelTransparent = (components: OBC.Components) => {
+  if (originalColors.size > 0) return;
   const fragments = components.get(OBC.FragmentsManager);
 
   const materials = [...fragments.core.models.materials.list.values()];
@@ -48,7 +49,7 @@ const setModelTransparent = (components: OBC.Components) => {
   }
 };
 
-const restoreModelMaterials = () => {
+export const restoreModelMaterials = () => {
   for (const [material, data] of originalColors) {
     const { color, transparent, opacity } = data;
     material.transparent = transparent;

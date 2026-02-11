@@ -1,7 +1,7 @@
 interface IfcRow {
   id: number;
   name: string;
-  content: Uint8Array;
+  content: Uint8Array | string;
 }
 
 interface IfcBasicInfo {
@@ -9,10 +9,10 @@ interface IfcBasicInfo {
   name: string;
 }
 
-export class SharedModel {
+export class SharedIFC {
 
   list: IfcBasicInfo[] = [];
-  modelUUIDMap: Map<number, string> = new Map();
+  static modelUUIDMap: Map<number, string> = new Map();
 
   constructor() {}
 
@@ -32,7 +32,7 @@ export class SharedModel {
           id: row.id,
           name: row.name,
         };
-        this.newProject(ifcInfo);
+        this.list.push(ifcInfo);
       }
     } catch (err) {
       console.error("Error loading projects from API:", err);
@@ -97,11 +97,12 @@ export class SharedModel {
         console.error("Error saving IFC to DB:", errorText);
         alert("IFC 저장에 실패했습니다. 다시 시도해 주세요.");
       }
-      return ifcResponse.ok;
+      const response = await ifcResponse.json();
+      return response.id;
     } catch (error) {
       console.error("Error saving IFC to DB:", error);
       alert("IFC 저장에 실패했습니다. 개발자에게 문의하세요.");
-      return false;
+      return null;
     }
   };
   
@@ -125,15 +126,15 @@ export class SharedModel {
   }
 
   addModelUUID(ifcId: number, modelUUID: string) {
-    this.modelUUIDMap.set(ifcId, modelUUID);
+    SharedIFC.modelUUIDMap.set(ifcId, modelUUID);
   }
 
   getModelUUID(ifcId: number): string | undefined {
-    return this.modelUUIDMap.get(ifcId);
+    return SharedIFC.modelUUIDMap.get(ifcId);
   }
 
   getIfcIdByModelUUID(modelUUID: string): number | undefined {
-    for (const [ifcId, uuid] of this.modelUUIDMap.entries()) {
+    for (const [ifcId, uuid] of SharedIFC.modelUUIDMap.entries()) {
       if (uuid === modelUUID) {
         return ifcId;
       }
@@ -142,53 +143,6 @@ export class SharedModel {
   }
 
   removeModelUUID(ifcId: number) {
-    this.modelUUIDMap.delete(ifcId);
-  }
-
-  filterProjects(value: string) {
-    const filteredProjects = this.list.filter((project) => {
-      return project.name.toLowerCase().includes(value.toLocaleLowerCase());
-    })
-    return filteredProjects;
-  }
-
-  newProject(data: IfcBasicInfo) {
-    this.list.push(data);
-    return data;
-  }
-
-  exportToJSON(fileName: string = "projects") {
-    const json = JSON.stringify(this.list, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-  
-  importFromJSON() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      const json = reader.result;
-      if (!json) { return; }
-      const projects: IfcRow[] = JSON.parse(json as string);
-      for (const project of projects) {
-        try {
-          this.newProject(project);
-        } catch (error) {
-        }
-      }
-    })
-    input.addEventListener('change', () => {
-      const filesList = input.files;
-      if (!filesList) { return; }
-      reader.readAsText(filesList[0]);
-    })
-    input.click();
+    SharedIFC.modelUUIDMap.delete(ifcId);
   }
 }

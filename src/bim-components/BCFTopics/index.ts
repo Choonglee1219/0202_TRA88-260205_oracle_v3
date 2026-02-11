@@ -3,6 +3,9 @@ import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import JSZip from "jszip";
 import { users } from "../../globals";
+import { SharedBCF } from "../SharedBCF";
+import { SharedIFC } from "../SharedIFC";
+import { setModelTransparent } from "../../ui-templates/toolbars/viewer-toolbar";
 
 export * from "./src/new-topic";
 export * from "./src/update-topic";
@@ -103,6 +106,7 @@ export class BCFTopics extends OBC.Component {
           const guids = Array.from(viewpoint.selectionComponents);
           const modelIdMap = await fragments.guidsToModelIdMap(guids);
           highlighter.highlightByID("select", modelIdMap);
+          setModelTransparent(this.components);
         }
       }
     }
@@ -133,54 +137,76 @@ export class BCFTopics extends OBC.Component {
     }
   }
 
-  // Importing BCF Files
-  loadBCF() {
+  private downloadFile(blob: Blob, name: string) {
+    const bcfFile = new File([blob], name);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(bcfFile);
+    a.download = bcfFile.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  private createFileInput(callback: (file: File) => void) {
     const input = document.createElement("input");
-    input.multiple = false;
-    input.accept = ".bcf";
     input.type = "file";
-
-    input.addEventListener("change", async () => {
+    input.accept = ".bcf";
+    input.multiple = false;
+    input.addEventListener("change", () => {
       const file = input.files?.[0];
-      if (!file) return;
-      this._loading = true;
-      try {
-        const buffer = await file.arrayBuffer();
-        const { topics, viewpoints } = await this._bcf.load(new Uint8Array(buffer));
-        
-        const worlds = this.components.get(OBC.Worlds);
-        const world = worlds.list.values().next().value;
-        if (world) {
-          for (const viewpoint of viewpoints) {
-            viewpoint.world = world;
-
-            const cam = viewpoint.camera;
-            const pos = cam.camera_view_point;
-            const dir = cam.camera_direction;
-
-            if ((cam as any).view_to_world_scale) {
-              // If the Camera mode is OrthogonalCamera, Move the camera back along the direction vector to prevent near plane clipping.
-              const offset = 80;
-              pos.x -= dir.x * offset;
-              pos.y -= dir.y * offset;
-              pos.z -= dir.z * offset;
-              (cam as any).view_to_world_scale = 1;
-              (cam as any).aspect_ratio = 3;
-              (cam as any).field_of_view = 60;
-            }
-          }
-        }
-        console.log(topics, viewpoints);
-      } finally {
-        this._loading = false;
-      }
+      if (file) callback(file);
     });
-
     input.click();
   }
 
-  // Exporting BCF Files
-  async export(name = "topics.bcf") {
+  private async loadBCFContent(buffer: ArrayBuffer) {
+    this._loading = true;
+    try {
+      const { topics, viewpoints } = await this._bcf.load(new Uint8Array(buffer));
+      const worlds = this.components.get(OBC.Worlds);
+      const world = worlds.list.values().next().value;
+      if (world) {
+        for (const viewpoint of viewpoints) {
+          viewpoint.world = world;
+          const cam = viewpoint.camera;
+          const pos = cam.camera_view_point;
+          const dir = cam.camera_direction;
+          if ((cam as any).view_to_world_scale) {
+            const offset = 80;
+            pos.x -= dir.x * offset;
+            pos.y -= dir.y * offset;
+            pos.z -= dir.z * offset;
+            (cam as any).view_to_world_scale = 1;
+            (cam as any).aspect_ratio = 3;
+            (cam as any).field_of_view = 60;
+          }
+        }
+      }
+      console.log(topics, viewpoints);
+    } finally {
+      this._loading = false;
+    }
+  }
+
+  // Importing BCF File
+  importBCF() {
+    this.createFileInput(async (file) => {
+      const buffer = await file.arrayBuffer();
+      await this.loadBCFContent(buffer);
+    });
+  }
+
+  // Exporting BCF File
+  async exportBCF(name?: string) {
+    if (!name) {
+      name = "topics.bcf";
+      const fragments = this.components.get(OBC.FragmentsManager);
+      if (fragments.list.size > 0) {
+        const model = fragments.list.values().next().value;
+        if (model && (model as any).name) {
+          name = `${(model as any).name}.bcf`;
+        }
+      }
+    }
     const blob = await this._bcf.export();
     try {
       const zip = new JSZip();
@@ -221,8 +247,10 @@ export class BCFTopics extends OBC.Component {
             const visibility = xmlDoc.getElementsByTagName("Visibility");
             if (visibility.length > 0) {
               const visTag = visibility[0];
-              while (visTag.firstChild) {
-                visTag.removeChild(visTag.firstChild);
+              visTag.setAttribute("DefaultVisibility", "true");
+              const exceptions = visTag.getElementsByTagName("Exceptions");
+              if (exceptions.length > 0) {
+                visTag.removeChild(exceptions[0]);
               }
             }
             const cameraUpVectors = xmlDoc.getElementsByTagName("CameraUpVector");
@@ -254,20 +282,55 @@ export class BCFTopics extends OBC.Component {
         }
       }
       const newBlob = await zip.generateAsync({ type: "blob" });
-      const bcfFile = new File([newBlob], name);
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(bcfFile);
-      a.download = bcfFile.name;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      this.downloadFile(newBlob, name);
     } catch (e) {
       console.error("Error post-processing BCF:", e);
-      const bcfFile = new File([blob], name);
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(bcfFile);
-      a.download = bcfFile.name;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      this.downloadFile(blob, name);
     }
+  }
+
+  // Saving BCF File to Database
+  async saveBCFToDB() {
+    this.createFileInput(async (file) => {
+      const fragments = this.components.get(OBC.FragmentsManager);
+      const sharedIFC = new SharedIFC();
+      const loadedModels: { id: number; name: string }[] = [];
+      
+      for (const [uuid, model] of fragments.list) {
+        const m = model as any;
+        const dbId = m.dbId || sharedIFC.getIfcIdByModelUUID(uuid);
+        console.log(`Model: ${m.name}, UUID: ${uuid}, Found DB ID: ${dbId}`);
+        if (dbId) {
+          loadedModels.push({ id: dbId, name: m.name || "Untitled" });
+        }
+      }
+      console.log("Models available for BCF attachment:", loadedModels);
+
+      if (loadedModels.length === 0) {
+        alert("데이터베이스에 저장된 IFC 모델이 로드되어 있지 않습니다. BCF를 저장할 수 없습니다.");
+        return;
+      }
+
+      let selectedIfcId = loadedModels[0].id;
+      if (loadedModels.length > 1) {
+         const options = loadedModels.map((m, i) => `${i + 1}. ${m.name}`).join("\n");
+         const userInput = prompt(`BCF를 연결할 IFC 모델을 선택하세요 (번호 입력):\n${options}`, "1");
+         if (!userInput) return;
+         const index = parseInt(userInput) - 1;
+         if (isNaN(index) || index < 0 || index >= loadedModels.length) {
+           alert("잘못된 선택입니다.");
+           return;
+         }
+         selectedIfcId = loadedModels[index].id;
+      }
+
+      const sharedBCF = new SharedBCF();
+      const newBcfId = await sharedBCF.saveBCF(file, selectedIfcId);
+      if (newBcfId) {
+         alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
+         const buffer = await file.arrayBuffer();
+         await this.loadBCFContent(buffer);
+      }
+    });
   }
 }

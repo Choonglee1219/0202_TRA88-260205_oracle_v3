@@ -4,14 +4,14 @@ import * as TEMPLATES from "..";
 import {
   CONTENT_GRID_GAP,
   CONTENT_GRID_ID,
-  SMALL_COLUMN_WIDTH,
+  MEDIUM_COLUMN_WIDTH,
 } from "../../globals";
 
 type Viewer = "viewer";
 
-type Models = {
-  name: "models";
-  state: TEMPLATES.ModelsPanelState;
+type IFCList = {
+  name: "ifcList";
+  state: TEMPLATES.IFCListPanelState;
 };
 
 type ElementData = {
@@ -44,21 +44,27 @@ type PropsManager = {
   state: TEMPLATES.GlobalPropsSectionState;
 };
 
-type BCFManager = {
-  name: "bcfManager";
-  state: TEMPLATES.BCFManagerState;
+type TopicList = {
+  name: "topicList";
+  state: TEMPLATES.TopicListState;
+};
+
+type BCFList = {
+  name: "bcfList";
+  state: TEMPLATES.BCFListPanelState;
 };
 
 export type ContentGridElements = [
   Viewer,
-  Models,
+  IFCList,
   ElementData,
   Viewpoints,
   Queries,
   SpatialTree,
   ViewTemplater,
   PropsManager,
-  BCFManager,
+  TopicList,
+  BCFList,
 ];
 
 export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "FullScreen"];
@@ -88,8 +94,8 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.queriesPanelTemplate,
         initialState: { components, isAdmin: true },
       },
-      models: {
-        template: TEMPLATES.modelsPanelTemplate,
+      ifcList: {
+        template: TEMPLATES.ifcListPanelTemplate,
         initialState: { components },
       },
       elementData: {
@@ -108,8 +114,12 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.globalPropsPanelTemplate,
         initialState: { components },
       },
-      bcfManager: {
-        template: TEMPLATES.bcfManagerTemplate,
+      topicList: {
+        template: TEMPLATES.topicListTemplate,
+        initialState: { components },
+      },
+      bcfList: {
+        template: TEMPLATES.bcfListPanelTemplate,
         initialState: { components },
       },
       viewer: state.viewportTemplate,
@@ -118,17 +128,18 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
     grid.layouts = {
       Viewer: {
         template: `
-          "models viewer elementData" auto
+          "ifcList viewer elementData" auto
           "spatialTree viewer elementData" 1fr
           "spatialTree viewer viewTemplater" auto
-          / ${SMALL_COLUMN_WIDTH} 1fr ${SMALL_COLUMN_WIDTH}
+          / ${MEDIUM_COLUMN_WIDTH} 1fr ${MEDIUM_COLUMN_WIDTH}
         `,
       },
       BCFManager: {
         template: `
-          "models viewer" 1fr
-          "bcfManager bcfManager" 1fr
-          / ${SMALL_COLUMN_WIDTH} 1fr
+          "ifcList viewer bcfList" 1fr
+          "ifcList viewer bcfList" 1fr
+          "topicList topicList topicList" 1fr
+          / ${MEDIUM_COLUMN_WIDTH} 1fr ${MEDIUM_COLUMN_WIDTH}
         `,
       },
       Queries: {

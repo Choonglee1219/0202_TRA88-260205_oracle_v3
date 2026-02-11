@@ -2,20 +2,21 @@ import * as BUI from "@thatopen/ui";
 import * as CUI from "@thatopen/ui-obc";
 import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
-import { SharedModel } from './../../bim-components/SharedModel';
+import { SharedIFC } from '../../bim-components/SharedIFC';
 import { PropertiesManager } from "../../bim-components/PropsManager";
 
-export interface ModelsPanelState {
+export interface IFCListPanelState {
   components: OBC.Components;
 }
 
-export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
+export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   state,
 ) => {
   const { components } = state;
-
+  
   const ifcLoader = components.get(OBC.IfcLoader);
   const fragments = components.get(OBC.FragmentsManager);
+  const sharedIFC = new SharedIFC();
   
   const [modelsList] = CUI.tables.modelsList({
     components,
@@ -67,9 +68,14 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
     }
     if (modelId) globalProps.loadedFiles.set(modelId, bytes);
     if (confirm("데이터베이스에 저장하시겠습니까?")) {
-      const success = await saveToDB(file);
-      if (!success) {
+      const ifcId = await saveToDB(file);
+      if (!ifcId) {
         alert("DB 저장에 실패하여 모델 로딩을 취소합니다.");
+      } else {
+        (model as any).dbId = ifcId;
+        sharedIFC.addModelUUID(ifcId, modelId);
+        console.log(`IFC DB저장 ID: ${ifcId}, Model UUID: ${modelId}`);
+        fragments.list.set(modelId, model);
       }
     }
   });
@@ -95,25 +101,23 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
     target.loading = false;
   };
 
-  // Create SharedModel instace (bim-components).
-  const sharedModel = new SharedModel();
-
   const saveToDB = async (file: File) => {
-    const success = await sharedModel.saveIFC(file);
-    if (success) {
+    const id = await sharedIFC.saveIFC(file);
+    if (id) {
       alert(`데이터베이스에 저장되었습니다.`);
       await refreshSharedModels();
     } else {
       alert("DB 저장 중 오류가 발생하였습니다.");
     }
-    return success;
+    return id;
   };
   
   const loadIFCModel = async (ifcId: number) => {
-    const ifc = await sharedModel.loadIFC(ifcId);
+    const ifc = await sharedIFC.loadIFC(ifcId);
     if (ifc && ifc.content) {
       const model = await ifcLoader.load(ifc.content, true, ifc.name);
       (model as any).name = ifc.name;
+      (model as any).dbId = ifcId;
       const globalProps = components.get(PropertiesManager);
       let modelId = (model as any).uuid;
       if (!modelId) {
@@ -124,12 +128,16 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
           }
         }
       }
-      if (modelId) globalProps.loadedFiles.set(modelId, ifc.content);
+      if (modelId) {
+        globalProps.loadedFiles.set(modelId, ifc.content);
+        sharedIFC.addModelUUID(ifcId, modelId);
+        fragments.list.set(modelId, model);
+      }
     }
   };
   
     const downloadIFCModel = async (ifcId: number) => {
-      const ifc = await sharedModel.loadIFC(ifcId);
+      const ifc = await sharedIFC.loadIFC(ifcId);
       if (ifc && ifc.content) {
         const blob = new Blob([ifc.content], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
@@ -145,7 +153,7 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
 
   const deleteIFCModel = async (ifcId: number) => {
     if (!confirm("데이터베이스에서 삭제하시겠습니까?")) return;
-    const success = await sharedModel.deleteIFC(ifcId);
+    const success = await sharedIFC.deleteIFC(ifcId);
     if (success) {
       alert("데이터베이스에서 삭제되었습니다.");
       await refreshSharedModels();
@@ -183,15 +191,16 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
   const [sharedModelsList, updateSharedModelsList] = BUI.Component.create(creator, { files: [] });
 
   const refreshSharedModels = async () => {
-    sharedModel.list = [];
-    await sharedModel.loadIFCFiles();
-    updateSharedModelsList({ files: sharedModel.list });
+    sharedIFC.list = [];
+    await sharedIFC.loadIFCFiles();
+    sharedIFC.list.sort((a, b) => a.name.localeCompare(b.name));
+    updateSharedModelsList({ files: sharedIFC.list });
   };
 
   refreshSharedModels();
 
   return BUI.html`
-    <bim-panel-section icon=${appIcons.MODEL} label="Models">
+    <bim-panel-section icon=${appIcons.MODEL} label="IFC List">
       <div style="display: flex; gap: 0.5rem;">
         <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200"></bim-text-input>
         <bim-button style="flex: 0;" icon=${appIcons.ADD}>
