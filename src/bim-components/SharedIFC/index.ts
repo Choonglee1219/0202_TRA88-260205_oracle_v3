@@ -40,14 +40,14 @@ export class SharedIFC {
     }
   }
 
-  async loadIFC(ifcId: number) {
+  async loadIFC(ifcid: number) {
     try{
-      const ifcResponse = await fetch(`/api/ifc/${ifcId}`, {
+      const ifcResponse = await fetch(`/api/ifc/${ifcid}`, {
         credentials: "include",
         method: "GET",
       });
       if (!ifcResponse.ok) {
-        console.warn(`Not found IFC data for ifc ID ${ifcId}`);
+        console.warn(`Not found IFC data for ifc ID ${ifcid}`);
         alert("해당 ID의 IFC 데이터를 찾을 수 없습니다.")
         return null;
       }
@@ -106,9 +106,9 @@ export class SharedIFC {
     }
   };
   
-  async deleteIFC(ifcId: number) {
+  async deleteIFC(ifcid: number) {
     try {
-      const ifcResponse = await fetch(`/api/ifc/${ifcId}`, {
+      const ifcResponse = await fetch(`/api/ifc/${ifcid}`, {
         credentials: "include",
         method: "DELETE",
       });
@@ -125,24 +125,24 @@ export class SharedIFC {
     }
   }
 
-  addModelUUID(ifcId: number, modelUUID: string) {
-    SharedIFC.modelUUIDMap.set(ifcId, modelUUID);
+  addModelUUID(ifcid: number, modelUUID: string) {
+    SharedIFC.modelUUIDMap.set(ifcid, modelUUID);
   }
 
-  getModelUUID(ifcId: number): string | undefined {
-    return SharedIFC.modelUUIDMap.get(ifcId);
+  getModelUUID(ifcid: number): string | undefined {
+    return SharedIFC.modelUUIDMap.get(ifcid);
   }
 
   getIfcIdByModelUUID(modelUUID: string): number | undefined {
-    for (const [ifcId, uuid] of SharedIFC.modelUUIDMap.entries()) {
+    for (const [ifcid, uuid] of SharedIFC.modelUUIDMap.entries()) {
       if (uuid === modelUUID) {
-        return ifcId;
+        return ifcid;
       }
     }
     return undefined;
   }
 
-  removeModelUUID(ifcId: number) {
-    SharedIFC.modelUUIDMap.delete(ifcId);
+  removeModelUUID(ifcid: number) {
+    SharedIFC.modelUUIDMap.delete(ifcid);
   }
 }

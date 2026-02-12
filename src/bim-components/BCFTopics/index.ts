@@ -158,7 +158,7 @@ export class BCFTopics extends OBC.Component {
     input.click();
   }
 
-  private async loadBCFContent(buffer: ArrayBuffer) {
+  async loadBCFContent(buffer: ArrayBuffer | Uint8Array) {
     this._loading = true;
     try {
       const { topics, viewpoints } = await this._bcf.load(new Uint8Array(buffer));

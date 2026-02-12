@@ -114,14 +114,14 @@ app.get("/api/ifc/:id", async (req: Request, res: Response): Promise<void> => {
   let connection: OracleDB.Connection | undefined;
   try {
     connection = await getConnection();
-    const ifcId = parseInt(req.params.id, 10);
-    if (isNaN(ifcId)) {
+    const ifcid = parseInt(req.params.id, 10);
+    if (isNaN(ifcid)) {
       res.status(400).json({ error: "ifc id 가 숫자가 아님!" });
       return;
     }
     const result = await connection.execute(
       `SELECT "content", "name" FROM "ifc" WHERE "id" = :id`,
-      { id: ifcId },
+      { id: ifcid },
       { 
         outFormat: OracleDB.OUT_FORMAT_OBJECT,
         fetchInfo: { content: { type: OracleDB.BUFFER } },
@@ -132,7 +132,7 @@ app.get("/api/ifc/:id", async (req: Request, res: Response): Promise<void> => {
       name: string | null
     };
     if (!ifc || !ifc.content) {
-      console.warn(`IFC data not found for id: ${ifcId}`);
+      console.warn(`IFC data not found for id: ${ifcid}`);
       res.status(404).json({ error: "IFC data not found" });
       return;
     }  
@@ -213,22 +213,22 @@ app.delete("/api/ifc/:id", async (req: Request, res: Response) => {
   let connection: OracleDB.Connection | undefined;
   try {
     connection = await getConnection();
-    const ifcId = parseInt(req.params.id, 10);
-    if (Number.isNaN(ifcId)) {
+    const ifcid = parseInt(req.params.id, 10);
+    if (Number.isNaN(ifcid)) {
       res.status(400).json({ error: "Invalid IFC ID" });
       return;
     }
 
     const result = await connection.execute(
       `DELETE FROM "ifc" WHERE "id" = :id`,
-      { id: ifcId },
+      { id: ifcid },
       { autoCommit: true },
     );
     if (result.rowsAffected && result.rowsAffected > 0) {
-      console.log(`IFC with ID ${ifcId} deleted successfully.`);
+      console.log(`IFC with ID ${ifcid} deleted successfully.`);
       res.status(200).json({ message: "IFC deleted successfully." });
     } else {
-      console.warn(`IFC with ID ${ifcId} not found.`);
+      console.warn(`IFC with ID ${ifcid} not found.`);
       res.status(404).json({ error: "IFC not found." });
     }
   } catch (err) {
@@ -251,7 +251,7 @@ app.get("/api/bcfs/name", async (_req: Request, res: Response): Promise<any> => 
   try {
     connection = await getConnection();
     const result = await connection.execute(
-      `SELECT "id", "name", "ifcId" FROM "bcf"`,
+      `SELECT "id", "name", "ifcid" FROM "bcf"`,
       [],
       { outFormat: OracleDB.OUT_FORMAT_OBJECT },
     );  
@@ -326,15 +326,15 @@ app.post("/api/bcf", upload.single("file"), async (req: Request, res: Response) 
     const name = req.file.originalname;
     const bufferContent = req.file.buffer;
     
-    // Validate ifcId
-    const rawIfcId = req.body.ifcId;
-    if (rawIfcId === undefined || rawIfcId === null || rawIfcId === "") {
-      return res.status(400).json({ error: "ifcId is required." });
+    // Validate ifcid
+    const rawifcid = req.body.ifcid;
+    if (rawifcid === undefined || rawifcid === null || rawifcid === "") {
+      return res.status(400).json({ error: "ifcid is required." });
     }
 
-    const parsedIfcId = Number(rawIfcId);
-    if (!Number.isInteger(parsedIfcId)) {
-      return res.status(400).json({ error: "Invalid ifcId format. Must be an integer." });
+    const parsedifcid = Number(rawifcid);
+    if (!Number.isInteger(parsedifcid)) {
+      return res.status(400).json({ error: "Invalid ifcid format. Must be an integer." });
     }
 
     // Debug log for BCF insertion
@@ -342,12 +342,12 @@ app.post("/api/bcf", upload.single("file"), async (req: Request, res: Response) 
       name,
       bufferIsBuffer: Buffer.isBuffer(bufferContent),
       bufferLength: bufferContent?.length,
-      rawIfcId,
-      parsedIfcId,
-      parsedIfcIdType: typeof parsedIfcId,
+      rawifcid,
+      parsedifcid,
+      parsedifcidType: typeof parsedifcid,
     });
 
-    const sql = `INSERT INTO "bcf" ("name", "content", "ifcId") VALUES (:name, :content, :ifc_id) RETURNING "id" INTO :id`;
+    const sql = `INSERT INTO "bcf" ("name", "content", "ifcid") VALUES (:name, :content, :ifcid) RETURNING "id" INTO :id`;
     console.log("Executing SQL:", sql);
 
     const result = await connection.execute<{ id: number[] }> (
@@ -356,21 +356,24 @@ app.post("/api/bcf", upload.single("file"), async (req: Request, res: Response) 
         name: {
           val: name,
           type: OracleDB.DB_TYPE_VARCHAR,
+          dir: OracleDB.BIND_IN,
         },
         content: {
           val: bufferContent,
           type: OracleDB.DB_TYPE_BLOB,
+          dir: OracleDB.BIND_IN,
         },
-        ifc_id: {
-          val: parsedIfcId,
+        ifcid: {
+          val: parsedifcid,
           type: OracleDB.DB_TYPE_NUMBER,
+          dir: OracleDB.BIND_IN,
         },
         id: { 
-          type: OracleDB.DB_TYPE_NUMBER, 
-          dir: OracleDB.BIND_OUT, 
+          type: OracleDB.DB_TYPE_NUMBER,
+          dir: OracleDB.BIND_OUT,
         },
       },  
-      { autoCommit: true },
+      { autoCommit: true, outFormat: OracleDB.OUT_FORMAT_OBJECT},
     );  
     if (result.outBinds && Array.isArray(result.outBinds.id) && result.outBinds.id.length > 0) {
       res.status(201).json({
@@ -447,8 +450,8 @@ const bcfSQL = `
     "id" NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     "name" VARCHAR2(255) NOT NULL,
     "content" BLOB,
-    "ifcId" NUMBER NOT NULL,
-    CONSTRAINT "fk_bcf_ifc" FOREIGN KEY ("ifcId") REFERENCES "ifc"("id")
+    "ifcid" NUMBER NOT NULL,
+    CONSTRAINT "fk_bcf_ifc" FOREIGN KEY ("ifcid") REFERENCES "ifc"("id")
   )  
 `;  
 

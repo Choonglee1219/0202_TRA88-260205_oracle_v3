@@ -1,6 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { SharedBCF } from "../../bim-components/SharedBCF";
+import { BCFTopics } from "../../bim-components/BCFTopics";
 import { appIcons } from "../../globals";
 
 export interface BCFListPanelState {
@@ -11,17 +12,31 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
   const { components } = state;
   const sharedBCF = new SharedBCF();
   const fragments = components.get(OBC.FragmentsManager);
-  const bcfTopics = components.get(OBC.BCFTopics);
+  const bcfTopics = components.get(BCFTopics);
 
   type BcfFileState = {
-    files: { id: number; name: string; ifcId: number }[];
+    files: { id: number; name: string; ifcid: number }[];
   };
 
   const loadBCF = async (bcfId: number) => {
     const bcf = await sharedBCF.loadBCF(bcfId);
     if (bcf && bcf.content) {
-      bcfTopics.dispose(); // 기존 토픽 제거 (요청사항: 그 bcf의 topic들만 보이게)
-      await bcfTopics.load(bcf.content as Uint8Array);
+      await bcfTopics.loadBCFContent(bcf.content as Uint8Array);
+    }
+  };
+
+  const downloadBCF = async (bcfId: number) => {
+    const bcf = await sharedBCF.loadBCF(bcfId);
+    if (bcf && bcf.content) {
+      const blob = new Blob([bcf.content], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${bcf.name}.bcf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -46,6 +61,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
                 <div style="display: flex; gap: 0.375rem; align-items: center;">
                   <bim-label style="flex: 1;">${file.name}</bim-label>
                   <bim-button style="flex: 0;" @click=${() => loadBCF(file.id)} icon=${appIcons.IMPORT} tooltip-title="Load Topics"></bim-button>
+                  <bim-button style="flex: 0;" @click=${() => downloadBCF(file.id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF"></bim-button>
                   <bim-button style="flex: 0;" @click=${() => deleteBCF(file.id)} icon=${appIcons.DELETE} tooltip-title="Delete BCF"></bim-button>
                 </div>
               `,
@@ -69,7 +85,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
     }
 
     // 로드된 모델과 연관된 BCF 파일만 필터링
-    const filteredList = sharedBCF.list.filter(bcf => loadedDbIds.has(bcf.ifcId));
+    const filteredList = sharedBCF.list.filter(bcf => loadedDbIds.has(bcf.ifcid));
 
     // 중복 제거
     const uniqueList = [...new Map(filteredList.map((item) => [item.id, item])).values()];

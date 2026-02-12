@@ -7,13 +7,13 @@ interface BcfRow {
 interface BcfBasicInfo {
   id: number;
   name: string;
-  ifcId: number;
+  ifcid: number;
 }
 
 interface BcfDatabaseEntry {
   id: number;
   name: string;
-  ifcId: number;
+  ifcid: number;
 }
 
 export class SharedBCF {
@@ -35,7 +35,7 @@ export class SharedBCF {
         const bcfInfo: BcfBasicInfo = {
           id: row.id,
           name: row.name,
-          ifcId: row.ifcId,
+          ifcid: row.ifcid,
         };
         this.list.push(bcfInfo);
       }
@@ -82,13 +82,21 @@ export class SharedBCF {
     }
   }
 
-  async saveBCF(file: File, ifcId: number) {
+  async saveBCF(file: File | { name: string, content: Uint8Array }, ifcid: number) {
     try {
       const newName = file.name.replace(/\.bcf$/i, "");
-      console.log(`[SharedBCF] Uploading BCF: ${newName}, ifcId: ${ifcId}`);
-      const newFile = new File([file], newName, { type: file.type });
+      console.log(`[SharedBCF] Uploading BCF: ${newName}, ifcid: ${ifcid}`);
+      
+      let newFile: File;
+      if (file instanceof File) {
+        newFile = new File([file], newName, { type: file.type });
+      } else {
+        const blob = new Blob([file.content as any], { type: "application/octet-stream" });
+        newFile = new File([blob], newName, { type: "application/octet-stream" });
+      }
+
       const formData = new FormData();
-      formData.append("ifcId", ifcId.toString());
+      formData.append("ifcid", ifcid.toString());
       formData.append("file", newFile);
 
       const bcfResponse = await fetch("/api/bcf", {

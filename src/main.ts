@@ -60,7 +60,8 @@ const viewport = BUI.Component.create<BUI.Viewport>(() => {
 
 world.renderer = new OBF.PostproductionRenderer(components, viewport);
 world.camera = new OBC.OrthoPerspectiveCamera(components);
-world.camera.threePersp.near = 0.01;
+world.camera.threePersp.near = 0.5;
+world.camera.threePersp.far = 100000;
 world.camera.threePersp.updateProjectionMatrix();
 world.camera.controls.restThreshold = 0.05;
 
@@ -87,12 +88,13 @@ components.get(OBC.Raycasters).get(world);
 // 🖼️Post-production Setup
 const { postproduction } = world.renderer;
 postproduction.enabled = true;
-postproduction.style = OBF.PostproductionAspect.COLOR_SHADOWS;
+postproduction.style = OBF.PostproductionAspect.COLOR_PEN_SHADOWS;
 
 const { aoPass, edgesPass } = world.renderer.postproduction;
 
 edgesPass.enabled = true;
 edgesPass.color = new THREE.Color(0x494b50);
+edgesPass.width = 1;
 
 const aoParameters = {
   radius: 0.25,
@@ -126,6 +128,11 @@ fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
   if (isLod) {
     world.renderer!.postproduction.basePass.isolatedMaterials.push(material);
   }
+  material.polygonOffset = true;
+  material.polygonOffsetUnits = 4;
+  material.polygonOffsetFactor = 2;
+  material.transparent = true;
+  material.opacity = 0.5;
 });
 
 // 📷Camera EventHandler
@@ -169,9 +176,13 @@ hoverer.world = world;
 hoverer.enabled = true;
 hoverer.material = new THREE.MeshBasicMaterial({
   color: new THREE.Color("#bcf124"),
+  polygonOffset: true,
+  polygonOffsetUnits: 4,
+  polygonOffsetFactor: 2,
   transparent: true,
   opacity: 0.2,
   depthTest: false,
+  depthWrite: false,
 });
 
 // ✂️Clipper Setup

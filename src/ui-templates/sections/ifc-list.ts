@@ -68,13 +68,13 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     }
     if (modelId) globalProps.loadedFiles.set(modelId, bytes);
     if (confirm("데이터베이스에 저장하시겠습니까?")) {
-      const ifcId = await saveToDB(file);
-      if (!ifcId) {
+      const ifcid = await saveToDB(file);
+      if (!ifcid) {
         alert("DB 저장에 실패하여 모델 로딩을 취소합니다.");
       } else {
-        (model as any).dbId = ifcId;
-        sharedIFC.addModelUUID(ifcId, modelId);
-        console.log(`IFC DB저장 ID: ${ifcId}, Model UUID: ${modelId}`);
+        (model as any).dbId = ifcid;
+        sharedIFC.addModelUUID(ifcid, modelId);
+        console.log(`IFC DB저장 ID: ${ifcid}, Model UUID: ${modelId}`);
         fragments.list.set(modelId, model);
       }
     }
@@ -112,12 +112,12 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     return id;
   };
   
-  const loadIFCModel = async (ifcId: number) => {
-    const ifc = await sharedIFC.loadIFC(ifcId);
+  const loadIFCModel = async (ifcid: number) => {
+    const ifc = await sharedIFC.loadIFC(ifcid);
     if (ifc && ifc.content) {
       const model = await ifcLoader.load(ifc.content, true, ifc.name);
       (model as any).name = ifc.name;
-      (model as any).dbId = ifcId;
+      (model as any).dbId = ifcid;
       const globalProps = components.get(PropertiesManager);
       let modelId = (model as any).uuid;
       if (!modelId) {
@@ -130,14 +130,14 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
       }
       if (modelId) {
         globalProps.loadedFiles.set(modelId, ifc.content);
-        sharedIFC.addModelUUID(ifcId, modelId);
+        sharedIFC.addModelUUID(ifcid, modelId);
         fragments.list.set(modelId, model);
       }
     }
   };
   
-    const downloadIFCModel = async (ifcId: number) => {
-      const ifc = await sharedIFC.loadIFC(ifcId);
+    const downloadIFCModel = async (ifcid: number) => {
+      const ifc = await sharedIFC.loadIFC(ifcid);
       if (ifc && ifc.content) {
         const blob = new Blob([ifc.content], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
@@ -151,9 +151,9 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
       }
     };
 
-  const deleteIFCModel = async (ifcId: number) => {
+  const deleteIFCModel = async (ifcid: number) => {
     if (!confirm("데이터베이스에서 삭제하시겠습니까?")) return;
-    const success = await sharedIFC.deleteIFC(ifcId);
+    const success = await sharedIFC.deleteIFC(ifcid);
     if (success) {
       alert("데이터베이스에서 삭제되었습니다.");
       await refreshSharedModels();
