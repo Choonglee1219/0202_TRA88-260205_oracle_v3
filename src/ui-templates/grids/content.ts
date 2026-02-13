@@ -137,7 +137,6 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       BCFManager: {
         template: `
           "ifcList viewer bcfList" 1fr
-          "ifcList viewer bcfList" 1fr
           "topicList topicList topicList" 1fr
           / ${MEDIUM_COLUMN_WIDTH} 1fr ${MEDIUM_COLUMN_WIDTH}
         `,

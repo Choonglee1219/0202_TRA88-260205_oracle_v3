@@ -7,4 +7,3 @@ export * from "./props-manager";
 export * from "./view-templates";
 export * from "./topic-list";
 export * from "./bcf-list";
-export * from "./frag-list";

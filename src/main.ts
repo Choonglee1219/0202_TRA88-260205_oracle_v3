@@ -170,20 +170,20 @@ highlighter.setup({
   },
 });
 
-// 🖱️Hoverer Setup
-const hoverer = components.get(OBF.Hoverer);
-hoverer.world = world;
-hoverer.enabled = true;
-hoverer.material = new THREE.MeshBasicMaterial({
-  color: new THREE.Color("#bcf124"),
-  polygonOffset: true,
-  polygonOffsetUnits: 4,
-  polygonOffsetFactor: 2,
-  transparent: true,
-  opacity: 0.2,
-  depthTest: false,
-  depthWrite: false,
-});
+// // 🖱️Hoverer Setup
+// const hoverer = components.get(OBF.Hoverer);
+// hoverer.world = world;
+// hoverer.enabled = true;
+// hoverer.material = new THREE.MeshBasicMaterial({
+//   color: new THREE.Color("#bcf124"),
+//   polygonOffset: true,
+//   polygonOffsetUnits: 4,
+//   polygonOffsetFactor: 2,
+//   transparent: true,
+//   opacity: 0.2,
+//   depthTest: false,
+//   depthWrite: false,
+// });
 
 // ✂️Clipper Setup
 const clipper = components.get(OBC.Clipper);

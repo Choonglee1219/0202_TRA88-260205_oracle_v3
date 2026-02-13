@@ -96,8 +96,10 @@ export class SharedIFC {
         const errorText = await ifcResponse.text();
         console.error("Error saving IFC to DB:", errorText);
         alert("IFC 저장에 실패했습니다. 다시 시도해 주세요.");
+        return null;
       }
       const response = await ifcResponse.json();
+      console.log("SharedIFC save response:", response);
       return response.id;
     } catch (error) {
       console.error("Error saving IFC to DB:", error);

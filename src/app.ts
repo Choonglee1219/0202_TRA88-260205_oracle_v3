@@ -245,6 +245,167 @@ app.delete("/api/ifc/:id", async (req: Request, res: Response) => {
   }
 });
 
+// Get frags name
+app.get("/api/frags/name", async (_req: Request, res: Response): Promise<any> => {
+  let connection: OracleDB.Connection | undefined;
+  try {
+    connection = await getConnection();
+    const result = await connection.execute(
+      `SELECT "id", "name" FROM "frag"`,
+      [],
+      { outFormat: OracleDB.OUT_FORMAT_OBJECT },
+    );  
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching frags: ", err);
+    res.status(500).json({ error: "Failed to fetch frags" });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error closing connection:", err);
+      }  
+    }  
+  }  
+});  
+
+// Get FRAG
+app.get("/api/frag/:id", async (req: Request, res: Response): Promise<void> => {
+  let connection: OracleDB.Connection | undefined;
+  try {
+    connection = await getConnection();
+    const fragid = parseInt(req.params.id, 10);
+    if (isNaN(fragid)) {
+      res.status(400).json({ error: "frag id 가 숫자가 아님!" });
+      return;
+    }
+    const result = await connection.execute(
+      `SELECT "content", "name" FROM "frag" WHERE "id" = :id`,
+      { id: fragid },
+      { 
+        outFormat: OracleDB.OUT_FORMAT_OBJECT,
+        fetchInfo: { content: { type: OracleDB.BUFFER } },
+      } as any
+    );  
+    const frag = result.rows?.[0] as {
+      content: Buffer | null,
+      name: string | null
+    };
+    if (!frag || !frag.content) {
+      console.warn(`FRAG data not found for id: ${fragid}`);
+      res.status(404).json({ error: "FRAG data not found" });
+      return;
+    }  
+    const base64Content = frag.content.toString("base64");
+    res.json({ name: frag.name, content: base64Content });
+  } catch (err) {
+    console.error("Error fetching FRAG:", err);
+    res.status(500).json({ error: "Failed to fetch FRAG" });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error closing connection:", err);
+      }  
+    }  
+  }  
+});  
+
+// Post FRAG
+app.post("/api/frag", upload.single("file"), async (req: Request, res: Response) => {
+  let connection: OracleDB.Connection | undefined;
+  try {
+    connection = await getConnection();
+    
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded." });
+    }
+
+    const name = req.file.originalname;
+    const bufferContent = req.file.buffer;
+    
+    const sql = `INSERT INTO "frag" ("name", "content") VALUES (:name, :content) RETURNING "id" INTO :id`;
+
+    const result = await connection.execute<{ id: number[] }> (
+      sql,
+      {
+        name: {
+          val: name,
+          type: OracleDB.DB_TYPE_VARCHAR,
+        },
+        content: {
+          val: bufferContent,
+          type: OracleDB.DB_TYPE_BLOB,
+        },
+        id: { 
+          type: OracleDB.DB_TYPE_NUMBER, 
+          dir: OracleDB.BIND_OUT, 
+        },
+      },  
+      { autoCommit: true },
+    );  
+    if (result.outBinds && Array.isArray(result.outBinds.id) && result.outBinds.id.length > 0) {
+      res.status(201).json({
+        message: "FRAG inserted successfully",
+        id: result.outBinds.id[0],
+      });  
+    } else {
+      console.error("Error inserting FRAG: No ID returned");
+      res.status(500).json({ error: "Failed to insert FRAG" });
+    }  
+  } catch (err) {
+    console.error("Error reading or inserting the frag file: ", err);
+    res.status(500).json({ error: "Failed to insert FRAG: ", details: err instanceof Error ? err.message : String(err) });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error closing connection:", err);
+      }  
+    }  
+  }  
+});  
+
+// Delete FRAG
+app.delete("/api/frag/:id", async (req: Request, res: Response) => {
+  let connection: OracleDB.Connection | undefined;
+  try {
+    connection = await getConnection();
+    const fragid = parseInt(req.params.id, 10);
+    if (Number.isNaN(fragid)) {
+      res.status(400).json({ error: "Invalid FRAG ID" });
+      return;
+    }
+
+    const result = await connection.execute(
+      `DELETE FROM "frag" WHERE "id" = :id`,
+      { id: fragid },
+      { autoCommit: true },
+    );
+    if (result.rowsAffected && result.rowsAffected > 0) {
+      console.log(`FRAG with ID ${fragid} deleted successfully.`);
+      res.status(200).json({ message: "FRAG deleted successfully." });
+    } else {
+      console.warn(`FRAG with ID ${fragid} not found.`);
+      res.status(404).json({ error: "FRAG not found." });
+    }
+  } catch (err) {
+    console.error("Error deleting FRAG:", err);
+    res.status(500).json({ error: "Failed to delete FRAG" });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error closing connection:", err);
+      }
+    }
+  }
+});
+
 // Get bcfs name
 app.get("/api/bcfs/name", async (_req: Request, res: Response): Promise<any> => {
   let connection: OracleDB.Connection | undefined;
@@ -445,6 +606,14 @@ const ifcSQL = `
   )  
 `;  
 
+const fragSQL = `
+  CREATE TABLE "frag" (
+    "id" NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    "name" VARCHAR2(255) NOT NULL,
+    "content" BLOB
+  )  
+`;
+
 const bcfSQL = `
   CREATE TABLE "bcf" (
     "id" NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -463,6 +632,11 @@ async function setupDatabase() {
       await connection.execute(ifcSQL);
     } catch (error) {
       console.error("Error setting up ifc table:", error);
+    }
+    try {
+      await connection.execute(fragSQL);
+    } catch (error) {
+      console.error("Error setting up frag table:", error);
     }
     try {
       await connection.execute(bcfSQL);
