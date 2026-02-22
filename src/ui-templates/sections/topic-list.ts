@@ -19,15 +19,22 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   bcfTopics.setupTable(table);
 
+  const onSearch = (e: Event) => {
+    const input = e.target as BUI.TextInput;
+    table.queryString = input.value;
+  };
+
   return BUI.html`
     <bim-panel-section fixed icon=${appIcons.TASK} label="Topic List">
-      <div style="display: flex; gap: 0.25rem">
-        <bim-button @click=${() => bcfTopics.importBCF()} label="Import BCF" icon=${appIcons.IMPORT}></bim-button>
-        <bim-button @click=${() => bcfTopics.exportBCF()} label="Export BCF" icon=${appIcons.EXPORT}></bim-button>
-        <bim-button @click=${() => bcfTopics.saveBCFToDB()} label="Save To DB" icon=${appIcons.SAVE}></bim-button>
-        <bim-button @click=${() => newTopicModal.showModal()} label="Create Topic" icon=${appIcons.ADD}></bim-button>
-        <bim-button @click=${() => updateTopicModal.showModal(table.selection)} label="Update Topic" icon=${appIcons.REF}></bim-button>
-        <bim-button @click=${() => bcfTopics.delete(table.selection)} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
+      <div style="display: flex; gap: 0.5rem;">
+        <div style="display: flex; gap: 0.25rem; flex: 1;">
+          <bim-button style="flex: 1;" @click=${() => newTopicModal.showModal()} label="Create Topic" icon=${appIcons.ADD}></bim-button>
+          <bim-button style="flex: 1;" @click=${() => updateTopicModal.showModal(table.selection)} label="Update Topic" icon=${appIcons.REF}></bim-button>
+          <bim-button style="flex: 1;" @click=${() => bcfTopics.delete(table.selection)} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
+          <bim-button style="flex: 1;" @click=${() => bcfTopics.deleteAll()} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
+          <bim-button style="flex: 1;" @click=${() => bcfTopics.saveBCF()} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
+        </div>
+        <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
       </div>
       ${table}
     </bim-panel-section>

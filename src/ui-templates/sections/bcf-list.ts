@@ -45,7 +45,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
     const success = await sharedBCF.deleteBCF(bcfId);
     if (success) {
       alert("데이터베이스에서 삭제되었습니다.");
-      await refreshBcfList();
+      await refreshSharedBCFList();
     } else {
       alert("BCF 파일 삭제에 실패하였습니다.");
     }
@@ -73,9 +73,24 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
 
   const [bcfList, updateBcfList] = BUI.Component.create(creator, { files: [] });
 
-  const refreshBcfList = async () => {
+  const onSearch = (e: Event) => {
+    const input = e.target as BUI.TextInput;
+    const value = input.value.toLowerCase();
+    
+    const loadedDbIds = new Set<number>();
+    for (const [, model] of fragments.list) {
+      const dbId = (model as any).dbId;
+      if (dbId) loadedDbIds.add(dbId);
+    }
+
+    const filteredBCF = sharedBCF.list.filter(bcf => loadedDbIds.has(bcf.ifcid) && bcf.name.toLowerCase().includes(value));
+    updateBcfList({ files: filteredBCF });
+  };
+
+  const refreshSharedBCFList = async () => {
     sharedBCF.list = [];
     await sharedBCF.loadBCFFiles();
+    sharedBCF.list.sort((a, b) => a.name.localeCompare(b.name));
     
     // 현재 로드된 모델들의 DB ID 수집
     const loadedDbIds = new Set<number>();
@@ -85,23 +100,21 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
     }
 
     // 로드된 모델과 연관된 BCF 파일만 필터링
-    const filteredList = sharedBCF.list.filter(bcf => loadedDbIds.has(bcf.ifcid));
-
-    // 중복 제거
-    const uniqueList = [...new Map(filteredList.map((item) => [item.id, item])).values()];
-    uniqueList.sort((a, b) => a.name.localeCompare(b.name));
-    updateBcfList({ files: uniqueList });
+    const filteredBCF = sharedBCF.list.filter(bcf => loadedDbIds.has(bcf.ifcid));
+    updateBcfList({ files: filteredBCF });
   };
 
   // 모델이 로드되거나 삭제될 때 목록 갱신
-  fragments.list.onItemSet.add(refreshBcfList);
-  fragments.list.onItemUpdated.add(refreshBcfList);
-  fragments.list.onItemDeleted.add(refreshBcfList);
+  fragments.list.onItemSet.add(refreshSharedBCFList);
+  fragments.list.onItemUpdated.add(refreshSharedBCFList);
+  fragments.list.onItemDeleted.add(refreshSharedBCFList);
   
   return BUI.html`
-    <bim-panel-section icon=${appIcons.TASK} label="BCF List">
+    <bim-panel-section fixed icon=${appIcons.TASK} label="BCF List">
       <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-        <bim-button @click=${refreshBcfList} label="Refresh" icon=${appIcons.REF}></bim-button>
+        <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200"></bim-text-input>
+        <bim-button style="flex: 0;" @click=${() => bcfTopics.saveBCFToDB()} icon=${appIcons.ADD} tooltip-title="Import BCF"></bim-button>
+        <bim-button style="flex: 0;" @click=${refreshSharedBCFList} icon=${appIcons.REFRESH} tooltip-title="Refresh"></bim-button>
       </div>
       ${bcfList}
     </bim-panel-section>

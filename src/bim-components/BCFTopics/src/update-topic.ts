@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { appIcons } from "../../../globals";
+import { appIcons, users } from "../../../globals";
 
 const addBackdropStyles = () => {
   const styleId = "update-topic-modal-styles";
@@ -95,6 +95,7 @@ export const updateTopic = (bcfTopics: any) => {
 
     await bcf.list.set(currentTopic.guid, currentTopic);
     modal.close();
+    alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
   };
 
   const modal = BUI.Component.create<HTMLDialogElement>(() => {
@@ -140,8 +141,14 @@ export const updateTopic = (bcfTopics: any) => {
       if (values) {
         for (const val of values) {
           const opt = document.createElement("bim-option") as any;
-          opt.label = val;
-          opt.value = val;
+          if (dropdown === assigneeDropdown && users[val]) {
+            opt.label = users[val].name;
+            opt.value = val;
+            if (users[val].picture) opt.setAttribute("img", users[val].picture);
+          } else {
+            opt.label = val;
+            opt.value = val;
+          }
           if (selected) {
             if (typeof selected === "string" && val === selected) opt.checked = true;
             else if (selected instanceof Set && selected.has(val)) opt.checked = true;

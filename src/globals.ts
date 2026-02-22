@@ -39,6 +39,8 @@ export const appIcons = {
   DOWNLOAD: "/icons/oi--cloud-download.svg",
   DELETE: "/icons/mdi--delete-forever.svg",
   EDIT: "/icons/mdi--edit.svg",
+  REFRESH: "/icons/mdi--refresh.svg",
+  CLEAR: "/icons/mdi--clear-circle-outline.svg",
 };
 
 export const tooltips = {
@@ -66,18 +68,15 @@ export const tooltips = {
 
 export const users: CUI.TopicUserStyles = {
   "jhon.doe@example.com": {
-    name: "Jhon Doe",
-    picture:
-      "https://www.profilebakery.com/wp-content/uploads/2023/04/Profile-Image-AI.jpg",
+    name: "John Doe",
+    picture: "/profiles/john.jpg",
   },
   "user_a@something.com": {
     name: "User A",
-    picture:
-      "https://www.profilebakery.com/wp-content/uploads/2023/04/Portrait-Photography.jpg",
+    picture: "/profiles/user_a.jpg",
   },
   "user_b@something.com": {
     name: "User B",
-    picture:
-      "https://www.profilebakery.com/wp-content/uploads/2023/04/AI-Portrait.jpg",
+    picture: "/profiles/user_b.jpg",
   },
 };

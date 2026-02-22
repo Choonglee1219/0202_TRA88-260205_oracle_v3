@@ -49,6 +49,10 @@ async function initPools() {
 
 app.listen(PORT, () => {
   console.log(`✅ Connected successfully on port ${PORT}`);
+  console.log("Node:", process.version);
+  console.log("oracledb:", OracleDB.versionString);
+  console.log("Thin:", OracleDB.thin);
+  console.log("Client:", OracleDB.oracleClientVersionString);
 });    
 
 // ✅ 공통 Connection Pool 연결 함수

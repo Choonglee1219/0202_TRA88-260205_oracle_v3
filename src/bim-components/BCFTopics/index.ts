@@ -134,6 +134,19 @@ export class BCFTopics extends OBC.Component {
         this._bcf.list.delete(topic.guid);
       }
       selection.clear();
+      alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
+    }
+  }
+
+  // Deleting All Topics
+  deleteAll() {
+    if (this.list.size === 0) return;
+    const confirmation = confirm(`Are you sure you want to delete all ${this.list.size} topics?`);
+    if (confirmation) {
+      const guids = Array.from(this.list.keys());
+      for (const guid of guids) {
+        this._bcf.list.delete(guid);
+      }
     }
   }
 
@@ -195,8 +208,8 @@ export class BCFTopics extends OBC.Component {
     });
   }
 
-  // Exporting BCF File
-  async exportBCF(name?: string) {
+  // Creating BCF Blob
+  private async createBCFBlob(name?: string) {
     if (!name) {
       name = "topics.bcf";
       const fragments = this.components.get(OBC.FragmentsManager);
@@ -282,10 +295,65 @@ export class BCFTopics extends OBC.Component {
         }
       }
       const newBlob = await zip.generateAsync({ type: "blob" });
-      this.downloadFile(newBlob, name);
+      return { blob: newBlob, name };
     } catch (e) {
       console.error("Error post-processing BCF:", e);
-      this.downloadFile(blob, name);
+      return { blob, name };
+    }
+  }
+
+  // Exporting BCF File
+  async exportBCF(name?: string) {
+    const { blob, name: fileName } = await this.createBCFBlob(name);
+    this.downloadFile(blob, fileName);
+  }
+
+  // New function: Save current topics as BCF to DB
+  async saveBCF() {
+    const fragments = this.components.get(OBC.FragmentsManager);
+    const sharedIFC = new SharedIFC();
+    const loadedModels: { id: number; name: string }[] = [];
+    
+    for (const [uuid, model] of fragments.list) {
+      const m = model as any;
+      const dbId = m.dbId || sharedIFC.getIfcIdByModelUUID(uuid);
+      if (dbId) {
+        loadedModels.push({ id: dbId, name: m.name || "Untitled" });
+      }
+    }
+
+    if (loadedModels.length === 0) {
+      alert("데이터베이스에 저장된 IFC 모델이 로드되어 있지 않습니다. BCF를 저장할 수 없습니다.");
+      return;
+    }
+
+    let selectedIfcId = loadedModels[0].id;
+    let selectedModelName = loadedModels[0].name;
+
+    if (loadedModels.length > 1) {
+       const options = loadedModels.map((m, i) => `${i + 1}. ${m.name}`).join("\n");
+       const userInput = prompt(`BCF를 연결할 IFC 모델을 선택하세요 (번호 입력):\n${options}`, "1");
+       if (!userInput) return;
+       const index = parseInt(userInput) - 1;
+       if (isNaN(index) || index < 0 || index >= loadedModels.length) {
+         alert("잘못된 선택입니다.");
+         return;
+       }
+       selectedIfcId = loadedModels[index].id;
+       selectedModelName = loadedModels[index].name;
+    }
+
+    const defaultName = `${selectedModelName}.bcf`;
+    const fileName = prompt("BCF 파일 이름을 입력하세요:", defaultName);
+    if (!fileName) return;
+
+    const { blob } = await this.createBCFBlob(fileName);
+    const file = new File([blob], fileName);
+
+    const sharedBCF = new SharedBCF();
+    const newBcfId = await sharedBCF.saveBCF(file, selectedIfcId);
+    if (newBcfId) {
+       alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
     }
   }
 
