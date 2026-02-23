@@ -108,6 +108,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
   fragments.list.onItemSet.add(refreshSharedBCFList);
   fragments.list.onItemUpdated.add(refreshSharedBCFList);
   fragments.list.onItemDeleted.add(refreshSharedBCFList);
+  bcfTopics.onRefresh.add(refreshSharedBCFList);
   
   return BUI.html`
     <bim-panel-section fixed icon=${appIcons.TASK} label="BCF List">

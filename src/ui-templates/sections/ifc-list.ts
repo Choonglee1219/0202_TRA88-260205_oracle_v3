@@ -5,6 +5,7 @@ import { appIcons } from "../../globals";
 import { SharedIFC } from '../../bim-components/SharedIFC';
 import { SharedFRAG } from '../../bim-components/SharedFRAG';
 import { PropertiesManager } from "../../bim-components/PropsManager";
+import { BCFTopics } from "../../bim-components/BCFTopics";
 
 export interface IFCListPanelState {
   components: OBC.Components;
@@ -19,6 +20,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   const fragments = components.get(OBC.FragmentsManager);
   const sharedIFC = new SharedIFC();
   const sharedFRAG = new SharedFRAG();
+  const bcfTopics = components.get(BCFTopics);
   
   const [modelsList] = CUI.tables.modelsList({
     components,
@@ -99,7 +101,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         sharedIFC.addModelUUID(ifcid, modelId);
         sharedFRAG.addModelUUID(fragid, modelId);
         console.log(`IFC DB 저장 ID: ${ifcid}, FRAG DB 저장 ID: ${fragid}, Model UUID: ${modelId}`);
-        fragments.list.set(modelId, model);
+        bcfTopics.onRefresh.trigger();
         await refreshSharedIFCList();
         await refreshSharedFRAGList();
       } else {
@@ -158,7 +160,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     }
   };
   
-    const downloadIFCModel = async (ifcid: number) => {
+    const downloadIFCModel = async (ifcid: number, cascade = true) => {
       const ifc = await sharedIFC.loadIFC(ifcid);
       if (ifc && ifc.content) {
         const blob = new Blob([ifc.content], { type: "application/octet-stream" });
@@ -170,15 +172,36 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+
+        if (cascade) {
+          const fragFile = sharedFRAG.list.find(f => f.name === ifc.name);
+          if (fragFile) {
+            await downloadFRAGModel(fragFile.id, false);
+          }
+        }
       }
     };
 
-  const deleteIFCModel = async (ifcid: number) => {
-    if (!confirm("데이터베이스에서 삭제하시겠습니까?")) return;
+  const deleteIFCModel = async (ifcid: number, cascade = true) => {
+    const file = sharedIFC.list.find(f => f.id === ifcid);
+    const name = file ? file.name : null;
+
     const success = await sharedIFC.deleteIFC(ifcid);
     if (success) {
-      alert("데이터베이스에서 삭제되었습니다.");
+      for (const [, model] of fragments.list) {
+        if ((model as any).dbId === ifcid) {
+          model.dispose();
+        }
+      }
+
       await refreshSharedIFCList();
+
+      if (cascade && name) {
+        const fragFile = sharedFRAG.list.find(f => f.name === name);
+        if (fragFile) {
+          await deleteFRAGModel(fragFile.id, false);
+        }
+      }
     } else {
       alert("IFC 파일 삭제에 실패하였습니다.");
     }
@@ -191,10 +214,11 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
       (model as any).name = frag.name;
       (model as any).dbId = fragid;
       sharedFRAG.addModelUUID(fragid, (model as any).uuid);
+      bcfTopics.onRefresh.trigger();
     }
   };
   
-  const downloadFRAGModel = async (fragid: number) => {
+  const downloadFRAGModel = async (fragid: number, cascade = true) => {
     const frag = await sharedFRAG.loadFRAG(fragid);
     if (frag && frag.content) {
       const blob = new Blob([frag.content], { type: "application/octet-stream" });
@@ -206,15 +230,37 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      if (cascade) {
+        const ifcFile = sharedIFC.list.find(f => f.name === frag.name);
+        if (ifcFile) {
+          await downloadIFCModel(ifcFile.id, false);
+        }
+      }
     }
   };
 
-  const deleteFRAGModel = async (fragid: number) => {
-    if (!confirm("데이터베이스에서 삭제하시겠습니까?")) return;
+  const deleteFRAGModel = async (fragid: number, cascade = true) => {
+    const file = sharedFRAG.list.find(f => f.id === fragid);
+    const name = file ? file.name : null;
+
     const success = await sharedFRAG.deleteFRAG(fragid);
     if (success) {
+      for (const [, model] of fragments.list) {
+        if ((model as any).dbId === fragid) {
+          model.dispose();
+        }
+      }
+
       alert("데이터베이스에서 삭제되었습니다.");
       await refreshSharedFRAGList();
+
+      if (cascade && name) {
+        const ifcFile = sharedIFC.list.find(f => f.name === name);
+        if (ifcFile) {
+          await deleteIFCModel(ifcFile.id, false);
+        }
+      }
     } else {
       alert("FRAG 파일 삭제에 실패하였습니다.");
     }
@@ -296,10 +342,9 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         </bim-button>
         <bim-button style="flex: 0" icon=${appIcons.SAVE} @click=${onSave}></bim-button>
       </div>
+      <bim-label>Loaded Model</bim-label>
       <div style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0.5rem;">${modelsList}</div>
-      <bim-label>Shared IFC</bim-label>
-      <div style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0.5rem;">${sharedIFCList}</div>
-      <bim-label>Shared FRAG</bim-label>
+      <bim-label>Shared Model</bim-label>
       <div style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0.5rem;">${sharedFRAGList}</div>
     </bim-panel-section> 
   `;

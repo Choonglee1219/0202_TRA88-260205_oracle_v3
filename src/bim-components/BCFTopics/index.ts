@@ -13,6 +13,7 @@ export * from "./src/update-topic";
 export class BCFTopics extends OBC.Component {
   static uuid = "e7526972-853c-4392-b6c6-33435e123456" as const;
   enabled = true;
+  readonly onRefresh = new OBC.Event<void>();
   private _bcf: OBC.BCFTopics;
   private _loading = false;
 
@@ -398,6 +399,7 @@ export class BCFTopics extends OBC.Component {
          alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
          const buffer = await file.arrayBuffer();
          await this.loadBCFContent(buffer);
+         this.onRefresh.trigger();
       }
     });
   }
