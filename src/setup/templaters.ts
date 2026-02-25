@@ -4,27 +4,27 @@ import { ViewTemplater } from "../bim-components";
 export const setupViewTemplates = (components: OBC.Components) => {
   const templater = components.get(ViewTemplater);
 
-  templater.list.set("Slabs", {
+  templater.list.set("Slab", {
     defaultVisibility: false,
     visibilityExceptions: {
       queries: new Set(["Slab"]),
     },
     colors: {
       queries: {
-        "#16b769": new Set(["Slab"]),
+        "#C0C0C0": new Set(["Slab"]),
       },
     },
   });
 
   templater.list.set("Structure & Duct", {
-    defaultVisibility: true,
+    defaultVisibility: false,
     visibilityExceptions: {
-      // queries: new Set(["Structure Elements", "Duct Elements"]),
+      queries: new Set(["Structure Elements", "Duct"]),
     },
     colors: {
       queries: {
-        "#d0da7e": new Set(["Structure Elements"]),
-        "#16b769": new Set(["Duct Elements"]),
+        "#C0C0C0": new Set(["Structure Elements"]),
+        "#92DEAD": new Set(["Duct"]),
       },
     },
   });

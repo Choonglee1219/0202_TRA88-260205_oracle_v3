@@ -20,17 +20,17 @@ const styles = import.meta.glob("../../../style.css", {
 export const queriesListTemplate: BUI.StatefullComponent<QueriesListState> = (
   state,
 ) => {
-  const { components } = state;
+  const { components, queryString } = state;
   const finder = components.get(OBC.ItemsFinder);
   const highlighter = components.get(OBF.Highlighter);
 
-  const onCreated = (e?: Element) => {
-    if (!e) return;
-    const table = e as BUI.Table;
-    table.columns = ["Name", { name: "Actions", width: "auto" }];
-    table.headersHidden = true;
-    table.noIndentation = true;
-    table.data = [...finder.list.keys()].map((key) => {
+  const tableData = [...finder.list.keys()]
+    .filter((key) => {
+      if (!queryString) return true;
+      return key.toLowerCase().includes(queryString.toLowerCase());
+    })
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => {
       return {
         data: {
           Name: key,
@@ -38,6 +38,13 @@ export const queriesListTemplate: BUI.StatefullComponent<QueriesListState> = (
         },
       };
     });
+
+  const onCreated = (e?: Element) => {
+    if (!e) return;
+    const table = e as BUI.Table;
+    table.columns = ["Name", { name: "Actions", width: "auto" }];
+    table.headersHidden = true;
+    table.noIndentation = true;
 
     table.dataTransform = {
       Actions: (_, rowData) => {
@@ -105,9 +112,10 @@ export const queriesListTemplate: BUI.StatefullComponent<QueriesListState> = (
         `;
       },
     };
+    table.data = tableData;
   };
 
   return BUI.html`
-    <bim-table ${BUI.ref(onCreated)}></bim-table>
+    <bim-table .data=${tableData} ${BUI.ref(onCreated)}></bim-table>
   `;
 };

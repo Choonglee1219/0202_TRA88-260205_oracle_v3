@@ -244,6 +244,23 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     const file = sharedFRAG.list.find(f => f.id === fragid);
     const name = file ? file.name : null;
 
+    if (cascade && name) {
+      const ifcFile = sharedIFC.list.find(f => f.name === name);
+      if (ifcFile) {
+        const ifcSuccess = await sharedIFC.deleteIFC(ifcFile.id);
+        if (!ifcSuccess) {
+          alert("연결된 IFC 파일 삭제에 실패하였습니다. (BCF 파일이 연결되어 있을 수 있습니다)");
+          return;
+        }
+        for (const [, model] of fragments.list) {
+          if ((model as any).dbId === ifcFile.id) {
+            model.dispose();
+          }
+        }
+        await refreshSharedIFCList();
+      }
+    }
+
     const success = await sharedFRAG.deleteFRAG(fragid);
     if (success) {
       for (const [, model] of fragments.list) {
@@ -254,13 +271,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
 
       alert("데이터베이스에서 삭제되었습니다.");
       await refreshSharedFRAGList();
-
-      if (cascade && name) {
-        const ifcFile = sharedIFC.list.find(f => f.name === name);
-        if (ifcFile) {
-          await deleteIFCModel(ifcFile.id, false);
-        }
-      }
     } else {
       alert("FRAG 파일 삭제에 실패하였습니다.");
     }

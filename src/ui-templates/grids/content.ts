@@ -143,9 +143,8 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       },
       Queries: {
         template: `
-          "queries viewer" 1fr
-          "elementData viewer" 1fr
-          / 1fr 1fr
+          "queries viewer elementData" 1fr
+          / ${MEDIUM_COLUMN_WIDTH} 1fr ${MEDIUM_COLUMN_WIDTH}
         `,
       },
       Properties: {

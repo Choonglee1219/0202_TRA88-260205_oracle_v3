@@ -1,5 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
+import * as OBF from "@thatopen/components-front";
 import { appIcons } from "../../globals";
 import { queriesList } from "../../ui-components";
 
@@ -13,8 +14,14 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
 ) => {
   const { components, isAdmin } = state;
   const finder = components.get(OBC.ItemsFinder);
+  const highlighter = components.get(OBF.Highlighter);
 
-  const [element] = queriesList({ components });
+  const [element, updateList] = queriesList({ components });
+
+  const onSearch = (e: Event) => {
+    const input = e.target as BUI.TextInput;
+    updateList({ components, queryString: input.value });
+  };
 
   let customBtn: BUI.TemplateResult | undefined;
   if (isAdmin) {
@@ -61,10 +68,120 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
     `;
   }
 
+  let nameInput: BUI.TextInput;
+  let entityInput: BUI.TextInput;
+  let attrNameInput: BUI.TextInput;
+  let attrValInput: BUI.TextInput;
+  let psetNameInput: BUI.TextInput;
+  let propNameInput: BUI.TextInput;
+  let propValInput: BUI.TextInput;
+
+  const onQueryCreate = async () => {
+    if (!nameInput) return;
+    if (!nameInput.value) return alert("Query name is required");
+    try {
+      const query: any = {
+        categories: [entityInput.value ? new RegExp(entityInput.value) : /.*/],
+      };
+      if (attrNameInput.value || attrValInput.value) {
+        query.attributes = {
+          queries: [
+            {
+              name: attrNameInput.value ? new RegExp(attrNameInput.value) : /.*/,
+              value: attrValInput.value ? new RegExp(attrValInput.value) : /.*/,
+            },
+          ],
+        };
+      }
+      if (psetNameInput.value || propNameInput.value || propValInput.value) {
+        query.relation = {
+          name: "IsDefinedBy",
+          query: {
+            categories: [/PROPERTYSET/],
+            attributes: {
+              queries: [
+                {
+                  name: /Name/,
+                  value: psetNameInput.value ? new RegExp(psetNameInput.value) : /.*/,
+                },
+              ],
+            },
+            relation: {
+              name: "HasProperties",
+              query: {
+                categories: [/SINGLEVALUE/],
+                attributes: {
+                  queries: [
+                    {
+                      name: /Name/,
+                      value: propNameInput.value ? new RegExp(propNameInput.value) : /.*/,
+                    },
+                    {
+                      name: /NominalValue/,
+                      value: propValInput.value ? new RegExp(propValInput.value) : /.*/,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        };
+      }
+
+      finder.create(nameInput.value, [query]);
+      updateList({ components });
+
+      const createdQuery = finder.list.get(nameInput.value);
+      if (createdQuery) {
+        const items = await createdQuery.test({ modelIds: [/.*/] });
+        if (!OBC.ModelIdMapUtils.isEmpty(items)) {
+          highlighter.highlightByID("select", items);
+        } else {
+          highlighter.clear("select");
+        }
+      }
+      alert("Query created successfully!");
+    } catch (e) {
+      alert(`Error creating query: ${e}`);
+    }
+  };
+
+  const onClear = () => {
+    if (nameInput) nameInput.value = "";
+    if (entityInput) entityInput.value = "";
+    if (attrNameInput) attrNameInput.value = "";
+    if (attrValInput) attrValInput.value = "";
+    if (psetNameInput) psetNameInput.value = "";
+    if (propNameInput) propNameInput.value = "";
+    if (propValInput) propValInput.value = "";
+  };
+
   return BUI.html`
-    <bim-panel-section label="Queries" icon=${appIcons.SEARCH}>
+    <bim-panel-section fixed label="Queries" icon=${appIcons.SEARCH}>
       ${customBtn}
-      ${element}
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 0.5rem;">
+        <bim-label>Query Builder</bim-label>
+        <bim-text-input ${BUI.ref((e) => { nameInput = e as BUI.TextInput; })} placeholder="Query Name" vertical></bim-text-input>
+        <bim-text-input ${BUI.ref((e) => { entityInput = e as BUI.TextInput; })} placeholder="Entity (Type in CAPITAL LETTERS! e.g. WALL)" vertical></bim-text-input>
+        <div style="display: flex; gap: 0.5rem;">
+          <bim-text-input ${BUI.ref((e) => { attrNameInput = e as BUI.TextInput; })} placeholder="Attribute Name" vertical></bim-text-input>
+          <bim-text-input ${BUI.ref((e) => { attrValInput = e as BUI.TextInput; })} placeholder="Attribute Value" vertical></bim-text-input>
+        </div>
+        <bim-text-input ${BUI.ref((e) => { psetNameInput = e as BUI.TextInput; })} placeholder="PropertySet Name" vertical></bim-text-input>
+        <div style="display: flex; gap: 0.5rem;">
+          <bim-text-input ${BUI.ref((e) => { propNameInput = e as BUI.TextInput; })} placeholder="Property Name" vertical></bim-text-input>
+          <bim-text-input ${BUI.ref((e) => { propValInput = e as BUI.TextInput; })} placeholder="Property Value" vertical></bim-text-input>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <bim-button style="flex: 1;" @click=${onQueryCreate} label="Create Query" icon=${appIcons.ADD}></bim-button>
+          <bim-button style="flex: 1;" @click=${onClear} label="Clear" icon=${appIcons.CLEAR}></bim-button>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 0.5rem;">
+        <bim-label>Saved Queries</bim-label>
+        <bim-text-input @input=${onSearch} placeholder="Search..." vertical></bim-text-input>
+        ${element}
+      </div>
     </bim-panel-section>
   `;
 };
