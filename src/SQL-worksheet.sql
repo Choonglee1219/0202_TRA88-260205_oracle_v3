@@ -18,6 +18,12 @@ CREATE TABLE "bcf" (
 CONSTRAINT "fk_bcf_ifc" FOREIGN KEY ("ifcid") REFERENCES "ifc"("id")
 );
 
+SELECT
+  (SELECT COUNT(*) FROM "ifc") AS ifc_total_count,
+  (SELECT COUNT(*) FROM "frag") AS frag_total_count,
+FROM DUAL;
+
+
 DROP TABLE "bcf";
 
 DROP TABLE "frag";

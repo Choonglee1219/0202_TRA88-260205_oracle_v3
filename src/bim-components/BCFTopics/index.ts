@@ -267,15 +267,22 @@ export class BCFTopics extends OBC.Component {
                 visTag.removeChild(exceptions[0]);
               }
             }
-            const cameraUpVectors = xmlDoc.getElementsByTagName("CameraUpVector");
-            if (cameraUpVectors.length > 0) {
-              const cameraUpVector = cameraUpVectors[0];
-              const yNode = cameraUpVector.getElementsByTagName("Y")[0];
-              const zNode = cameraUpVector.getElementsByTagName("Z")[0];
-              if (yNode && zNode) {
-                const yValue = yNode.textContent;
-                yNode.textContent = zNode.textContent;
-                zNode.textContent = yValue;
+            const vectors = ["CameraViewPoint", "CameraDirection", "CameraUpVector"];
+            for (const vecName of vectors) {
+              const vecNodes = xmlDoc.getElementsByTagName(vecName);
+              if (vecNodes.length > 0) {
+                const vecNode = vecNodes[0];
+                const xNode = vecNode.getElementsByTagName("X")[0];
+                const yNode = vecNode.getElementsByTagName("Y")[0];
+                const zNode = vecNode.getElementsByTagName("Z")[0];
+                if (xNode && yNode && zNode) {
+                  const x = parseFloat(xNode.textContent || "0");
+                  const y = parseFloat(yNode.textContent || "0");
+                  const z = parseFloat(zNode.textContent || "0");
+                  xNode.textContent = String(x);
+                  yNode.textContent = String(y);
+                  zNode.textContent = String(z);
+                }
               }
             }
             const serializer = new XMLSerializer();

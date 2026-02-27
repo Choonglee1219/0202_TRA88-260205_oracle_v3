@@ -247,6 +247,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     if (cascade && name) {
       const ifcFile = sharedIFC.list.find(f => f.name === name);
       if (ifcFile) {
+        if (!confirm("데이터베이스에서 삭제하시겠습니까?")) return;
         const ifcSuccess = await sharedIFC.deleteIFC(ifcFile.id);
         if (!ifcSuccess) {
           alert("연결된 IFC 파일 삭제에 실패하였습니다. (BCF 파일이 연결되어 있을 수 있습니다)");

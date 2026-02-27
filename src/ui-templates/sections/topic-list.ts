@@ -24,8 +24,40 @@ export const topicListTemplate: BUI.StatefullComponent<
     table.queryString = input.value;
   };
 
+  let panelSection: BUI.PanelSection;
+
+  const updateTopicCount = () => {
+    if (!panelSection) return;
+    let open = 0;
+    let assigned = 0;
+    let closed = 0;
+    let resolved = 0;
+    let total = 0;
+
+    for (const topic of bcfTopics.list.values()) {
+      total++;
+      const status = (topic as any).status;
+      if (status === "Open") open++;
+      else if (status === "Assigned") assigned++;
+      else if (status === "Closed") closed++;
+      else if (status === "Resolved") resolved++;
+    }
+    
+    panelSection.label = `Topic List ( Total(${total}) = Open(${open}) + Assigned(${assigned}) + Closed(${closed}) + Resolved(${resolved}) )`;
+  };
+
+  bcfTopics.onRefresh.add(() => setTimeout(updateTopicCount, 100));
+  bcfTopics.list.onItemSet.add(() => setTimeout(updateTopicCount, 100));
+  bcfTopics.list.onItemUpdated.add(() => setTimeout(updateTopicCount, 100));
+  bcfTopics.list.onItemDeleted.add(() => setTimeout(updateTopicCount, 100));
+
   return BUI.html`
-    <bim-panel-section fixed icon=${appIcons.TASK} label="Topic List">
+    <bim-panel-section
+      ${BUI.ref((e) => {
+        panelSection = e as BUI.PanelSection;
+        updateTopicCount();
+      })}
+      fixed icon=${appIcons.TASK} label="Topic List">
       <div style="display: flex; gap: 0.5rem;">
         <div style="display: flex; gap: 0.25rem; flex: 1;">
           <bim-button style="flex: 1;" @click=${() => newTopicModal.showModal()} label="Create Topic" icon=${appIcons.ADD}></bim-button>
