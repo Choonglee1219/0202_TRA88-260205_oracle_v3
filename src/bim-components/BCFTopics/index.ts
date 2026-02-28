@@ -1,6 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
+import * as THREE from "three";
 import JSZip from "jszip";
 import { users } from "../../globals";
 import { SharedBCF } from "../SharedBCF";
@@ -102,11 +103,32 @@ export class BCFTopics extends OBC.Component {
         if (viewpoint && viewpoint.world) {
           await viewpoint.go();
           const highlighter = this.components.get(OBF.Highlighter);
-          highlighter.clear("select");
+          await highlighter.clear();
           const fragments = this.components.get(OBC.FragmentsManager);
+
+          // Restore Selection
           const guids = Array.from(viewpoint.selectionComponents);
-          const modelIdMap = await fragments.guidsToModelIdMap(guids);
-          highlighter.highlightByID("select", modelIdMap);
+          if (guids.length > 0) {
+            const modelIdMap = await fragments.guidsToModelIdMap(guids);
+            await highlighter.highlightByID("select", modelIdMap);
+          }
+
+          // Restore Colors
+          for (const [colorHex, guids] of viewpoint.componentColors) {
+            if (!guids || guids.length === 0) continue;
+            const styleName = `#${colorHex}`;
+            if (!highlighter.styles.has(styleName)) {
+              highlighter.styles.set(styleName, {
+                color: new THREE.Color(styleName),
+                renderedFaces: 1,
+                opacity: 1,
+                transparent: false,
+              });
+            }
+            const colorModelIdMap = await fragments.guidsToModelIdMap(guids);
+            await highlighter.highlightByID(styleName, colorModelIdMap, false, false);
+          }
+
           setModelTransparent(this.components);
         }
       }

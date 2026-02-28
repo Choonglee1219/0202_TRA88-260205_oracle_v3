@@ -156,6 +156,12 @@ ViewerToolbarState
     target.loading = false;
   };
 
+  const onClearColor = async ({ target }: { target: BUI.Button }) => {
+    target.loading = true;
+    await highlighter.clear();
+    target.loading = false;
+  };
+
   return BUI.html`
     <bim-toolbar>
       <bim-toolbar-section label="Visibility" icon=${appIcons.SHOW}>
@@ -166,21 +172,12 @@ ViewerToolbarState
         ${focusBtn}
         <bim-button tooltip-title=${tooltips.HIDE.TITLE} tooltip-text=${tooltips.HIDE.TEXT} icon=${appIcons.HIDE} label="Hide" @click=${onHide}></bim-button> 
         <bim-button tooltip-title=${tooltips.ISOLATE.TITLE} tooltip-text=${tooltips.ISOLATE.TEXT} icon=${appIcons.ISOLATE} label="Isolate" @click=${onIsolate}></bim-button>
-        <bim-button icon=${appIcons.COLORIZE} label="Colorize">
-          <bim-context-menu>
-            <div style="display: flex; gap: 0.5rem; width: 10rem;">
-              <bim-color-input id=${colorInputId}></bim-color-input>
-              <bim-button label="Apply" @click=${onApplyColor}></bim-button>
-            </div>
-          </bim-context-menu>
-        </bim-button>
+        <bim-color-input id=${colorInputId} color="#FF0000"></bim-color-input>
+        <bim-button icon=${appIcons.COLORIZE} tooltip-title="Apply Color" @click=${onApplyColor}></bim-button>
+        <bim-button icon=${appIcons.CLEAR} tooltip-title="Clear Color" @click=${onClearColor}></bim-button>
       </bim-toolbar-section> 
-      <bim-toolbar-section label="Measure" icon=${appIcons.SHOW}>
-        <bim-button icon=${appIcons.RULER} label="Measure">
-          <bim-context-menu>
-            ${MeasurerUI(components)}
-          </bim-context-menu>
-        </bim-button>
+      <bim-toolbar-section label="Measure" icon=${appIcons.RULER}>
+        ${MeasurerUI(components)}
       </bim-toolbar-section>
     </bim-toolbar>
   `;
