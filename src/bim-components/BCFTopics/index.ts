@@ -7,9 +7,11 @@ import { users } from "../../globals";
 import { SharedBCF } from "../SharedBCF";
 import { SharedIFC } from "../SharedIFC";
 import { setModelTransparent } from "../../ui-templates/toolbars/viewer-toolbar";
+import { clashInput } from "./src/clash-input";
 
 export * from "./src/new-topic";
 export * from "./src/update-topic";
+export * from "./src/clash-input";
 
 export class BCFTopics extends OBC.Component {
   static uuid = "e7526972-853c-4392-b6c6-33435e123456" as const;
@@ -17,6 +19,7 @@ export class BCFTopics extends OBC.Component {
   readonly onRefresh = new OBC.Event<void>();
   private _bcf: OBC.BCFTopics;
   private _loading = false;
+  private _clashModal: HTMLDialogElement | null = null;
 
   get list() {
     return this._bcf.list;
@@ -431,5 +434,13 @@ export class BCFTopics extends OBC.Component {
          this.onRefresh.trigger();
       }
     });
+  }
+
+  // Open Clash Detection Modal
+  openClashDetectionModal() {
+    if (!this._clashModal) {
+      this._clashModal = clashInput(this);
+    }
+    this._clashModal?.showModal();
   }
 }

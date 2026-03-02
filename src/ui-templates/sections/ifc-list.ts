@@ -1,5 +1,4 @@
 import * as BUI from "@thatopen/ui";
-import * as CUI from "@thatopen/ui-obc";
 import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
 import { SharedIFC } from '../../bim-components/SharedIFC';
@@ -22,14 +21,48 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   const sharedFRAG = new SharedFRAG();
   const bcfTopics = components.get(BCFTopics);
   
-  const [modelsList] = CUI.tables.modelsList({
-    components,
-    actions: {
-      visibility: true,
-      download: true,
-      dispose: true,
-    },
-  });
+  type LoadedModelsState = {
+    models: any[];
+  };
+
+  let updateLoadedModelsList: () => void = () => {};
+
+  const loadedModelsCreator: BUI.StatefullComponent<LoadedModelsState> = (state) => {
+    const { models } = state;
+    return BUI.html`
+      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        ${models.length > 0
+          ? models.map((model) => {
+              const name = model.name || "Untitled";
+              return BUI.html`
+                <div style="display: flex; gap: 0.375rem; align-items: center;">
+                  <bim-label style="flex: 1;">${name}</bim-label>
+                  <bim-button style="flex: 0;" @click=${() => {
+                    model.object.visible = !model.object.visible;
+                    updateLoadedModelsList();
+                  }} icon=${model.object.visible ? appIcons.SHOW : appIcons.HIDE} tooltip-title="Visibility"></bim-button>
+                  <bim-button style="flex: 0;" @click=${() => {
+                    model.dispose();
+                  }} icon=${appIcons.CLEAR} tooltip-title="Dispose"></bim-button>
+                </div>
+              `;
+            })
+          : BUI.html`<div style="color: var(--bim-ui_gray-6); font-size: 0.75rem;">⚠️ No models loaded</div>`}
+      </div>
+    `;
+  };
+
+  const [modelsList, updateModelsList] = BUI.Component.create(loadedModelsCreator, { models: [] });
+
+  updateLoadedModelsList = () => {
+    const models = [...fragments.list.values()];
+    updateModelsList({ models });
+  };
+
+  fragments.list.onItemUpdated.add(updateLoadedModelsList);
+  fragments.list.onItemDeleted.add(updateLoadedModelsList);
+  
+  updateLoadedModelsList();
   
   const createFileInputHandler = (
     accept: string,
@@ -66,6 +99,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     const bytes = new Uint8Array(buffer);
     const model = await ifcLoader.load(bytes, true, file.name.replace(".ifc", ""));
     (model as any).name = file.name.replace(".ifc", "");
+    updateLoadedModelsList();
     const globalProps = components.get(PropertiesManager);
     let modelId = (model as any).uuid;
     if (!modelId) {
@@ -112,13 +146,18 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
 
   const onAddFragmentsModel = createFileInputHandler(".frag", false, async (file) => {
     const buffer = await file.arrayBuffer();
-    await fragments.core.load(buffer, { modelId: file.name.replace(".frag", "") });
+    const model = await fragments.core.load(buffer, { modelId: file.name.replace(".frag", "") });
+    (model as any).name = file.name.replace(".frag", "");
+    updateLoadedModelsList();
   });
   
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
-    modelsList.queryString = input.value;
     const value = input.value.toLowerCase();
+    const models = [...fragments.list.values()].filter(model => 
+      ((model as any).name || "").toLowerCase().includes(value)
+    );
+    updateModelsList({ models });
     const filteredIFC = sharedIFC.list.filter(file => file.name.toLowerCase().includes(value));
     updateSharedIFCList({ files: filteredIFC });
     const filteredFRAG = sharedFRAG.list.filter(file => file.name.toLowerCase().includes(value));
@@ -141,6 +180,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     if (ifc && ifc.content) {
       const model = await ifcLoader.load(ifc.content, true, ifc.name);
       (model as any).name = ifc.name;
+      updateLoadedModelsList();
       (model as any).dbId = ifcid;
       const globalProps = components.get(PropertiesManager);
       let modelId = (model as any).uuid;
@@ -212,6 +252,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     if (frag && frag.content) {
       const model = await fragments.core.load(frag.content, { modelId: frag.name });
       (model as any).name = frag.name;
+      updateLoadedModelsList();
       (model as any).dbId = fragid;
       sharedFRAG.addModelUUID(fragid, (model as any).uuid);
       bcfTopics.onRefresh.trigger();

@@ -115,6 +115,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
       <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
         <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200"></bim-text-input>
         <bim-button style="flex: 0;" @click=${() => bcfTopics.saveBCFToDB()} icon=${appIcons.ADD} tooltip-title="Import BCF"></bim-button>
+        <bim-button style="flex: 0;" @click=${() => bcfTopics.openClashDetectionModal()} icon=${appIcons.CLASH} tooltip-title="Clash Detection"></bim-button>
         <bim-button style="flex: 0;" @click=${refreshSharedBCFList} icon=${appIcons.REFRESH} tooltip-title="Refresh"></bim-button>
       </div>
       ${bcfList}

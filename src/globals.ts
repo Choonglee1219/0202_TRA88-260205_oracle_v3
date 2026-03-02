@@ -41,6 +41,7 @@ export const appIcons = {
   EDIT: "/icons/mdi--edit.svg",
   REFRESH: "/icons/mdi--refresh.svg",
   CLEAR: "/icons/mdi--clear-circle-outline.svg",
+  CLASH: "/icons/openmoji--overlapping-white-squares.svg",
 };
 
 export const tooltips = {

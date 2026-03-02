@@ -2,7 +2,12 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import OracleDB from "oracledb";
 import multer from "multer";
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT: number = 3001;
@@ -87,6 +92,110 @@ app.get("/", (_req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }  
 });  
+
+// Proxy for Clash Detection
+app.post("/api/clash", async (req: Request, res: Response) => {
+  let connection: OracleDB.Connection | undefined;
+  const createdFiles: string[] = [];
+  try {
+    const clashRequests = req.body;
+    
+    // Ensure temp directory exists
+    const tempDir = path.join(__dirname, "../temp_ifc");
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    connection = await getConnection();
+
+    // Process each clash test request to download IFC files from DB
+    for (const test of clashRequests) {
+      const processGroup = async (group: any[]) => {
+        for (const item of group) {
+          if (item.file) {
+            const fileName = item.file; // e.g., "model.ifc"
+            let dbName = fileName;
+            if (dbName.toLowerCase().endsWith(".ifc")) {
+                dbName = dbName.substring(0, dbName.length - 4);
+            }
+
+            const filePath = path.join(tempDir, fileName);
+            
+            // Fetch from DB
+            const result = await connection!.execute(
+              `SELECT "content" FROM "ifc" WHERE "name" = :name`,
+              { name: dbName },
+              { fetchInfo: { content: { type: OracleDB.BUFFER } }, outFormat: OracleDB.OUT_FORMAT_OBJECT } as any
+            );
+
+            if (result.rows && result.rows.length > 0) {
+               const row = result.rows[0] as any;
+               const buffer = row.CONTENT || row.content; 
+               
+               if (buffer) {
+                   fs.writeFileSync(filePath, buffer);
+                   createdFiles.push(filePath);
+                   // Update the item.file with absolute path for the clash service
+                   item.file = path.resolve(filePath).replace(/\\/g, "/");
+                   console.log(`Saved temporary IFC file from DB: ${item.file}`);
+               }
+            } else {
+                console.warn(`Model '${dbName}' not found in DB. Passing original path: ${item.file}`);
+                // Ensure path separators are compatible for direct paths
+                item.file = item.file.replace(/\\/g, "/");
+            }
+          }
+        }
+      };
+
+      if (test.a && Array.isArray(test.a)) await processGroup(test.a);
+      if (test.b && Array.isArray(test.b)) await processGroup(test.b);
+    }
+
+    console.log("Forwarding clash request:", JSON.stringify(clashRequests, null, 2));
+
+    const response = await fetch("http://127.0.0.1:8000/clash", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(clashRequests),
+    });
+
+    if (!response.ok) {
+      res.status(response.status).send(await response.text());
+      return;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    console.log(`Received BCF size from service: ${buffer.length} bytes`);
+
+    res.setHeader("Content-Type", response.headers.get("Content-Type") || "application/octet-stream");
+    res.send(buffer);
+  } catch (err) {
+    console.error("Error proxying clash request:", err);
+    res.status(500).json({ error: "Failed to proxy clash detection request", details: err instanceof Error ? err.message : String(err) });
+  } finally {
+    // Clean up temporary files
+    for (const file of createdFiles) {
+      try {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+          console.log(`Deleted temporary file: ${file}`);
+        }
+      } catch (cleanupErr) {
+        console.error(`Failed to delete temporary file ${file}:`, cleanupErr);
+      }
+    }
+
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error closing connection:", err);
+      }
+    }
+  }
+});
 
 // Get ifcs name
 app.get("/api/ifcs/name", async (_req: Request, res: Response): Promise<any> => {
