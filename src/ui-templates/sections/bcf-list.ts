@@ -1,6 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { SharedBCF } from "../../bim-components/SharedBCF";
+import { SharedIFC } from "../../bim-components/SharedIFC";
 import { BCFTopics } from "../../bim-components/BCFTopics";
 import { appIcons } from "../../globals";
 
@@ -11,11 +12,12 @@ export interface BCFListPanelState {
 export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (state) => {
   const { components } = state;
   const sharedBCF = new SharedBCF();
+  const sharedIFC = new SharedIFC();
   const fragments = components.get(OBC.FragmentsManager);
   const bcfTopics = components.get(BCFTopics);
 
   type BcfFileState = {
-    files: { id: number; name: string; ifcid: number }[];
+    files: { id: number; name: string; models: string[] }[];
   };
 
   const loadBCF = async (bcfId: number) => {
@@ -60,6 +62,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
               (file) => BUI.html`
                 <div style="display: flex; gap: 0.375rem; align-items: center;">
                   <bim-label style="flex: 1;">${file.name}</bim-label>
+                  <bim-button style="flex: 0;" icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${file.models.join(", ")}></bim-button>
                   <bim-button style="flex: 0;" @click=${() => loadBCF(file.id)} icon=${appIcons.IMPORT} tooltip-title="Load Topics"></bim-button>
                   <bim-button style="flex: 0;" @click=${() => downloadBCF(file.id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF"></bim-button>
                   <bim-button style="flex: 0;" @click=${() => deleteBCF(file.id)} icon=${appIcons.DELETE} tooltip-title="Delete BCF"></bim-button>
@@ -73,24 +76,19 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
 
   const [bcfList, updateBcfList] = BUI.Component.create(creator, { files: [] });
 
+  let allRelevantBCFs: { id: number; name: string; models: string[] }[] = [];
+
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
     const value = input.value.toLowerCase();
-    
-    const loadedDbIds = new Set<number>();
-    for (const [, model] of fragments.list) {
-      const dbId = (model as any).dbId;
-      if (dbId) loadedDbIds.add(dbId);
-    }
-
-    const filteredBCF = sharedBCF.list.filter(bcf => loadedDbIds.has(bcf.ifcid) && bcf.name.toLowerCase().includes(value));
-    updateBcfList({ files: filteredBCF });
+    const filtered = allRelevantBCFs.filter(bcf => bcf.name.toLowerCase().includes(value));
+    updateBcfList({ files: filtered });
   };
 
   const refreshSharedBCFList = async () => {
     sharedBCF.list = [];
     await sharedBCF.loadBCFFiles();
-    sharedBCF.list.sort((a, b) => a.name.localeCompare(b.name));
+    await sharedIFC.loadIFCFiles();
     
     // 현재 로드된 모델들의 DB ID 수집
     const loadedDbIds = new Set<number>();
@@ -99,9 +97,32 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
       if (dbId) loadedDbIds.add(dbId);
     }
 
-    // 로드된 모델과 연관된 BCF 파일만 필터링
-    const filteredBCF = sharedBCF.list.filter(bcf => loadedDbIds.has(bcf.ifcid));
-    updateBcfList({ files: filteredBCF });
+    const bcfMap = new Map<number, { name: string, ifcIds: Set<number> }>();
+    for (const bcf of sharedBCF.list) {
+      if (!bcfMap.has(bcf.id)) {
+        bcfMap.set(bcf.id, { name: bcf.name, ifcIds: new Set() });
+      }
+      bcfMap.get(bcf.id)!.ifcIds.add(bcf.ifcid);
+    }
+
+    allRelevantBCFs = [];
+    for (const [id, data] of bcfMap) {
+      let isRelevant = false;
+      for (const ifcId of data.ifcIds) {
+        if (loadedDbIds.has(ifcId)) {
+          isRelevant = true;
+          break;
+        }
+      }
+
+      if (isRelevant) {
+        const modelNames = Array.from(data.ifcIds).map(ifcId => sharedIFC.list.find(f => f.id === ifcId)?.name || `Model ${ifcId}`);
+        allRelevantBCFs.push({ id, name: data.name, models: modelNames });
+      }
+    }
+
+    allRelevantBCFs.sort((a, b) => a.name.localeCompare(b.name));
+    updateBcfList({ files: allRelevantBCFs });
   };
 
   // 모델이 로드되거나 삭제될 때 목록 갱신

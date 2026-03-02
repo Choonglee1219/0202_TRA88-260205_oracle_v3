@@ -360,23 +360,10 @@ export class BCFTopics extends OBC.Component {
       return;
     }
 
-    let selectedIfcId = loadedModels[0].id;
-    let selectedModelName = loadedModels[0].name;
+    const ifcIds = this.selectTargetModels(loadedModels);
+    if (!ifcIds) return;
 
-    if (loadedModels.length > 1) {
-       const options = loadedModels.map((m, i) => `${i + 1}. ${m.name}`).join("\n");
-       const userInput = prompt(`BCF를 연결할 IFC 모델을 선택하세요 (번호 입력):\n${options}`, "1");
-       if (!userInput) return;
-       const index = parseInt(userInput) - 1;
-       if (isNaN(index) || index < 0 || index >= loadedModels.length) {
-         alert("잘못된 선택입니다.");
-         return;
-       }
-       selectedIfcId = loadedModels[index].id;
-       selectedModelName = loadedModels[index].name;
-    }
-
-    const defaultName = `${selectedModelName}.bcf`;
+    const defaultName = loadedModels.length === 1 ? `${loadedModels[0].name}.bcf` : "topics.bcf";
     const fileName = prompt("BCF 파일 이름을 입력하세요:", defaultName);
     if (!fileName) return;
 
@@ -384,7 +371,7 @@ export class BCFTopics extends OBC.Component {
     const file = new File([blob], fileName);
 
     const sharedBCF = new SharedBCF();
-    const newBcfId = await sharedBCF.saveBCF(file, selectedIfcId);
+    const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
     if (newBcfId) {
        alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
     }
@@ -412,21 +399,11 @@ export class BCFTopics extends OBC.Component {
         return;
       }
 
-      let selectedIfcId = loadedModels[0].id;
-      if (loadedModels.length > 1) {
-         const options = loadedModels.map((m, i) => `${i + 1}. ${m.name}`).join("\n");
-         const userInput = prompt(`BCF를 연결할 IFC 모델을 선택하세요 (번호 입력):\n${options}`, "1");
-         if (!userInput) return;
-         const index = parseInt(userInput) - 1;
-         if (isNaN(index) || index < 0 || index >= loadedModels.length) {
-           alert("잘못된 선택입니다.");
-           return;
-         }
-         selectedIfcId = loadedModels[index].id;
-      }
+      const ifcIds = this.selectTargetModels(loadedModels);
+      if (!ifcIds) return;
 
       const sharedBCF = new SharedBCF();
-      const newBcfId = await sharedBCF.saveBCF(file, selectedIfcId);
+      const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
       if (newBcfId) {
          alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
          const buffer = await file.arrayBuffer();
@@ -434,6 +411,26 @@ export class BCFTopics extends OBC.Component {
          this.onRefresh.trigger();
       }
     });
+  }
+
+  private selectTargetModels(loadedModels: { id: number; name: string }[]): number[] | null {
+    if (loadedModels.length === 1) return [loadedModels[0].id];
+
+    const options = loadedModels.map((m, i) => `${i + 1}. ${m.name}`).join("\n");
+    const defaultSelection = loadedModels.map((_, i) => i + 1).join(", ");
+    const userInput = prompt(`BCF를 연결할 IFC 모델을 선택하세요 (번호 입력, 쉼표로 구분):\n${options}`, defaultSelection);
+    
+    if (!userInput) return null;
+
+    const indices = userInput.split(",").map(s => parseInt(s.trim()) - 1);
+    const validIndices = indices.filter(i => !isNaN(i) && i >= 0 && i < loadedModels.length);
+
+    if (validIndices.length === 0) {
+      alert("잘못된 선택입니다.");
+      return null;
+    }
+    
+    return Array.from(new Set(validIndices)).map(i => loadedModels[i].id);
   }
 
   // Open Clash Detection Modal

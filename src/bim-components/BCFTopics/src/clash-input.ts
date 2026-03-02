@@ -123,6 +123,12 @@ export const clashInput = (bcfTopics: any) => {
       return;
     }
 
+    const selectedModelB = loadedModels.find(m => m.name === modelBName);
+    if (!selectedModelB) {
+      alert("Selected Model B not found in loaded models.");
+      return;
+    }
+
     const body = [
       {
         "name": nameInput.value,
@@ -183,7 +189,11 @@ export const clashInput = (bcfTopics: any) => {
       const file = new File([blob], `${nameInput.value}.bcf`);
 
       const sharedBCF = new SharedBCF();
-      const newBcfId = await sharedBCF.saveBCF(file, selectedModelA.id);
+      const ifcIds = [selectedModelA.id];
+      if (selectedModelB.id !== selectedModelA.id) {
+        ifcIds.push(selectedModelB.id);
+      }
+      const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
       
       if (newBcfId) {
         alert(`간섭 체크 완료: ${topicCount}개의 간섭이 발견되었습니다.`);
