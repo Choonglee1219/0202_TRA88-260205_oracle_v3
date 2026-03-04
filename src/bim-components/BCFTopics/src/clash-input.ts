@@ -3,7 +3,6 @@ import * as OBC from "@thatopen/components";
 import JSZip from "jszip";
 import { SharedBCF } from "../../SharedBCF";
 import { SharedIFC } from "../../SharedIFC";
-// import { appIcons } from "../../../globals";
 
 const addClashInputStyles = () => {
   const styleId = "clash-input-modal-styles";
@@ -58,7 +57,11 @@ export const clashInput = (bcfTopics: any) => {
     const selectorA = selectorAInput.value || "";
     const modelB = modelBDropdown.value[0] || "";
     const selectorB = selectorBInput.value || "";
-    nameInput.value = `Clash: ${modelA}(${selectorA})-${modelB}(${selectorB})`;
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    nameInput.value = `Clash(${year}${month}${day}): ${modelA}(${selectorA})-${modelB}(${selectorB})`;
   };
 
   modelADropdown.addEventListener("change", updateName);
@@ -157,7 +160,7 @@ export const clashInput = (bcfTopics: any) => {
     target.loading = true;
 
     try {
-      const response = await fetch("http://localhost:3001/api/clash", {
+      const response = await fetch("/api/clash", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

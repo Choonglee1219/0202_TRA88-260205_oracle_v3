@@ -51,7 +51,7 @@
 
 ### 2. 백엔드 설정 (`src/app.ts`)
 
-`src/app.ts` 파일에서 Oracle DB 연결 정보를 환경에 맞게 수정하세요.
+`src/app.ts` 파일에서 Oracle DB 연결 정보 및 서버 IP를 환경에 맞게 수정하세요.
 
 ```typescript
 const ifcPoolConfig = {
@@ -60,6 +60,12 @@ const ifcPoolConfig = {
   connectString: "localhost/orcl", // 연결 문자열
   // ...
 };
+	// Unchanged lines
+		const response = await fetch("http://${서버IP}/clash", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(clashRequest),
+		});
 ```
 
 ### 3. 의존성 설치
@@ -91,12 +97,12 @@ npm run build
 
 ### 3. 간섭 체크 서비스 (선택 사항)
 
-간섭 체크 기능은 외부 서비스(`http://127.0.0.1:8000/clash`)로 요청을 프록시합니다. 해당 Python/C++ 기반의 간섭 체크 서비스가 별도로 실행 중이어야 정상 작동합니다.
+간섭 체크 기능은 외부 서비스(`http://${서버IP}/clash`)로 요청을 프록시합니다. 해당 Python/C++ 기반의 간섭 체크 서비스가 별도로 실행 중이어야 정상 작동합니다.
 
 ## 🔧 설정 상세 (Configuration Details)
 
 ### `vite.config.ts` (Vite 설정)
-*   **API Proxy**: 개발 서버 실행 시 `/api`로 시작하는 요청을 백엔드 서버(`http://localhost:3001`)로 프록시(Proxy)하여 CORS 문제를 방지합니다.
+*   **API Proxy**: 개발 서버 실행 시 `/api`로 시작하는 요청을 백엔드 서버(`http://${서버IP}:3001`)로 프록시(Proxy)하여 CORS 문제를 방지합니다.
 *   **Build**: `top-level-await`를 지원하도록 설정되어 있어, 비동기 모듈 로딩이 가능합니다.
 
 ### `tsconfig.json` (TypeScript 설정)
