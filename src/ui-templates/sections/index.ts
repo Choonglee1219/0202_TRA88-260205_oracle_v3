@@ -1,5 +1,5 @@
 export * from "./ifc-list";
-export * from "./elements-data";
+export * from "./items-data";
 export * from "./viewpoints";
 export * from "./queries";
 export * from "./spatial-tree";

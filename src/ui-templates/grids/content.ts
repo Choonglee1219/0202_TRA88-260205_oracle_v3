@@ -16,7 +16,7 @@ type IFCList = {
 
 type ElementData = {
   name: "elementData";
-  state: TEMPLATES.ElementsDataPanelState;
+  state: TEMPLATES.ItemsDataPanelState;
 };
 
 type Queries = {
@@ -99,7 +99,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         initialState: { components },
       },
       elementData: {
-        template: TEMPLATES.elementsDataPanelTemplate,
+        template: TEMPLATES.itemsDataPanelTemplate,
         initialState: { components },
       },
       viewTemplater: {
