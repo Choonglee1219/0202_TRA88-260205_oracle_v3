@@ -80,6 +80,22 @@ export const clashInput = (bcfTopics: any) => {
   selectorAInput.vertical = true;
   selectorAInput.value = "IfcSlab";
 
+  const selectorAModeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
+  selectorAModeDropdown.label = "Mode A";
+  selectorAModeDropdown.vertical = true;
+  
+  const optAI = document.createElement("bim-option") as any;
+  optAI.label = "Include";
+  optAI.value = "i";
+  optAI.checked = true;
+  const optAE = document.createElement("bim-option") as any;
+  optAE.label = "Exclude";
+  optAE.value = "e";
+  const optAA = document.createElement("bim-option") as any;
+  optAA.label = "All";
+  optAA.value = "a";
+  selectorAModeDropdown.append(optAI, optAE, optAA);
+
   const modelBDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   modelBDropdown.label = "Model B";
   modelBDropdown.vertical = true;
@@ -88,6 +104,22 @@ export const clashInput = (bcfTopics: any) => {
   selectorBInput.label = "Selector B";
   selectorBInput.vertical = true;
   selectorBInput.value = "IfcBeam";
+
+  const selectorBModeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
+  selectorBModeDropdown.label = "Mode B";
+  selectorBModeDropdown.vertical = true;
+
+  const optBI = document.createElement("bim-option") as any;
+  optBI.label = "Include";
+  optBI.value = "i";
+  optBI.checked = true;
+  const optBE = document.createElement("bim-option") as any;
+  optBE.label = "Exclude";
+  optBE.value = "e";
+  const optBA = document.createElement("bim-option") as any;
+  optBA.label = "All";
+  optBA.value = "a";
+  selectorBModeDropdown.append(optBI, optBE, optBA);
 
   const getCorrectedName = (name: string) => {
     const lowerName = name.trim().toLowerCase();
@@ -102,13 +134,19 @@ export const clashInput = (bcfTopics: any) => {
   const updateName = () => {
     const modelA = modelADropdown.value[0] || "";
     const selectorA = getCorrectedName(selectorAInput.value || "");
+    const modeA = selectorAModeDropdown.value[0];
+    const selectorADisplay = modeA === "a" ? "*" : selectorA;
+
     const modelB = modelBDropdown.value[0] || "";
     const selectorB = getCorrectedName(selectorBInput.value || "");
+    const modeB = selectorBModeDropdown.value[0];
+    const selectorBDisplay = modeB === "a" ? "*" : selectorB;
+
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
-    nameInput.value = `Clash(${year}${month}${day}): ${modelA}(${selectorA})-${modelB}(${selectorB})`;
+    nameInput.value = `Clash(${year}${month}${day}): ${modelA}(${selectorADisplay})-${modelB}(${selectorBDisplay})`;
   };
 
   const correctInput = (input: BUI.TextInput) => {
@@ -117,12 +155,32 @@ export const clashInput = (bcfTopics: any) => {
 
   modelADropdown.addEventListener("change", updateName);
   selectorAInput.addEventListener("input", updateName);
+  selectorAModeDropdown.addEventListener("change", () => {
+    const mode = selectorAModeDropdown.value[0];
+    if (mode === "a") {
+      selectorAInput.value = "";
+      selectorAInput.setAttribute("disabled", "");
+    } else {
+      selectorAInput.removeAttribute("disabled");
+    }
+    updateName();
+  });
   selectorAInput.addEventListener("change", () => {
     correctInput(selectorAInput);
     updateName();
   });
   modelBDropdown.addEventListener("change", updateName);
   selectorBInput.addEventListener("input", updateName);
+  selectorBModeDropdown.addEventListener("change", () => {
+    const mode = selectorBModeDropdown.value[0];
+    if (mode === "a") {
+      selectorBInput.value = "";
+      selectorBInput.setAttribute("disabled", "");
+    } else {
+      selectorBInput.removeAttribute("disabled");
+    }
+    updateName();
+  });
   selectorBInput.addEventListener("change", () => {
     correctInput(selectorBInput);
     updateName();
@@ -199,14 +257,14 @@ export const clashInput = (bcfTopics: any) => {
           {
             "file": `${modelAName}.ifc`,
             "selector": getCorrectedName(selectorAInput.value),
-            "mode": "i"
+            "mode": selectorAModeDropdown.value[0]
           }
         ],
         "b": [
           {
             "file": `${modelBName}.ifc`,
             "selector": getCorrectedName(selectorBInput.value),
-            "mode": "i"
+            "mode": selectorBModeDropdown.value[0]
           }
         ],
         [checkTypeDropdown.value[0]]: parseFloat(checkValueInput.value),
@@ -288,11 +346,13 @@ export const clashInput = (bcfTopics: any) => {
           <bim-label>Group A</bim-label>
           <div style="display: flex; gap: 0.5rem;">
             ${modelADropdown}
+            ${selectorAModeDropdown}
             ${selectorAInput}
           </div>
           <bim-label>Group B</bim-label>
           <div style="display: flex; gap: 0.5rem;">
             ${modelBDropdown}
+            ${selectorBModeDropdown}
             ${selectorBInput}
           </div>
           <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
