@@ -19,6 +19,28 @@ const addClashInputStyles = () => {
   document.head.append(styleElement);
 };
 
+const ifcEntities = new Set([
+  "IfcBeam", "IfcColumn", "IfcWall", "IfcSlab", "IfcDoor", "IfcWindow", "IfcRoof", "IfcStair",
+  "IfcRailing", "IfcRamp", "IfcCovering", "IfcFlowSegment", "IfcFlowFitting", "IfcFlowTerminal",
+  "IfcFlowController", "IfcFlowStorageDevice", "IfcFlowMovingDevice", "IfcDistributionControlElement",
+  "IfcBuildingElementProxy", "IfcFurnishingElement", "IfcMember", "IfcPlate", "IfcCurtainWall",
+  "IfcWallStandardCase", "IfcOpeningElement", "IfcSpace", "IfcBuildingStorey", "IfcBuilding",
+  "IfcSite", "IfcProject", "IfcGroup", "IfcSystem", "IfcZone", "IfcActor", "IfcOccupant",
+  "IfcSensor", "IfcActuator", "IfcController", "IfcUnitaryControlElement", "IfcAlarm", "IfcOutlet",
+  "IfcSwitch", "IfcLightFixture", "IfcElectricDistributionPoint", "IfcTransformer",
+  "IfcCableCarrierSegment", "IfcCableSegment", "IfcDuctSegment", "IfcPipeSegment", "IfcPipeFitting",
+  "IfcDuctFitting", "IfcAirTerminal", "IfcFan", "IfcCoil", "IfcHeatExchanger", "IfcHumidifier",
+  "IfcEvaporator", "IfcCondenser", "IfcCompressor", "IfcMotor", "IfcPump", "IfcValve", "IfcDamper",
+  "IfcFilter", "IfcTank", "IfcBoiler", "IfcChiller", "IfcCoolingTower", "IfcEngine", "IfcTurbine",
+  "IfcGenerator", "IfcElectricMotor", "IfcElectricGenerator", "IfcSolarDevice", "IfcBurner",
+  "IfcCooledBeam", "IfcEvaporativeCooler", "IfcTubeBundle", "IfcInterceptor", "IfcSanitaryTerminal",
+  "IfcWasteTerminal", "IfcStackTerminal", "IfcFireSuppressionTerminal", "IfcMedicalDevice",
+  "IfcVibrationIsolator", "IfcStructuralCurveMember", "IfcStructuralSurfaceMember",
+  "IfcStructuralPointConnection", "IfcStructuralCurveConnection", "IfcStructuralSurfaceConnection",
+  "IfcReinforcingBar", "IfcReinforcingMesh", "IfcTendon", "IfcTendonAnchor", "IfcFooting", "IfcPile",
+  "IfcCaissonFoundation", "IfcGrid", "IfcAnnotation", "IfcProxy"
+]);
+
 export const clashInput = (bcfTopics: any) => {
   const components = bcfTopics.components as OBC.Components;
   const fragments = components.get(OBC.FragmentsManager);
@@ -28,11 +50,26 @@ export const clashInput = (bcfTopics: any) => {
   nameInput.label = "Test Name";
   nameInput.vertical = true;
 
-  const toleranceInput = document.createElement("bim-text-input") as BUI.TextInput;
-  toleranceInput.label = "Tolerance";
-  toleranceInput.type = "number";
-  toleranceInput.vertical = true;
-  toleranceInput.value = "0.01";
+  const checkTypeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
+  checkTypeDropdown.label = "Type";
+  checkTypeDropdown.vertical = true;
+
+  const optTolerance = document.createElement("bim-option") as any;
+  optTolerance.label = "Tolerance";
+  optTolerance.value = "tolerance";
+  optTolerance.checked = true;
+  
+  const optClearance = document.createElement("bim-option") as any;
+  optClearance.label = "Clearance";
+  optClearance.value = "clearance";
+  
+  checkTypeDropdown.append(optTolerance, optClearance);
+
+  const checkValueInput = document.createElement("bim-text-input") as BUI.TextInput;
+  checkValueInput.label = "Value";
+  checkValueInput.type = "number";
+  checkValueInput.vertical = true;
+  checkValueInput.value = "0.01";
 
   const modelADropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   modelADropdown.label = "Model A";
@@ -52,11 +89,21 @@ export const clashInput = (bcfTopics: any) => {
   selectorBInput.vertical = true;
   selectorBInput.value = "IfcBeam";
 
+  const getCorrectedName = (name: string) => {
+    const lowerName = name.trim().toLowerCase();
+    for (const entity of ifcEntities) {
+      if (entity.toLowerCase() === lowerName) {
+        return entity;
+      }
+    }
+    return name;
+  };
+
   const updateName = () => {
     const modelA = modelADropdown.value[0] || "";
-    const selectorA = selectorAInput.value || "";
+    const selectorA = getCorrectedName(selectorAInput.value || "");
     const modelB = modelBDropdown.value[0] || "";
-    const selectorB = selectorBInput.value || "";
+    const selectorB = getCorrectedName(selectorBInput.value || "");
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -64,10 +111,22 @@ export const clashInput = (bcfTopics: any) => {
     nameInput.value = `Clash(${year}${month}${day}): ${modelA}(${selectorA})-${modelB}(${selectorB})`;
   };
 
+  const correctInput = (input: BUI.TextInput) => {
+    input.value = getCorrectedName(input.value);
+  };
+
   modelADropdown.addEventListener("change", updateName);
   selectorAInput.addEventListener("input", updateName);
+  selectorAInput.addEventListener("change", () => {
+    correctInput(selectorAInput);
+    updateName();
+  });
   modelBDropdown.addEventListener("change", updateName);
   selectorBInput.addEventListener("input", updateName);
+  selectorBInput.addEventListener("change", () => {
+    correctInput(selectorBInput);
+    updateName();
+  });
 
   const loadedModels: { id: number; name: string }[] = [];
   
@@ -135,22 +194,22 @@ export const clashInput = (bcfTopics: any) => {
     const body = [
       {
         "name": nameInput.value,
-        "mode": "intersection",
+        "mode": checkTypeDropdown.value[0] === "clearance" ? "clearance" : "intersection",
         "a": [
           {
             "file": `${modelAName}.ifc`,
-            "selector": selectorAInput.value,
+            "selector": getCorrectedName(selectorAInput.value),
             "mode": "i"
           }
         ],
         "b": [
           {
             "file": `${modelBName}.ifc`,
-            "selector": selectorBInput.value,
+            "selector": getCorrectedName(selectorBInput.value),
             "mode": "i"
           }
         ],
-        "tolerance": parseFloat(toleranceInput.value),
+        [checkTypeDropdown.value[0]]: parseFloat(checkValueInput.value),
         "check_all": true
       }
     ];
@@ -222,7 +281,10 @@ export const clashInput = (bcfTopics: any) => {
        <bim-panel style="width: 30rem;">
         <bim-panel-section label="Clash Detection Input" fixed>
           ${nameInput}
-          ${toleranceInput}
+          <div style="display: flex; gap: 0.5rem;">
+            ${checkTypeDropdown}
+            ${checkValueInput}
+          </div>
           <bim-label>Group A</bim-label>
           <div style="display: flex; gap: 0.5rem;">
             ${modelADropdown}

@@ -124,8 +124,8 @@ export class BCFTopics extends OBC.Component {
               highlighter.styles.set(styleName, {
                 color: new THREE.Color(styleName),
                 renderedFaces: 1,
-                opacity: 1,
-                transparent: false,
+                opacity: 0.1,
+                transparent: true,
               });
             }
             const colorModelIdMap = await fragments.guidsToModelIdMap(guids);

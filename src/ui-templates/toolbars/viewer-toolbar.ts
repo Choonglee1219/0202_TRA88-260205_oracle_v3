@@ -39,7 +39,7 @@ export const setModelTransparent = (components: OBC.Components) => {
 
     // set color
     material.transparent = true;
-    material.opacity = 0.05;
+    material.opacity = 0.01;
     material.needsUpdate = true;
     if ("color" in material) {
       material.color.setColorName("white");
