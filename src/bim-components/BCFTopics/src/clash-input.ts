@@ -20,25 +20,21 @@ const addClashInputStyles = () => {
 };
 
 const ifcEntities = new Set([
-  "IfcBeam", "IfcColumn", "IfcWall", "IfcSlab", "IfcDoor", "IfcWindow", "IfcRoof", "IfcStair",
-  "IfcRailing", "IfcRamp", "IfcCovering", "IfcFlowSegment", "IfcFlowFitting", "IfcFlowTerminal",
-  "IfcFlowController", "IfcFlowStorageDevice", "IfcFlowMovingDevice", "IfcDistributionControlElement",
-  "IfcBuildingElementProxy", "IfcFurnishingElement", "IfcMember", "IfcPlate", "IfcCurtainWall",
-  "IfcWallStandardCase", "IfcOpeningElement", "IfcSpace", "IfcBuildingStorey", "IfcBuilding",
-  "IfcSite", "IfcProject", "IfcGroup", "IfcSystem", "IfcZone", "IfcActor", "IfcOccupant",
-  "IfcSensor", "IfcActuator", "IfcController", "IfcUnitaryControlElement", "IfcAlarm", "IfcOutlet",
-  "IfcSwitch", "IfcLightFixture", "IfcElectricDistributionPoint", "IfcTransformer",
-  "IfcCableCarrierSegment", "IfcCableSegment", "IfcDuctSegment", "IfcPipeSegment", "IfcPipeFitting",
-  "IfcDuctFitting", "IfcAirTerminal", "IfcFan", "IfcCoil", "IfcHeatExchanger", "IfcHumidifier",
-  "IfcEvaporator", "IfcCondenser", "IfcCompressor", "IfcMotor", "IfcPump", "IfcValve", "IfcDamper",
-  "IfcFilter", "IfcTank", "IfcBoiler", "IfcChiller", "IfcCoolingTower", "IfcEngine", "IfcTurbine",
-  "IfcGenerator", "IfcElectricMotor", "IfcElectricGenerator", "IfcSolarDevice", "IfcBurner",
-  "IfcCooledBeam", "IfcEvaporativeCooler", "IfcTubeBundle", "IfcInterceptor", "IfcSanitaryTerminal",
-  "IfcWasteTerminal", "IfcStackTerminal", "IfcFireSuppressionTerminal", "IfcMedicalDevice",
-  "IfcVibrationIsolator", "IfcStructuralCurveMember", "IfcStructuralSurfaceMember",
-  "IfcStructuralPointConnection", "IfcStructuralCurveConnection", "IfcStructuralSurfaceConnection",
-  "IfcReinforcingBar", "IfcReinforcingMesh", "IfcTendon", "IfcTendonAnchor", "IfcFooting", "IfcPile",
-  "IfcCaissonFoundation", "IfcGrid", "IfcAnnotation", "IfcProxy"
+  "IfcSpatialZone", "IfcZone", "IfcBuildingStorey", "IfcSpace", 
+  "IfcBeam", "IfcBuildingElementProxy", "IfcChimney", "IfcColumn", "IfcCovering", "IfcCurtainWall", "IfcDoor", "IfcFooting", "IfcMember", "IfcPile", "IfcPlate", "IfcRailing", "IfcRamp", "IfcRampFlight", "IfcRoof", "IfcShadingDevice", "IfcSlab", "IfcStair", "IfcStairFlight", "IfcWall", "IfcWindow",
+  "IfcCivilElement",
+  "IfcActuator", "IfcAlarm", "IfcController", "IfcFlowInstrument", "IfcProtectiveDeviceTrippingUnit", "IfcSensor", "IfcUnitaryControlElement", 
+  "IfcDistrubutionChamberElement", "IfcAirToAirHeatRecovery", "IfcBoiler","IfcBurner", "IfcChiller", "IfcCoil", "IfcCondenser", "IfcCooledBeam", "IfcCoolingTower", "IfcElectricGenerator", "IfcElectricMotor", "IfcEngine", "IfcEvaporativeCooler", "IfcEvaporator", "IfcHeatExchanger", "IfcHumidifier", "IfcMotorConnection", "IfcSolarDevice", "IfcTransformer", "IfcTubeBundle", "IfcUnitaryEquipment", 
+  "IfcFlowController", "IfcAirTerminalBox", "IfcDamper", "IfcElectricDistributionBoard", "IfcElectricTimeControl", "IfcFlowMeter", "IfcProtectiveDevice", "IfcSwitchingDevice", "IfcValve",
+  "IfcFlowFitting", "IfcCableCarrierFitting", "IfcCableFitting", "IfcDuctFitting", "IfcJunctionBox", "IfcPipeFitting",
+  "IfcFlowMovingDevice", "IfcCompressor", "IfcFan", "IfcPump",
+  "IfcFlowSegment", "IfcCableCarrierSegment", "IfcCableSegment", "IfcDuctSegment", "IfcPipeSegment", 
+  "IfcFlowStorageDevice", "IfcElectricFlowStorageDevice", "IfcTank", 
+  "IfcFlowTerminal", "IfcAirTerminal", "IfcAudioVisualAppliance", "IfcCommunicationsAppliance", "IfcElectricAppliance", "IfcFireSuppressionTerminal", "IfcLamp", "IfcLightFixture", "IfcMedicalDevice", "IfcOutlet", "IfcSanitaryTerminal", "IfcSpaceHeater", "IfcStackTerminal", "IfcWasteTerminal",
+  "IfcFlowTreatmentDevice", "IfcDuctSilencer", "IfcFilter", "IfcInterceptor",
+  "IfcBuildingElementPart", "IfcDiscreteAccessory", "IfcFastener", "IfcMechanicalFastener", "IfcReinforcingBar", "IfcReinforcingMesh", "IfcTendon", "IfcTendonAnchor", "IfcVibrationIsolator", 
+  "IfcOpeningElement", "IfcVoidingFeature", "IfcSurfaceFeature",
+  "IfcFurnishingElement", "IfcFurniture", "IfcSystemFurnitureElement", 
 ]);
 
 export const clashInput = (bcfTopics: any) => {

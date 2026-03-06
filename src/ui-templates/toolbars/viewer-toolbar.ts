@@ -147,8 +147,8 @@ ViewerToolbarState
       highlighter.styles.set(colorValue, {
         color,
         renderedFaces: FRAGS.RenderedFaces.ONE,
-        opacity: 1,
-        transparent: false,
+        opacity: 0.5,
+        transparent: true,
       });
       await highlighter.highlightByID(colorValue, selection, false, false);
     }

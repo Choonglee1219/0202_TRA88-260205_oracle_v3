@@ -1,6 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
+import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
 import JSZip from "jszip";
 import { users } from "../../globals";
@@ -109,6 +110,8 @@ export class BCFTopics extends OBC.Component {
           await highlighter.clear();
           const fragments = this.components.get(OBC.FragmentsManager);
 
+          setModelTransparent(this.components);
+          
           // Restore Selection
           const guids = Array.from(viewpoint.selectionComponents);
           if (guids.length > 0) {
@@ -120,19 +123,15 @@ export class BCFTopics extends OBC.Component {
           for (const [colorHex, guids] of viewpoint.componentColors) {
             if (!guids || guids.length === 0) continue;
             const styleName = `#${colorHex}`;
-            if (!highlighter.styles.has(styleName)) {
-              highlighter.styles.set(styleName, {
-                color: new THREE.Color(styleName),
-                renderedFaces: 1,
-                opacity: 0.1,
-                transparent: true,
-              });
-            }
+            highlighter.styles.set(styleName, {
+              color: new THREE.Color(styleName),
+              renderedFaces: FRAGS.RenderedFaces.ONE,
+              opacity: 0.1,
+              transparent: true,
+            });
             const colorModelIdMap = await fragments.guidsToModelIdMap(guids);
             await highlighter.highlightByID(styleName, colorModelIdMap, false, false);
           }
-
-          setModelTransparent(this.components);
         }
       }
     }
@@ -363,7 +362,14 @@ export class BCFTopics extends OBC.Component {
     const ifcIds = this.selectTargetModels(loadedModels);
     if (!ifcIds) return;
 
-    const defaultName = loadedModels.length === 1 ? `${loadedModels[0].name}.bcf` : "topics.bcf";
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+
+    const selectedModels = loadedModels.filter(m => ifcIds.includes(m.id));
+    const modelNames = selectedModels.map(m => m.name).join("-");
+    const defaultName = `Topics(${year}${month}${day}): ${modelNames}`;
     const fileName = prompt("BCF 파일 이름을 입력하세요:", defaultName);
     if (!fileName) return;
 
