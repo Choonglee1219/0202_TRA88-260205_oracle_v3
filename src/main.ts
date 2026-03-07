@@ -256,6 +256,16 @@ fragments.list.onItemSet.add(async ({ value: model }) => {
   };
   world.scene.three.add(model.object);
   await fragments.core.update(true);
+
+  const classifier = components.get(OBC.Classifier);
+  const hider = components.get(OBC.Hider);
+  const categoryNames = ["IFCSPACE", "IFCSPATIALZONE", "IFCOPENINGELEMENT"];
+  const categoriesRegex = categoryNames.map((cat) => new RegExp(`^${cat}$`));
+  const items = await model.getItemsOfCategories(categoriesRegex);
+  const localIds = Object.values(items).flat();
+  const modelIdMap = { [model.modelId]: new Set(localIds) };
+  classifier.addGroupItems("PermanentHidden", "HiddenItems", modelIdMap);
+  await hider.set(false, modelIdMap);
 });
 
 // 🔎Finder Setup - "src > setup > finders.ts"

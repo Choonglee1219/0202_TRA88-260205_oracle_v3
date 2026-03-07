@@ -7,7 +7,6 @@ import JSZip from "jszip";
 import { users } from "../../globals";
 import { SharedBCF } from "../SharedBCF";
 import { SharedIFC } from "../SharedIFC";
-import { setModelTransparent } from "../../ui-templates/toolbars/viewer-toolbar";
 import { clashInput } from "./src/clash-input";
 
 export * from "./src/new-topic";
@@ -110,13 +109,13 @@ export class BCFTopics extends OBC.Component {
           await highlighter.clear();
           const fragments = this.components.get(OBC.FragmentsManager);
 
-          setModelTransparent(this.components);
-          
           // Restore Selection
           const guids = Array.from(viewpoint.selectionComponents);
           if (guids.length > 0) {
             const modelIdMap = await fragments.guidsToModelIdMap(guids);
             await highlighter.highlightByID("select", modelIdMap);
+            const hider = this.components.get(OBC.Hider);
+            await hider.isolate(modelIdMap);
           }
 
           // Restore Colors

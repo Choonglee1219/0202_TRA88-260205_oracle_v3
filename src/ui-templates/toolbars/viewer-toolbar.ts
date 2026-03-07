@@ -13,7 +13,7 @@ export interface ViewerToolbarState {
 
 const originalColors = new Map<
   FRAGS.BIMMaterial,
-  { color: number; transparent: boolean; opacity: number }
+  { color: number; transparent: boolean; opacity: number; depthWrite: boolean }
 >();
 
 export const setModelTransparent = (components: OBC.Components) => {
@@ -35,25 +35,29 @@ export const setModelTransparent = (components: OBC.Components) => {
       color,
       transparent: material.transparent,
       opacity: material.opacity,
+      depthWrite: material.depthWrite,
     });
 
     // set color
     material.transparent = true;
-    material.opacity = 0.01;
     material.needsUpdate = true;
+    material.depthWrite = false;
     if ("color" in material) {
-      material.color.setColorName("white");
+      material.opacity = 0.01;
+      material.color.setColorName("cyan");
     } else {
-      material.lodColor.setColorName("white");
+      material.opacity = 0.01;
+      material.lodColor.setColorName("grey");
     }
   }
 };
 
 export const restoreModelMaterials = () => {
   for (const [material, data] of originalColors) {
-    const { color, transparent, opacity } = data;
+    const { color, transparent, opacity, depthWrite } = data;
     material.transparent = transparent;
     material.opacity = opacity;
+    material.depthWrite = depthWrite;
     if ("color" in material) {
       material.color.setHex(color);
     } else {
@@ -72,18 +76,49 @@ ViewerToolbarState
   const highlighter = components.get(OBF.Highlighter);
   const hider = components.get(OBC.Hider);
   
+  let hiddenItemsBtn: BUI.Button | undefined;
+
   const onShowAll = async ({ target }: { target: BUI.Button }) => {
     target.loading = true;
     await hider.set(true);
+    const classifier = components.get(OBC.Classifier);
+    const hiddenItemsGroup = classifier.list.get("PermanentHidden")?.get("HiddenItems");
+    if (hiddenItemsGroup) {
+      const hiddenItems = await hiddenItemsGroup.get();
+      if (!OBC.ModelIdMapUtils.isEmpty(hiddenItems)) {
+        await hider.set(false, hiddenItems);
+      }
+    }
+    if (hiddenItemsBtn) hiddenItemsBtn.active = false;
     target.loading = false;
   };
 
   const onToggleGhost = () => {
     if (originalColors.size) {
       restoreModelMaterials();
+      if (world.renderer instanceof OBF.PostproductionRenderer) {
+        world.renderer.postproduction.edgesPass.enabled = true;
+      }
     } else {
       setModelTransparent(components);
+      if (world.renderer instanceof OBF.PostproductionRenderer) {
+        world.renderer.postproduction.edgesPass.enabled = false;
+      }
     }
+  };
+
+  const onToggleHidden = async ({ target }: { target: BUI.Button }) => {
+    const classifier = components.get(OBC.Classifier);
+    const hiddenItemsGroup = classifier.list.get("PermanentHidden")?.get("HiddenItems");
+    if (!hiddenItemsGroup) return;
+    const hiddenItems = await hiddenItemsGroup.get();
+    if (OBC.ModelIdMapUtils.isEmpty(hiddenItems)) return;
+
+    target.loading = true;
+    const show = !target.active;
+    await hider.set(show, hiddenItems);
+    target.active = show;
+    target.loading = false;
   };
 
   let focusBtn: BUI.TemplateResult | undefined;
@@ -166,7 +201,8 @@ ViewerToolbarState
     <bim-toolbar>
       <bim-toolbar-section label="Visibility" icon=${appIcons.SHOW}>
         <bim-button tooltip-title=${tooltips.SHOW_ALL.TITLE} tooltip-text=${tooltips.SHOW_ALL.TEXT} icon=${appIcons.SHOW} label="Show All" @click=${onShowAll}></bim-button> 
-        <bim-button tooltip-title=${tooltips.GHOST.TITLE} tooltip-text=${tooltips.GHOST.TEXT} icon=${appIcons.TRANSPARENT} label="Toggle Ghost" @click=${onToggleGhost}></bim-button>
+        <bim-button tooltip-title=${tooltips.GHOST.TITLE} tooltip-text=${tooltips.GHOST.TEXT} icon=${appIcons.TRANSPARENT} label="Ghost" @click=${onToggleGhost}></bim-button>
+        <bim-button ${BUI.ref((e) => { hiddenItemsBtn = e as BUI.Button; })} tooltip-title="Toggle Hidden Items" icon=${appIcons.MODEL} label="Space" @click=${onToggleHidden}></bim-button>
       </bim-toolbar-section> 
       <bim-toolbar-section label="Selection" icon=${appIcons.SELECT}>
         ${focusBtn}
