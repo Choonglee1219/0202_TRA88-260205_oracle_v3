@@ -50,29 +50,7 @@ export const setupFinders = (components: OBC.Components) => {
     { categories: [/PROXY/] }
   ]);
 
-  // ItemsFinder by ContaineInStructure
-  finder.create("Columns (Level 1)", [
-    {
-      categories: [/COLUMN/],
-      relation: {
-        name: "ContainedInStructure",
-        query: {
-          categories: [/STOREY/],
-          attributes: { queries: [{ name: /Name/, value: /01/ }] },
-        },
-      },
-    },
-  ]);
-
   // ItemsFinder by Attributes
-  finder.create("Concrete Column", [
-    {
-      categories: [/COLUMN/],
-      attributes: {
-        queries: [{ name: /^Name$/, value: /Concrete/ }],
-      },
-    },
-  ]);
   finder.create("Concrete Member", [
     {
       categories: [/WALL|SLAB|RAMP/],
@@ -86,40 +64,6 @@ export const setupFinders = (components: OBC.Components) => {
       categories: [/COLUMN|BEAM|MEMBER/],
       attributes: {
         queries: [{ name: /^Name$/, value: /^(?!Concrete).*$/ }],
-      },
-    },
-  ]);
-  finder.create("Base Slab", [
-    {
-      categories: [/SLAB/],
-      attributes: {
-        queries: [{ name: /^PreDefinedType$/, value: /^BASESLAB$/ }],
-      },
-    },
-  ]);
-
-  // ItemsFinder by Properties
-  finder.create("Columns (Pset_ColumnCommon.Reference = 750mm)", [
-    {
-      categories: [/COLUMN/],
-      relation: {
-        name: "IsDefinedBy",
-        query: {
-          categories: [/PROPERTYSET/],
-          attributes: { queries: [{ name: /Name/, value: /ColumnCommon/ }] },
-          relation: {
-            name: "HasProperties",
-            query: {
-              categories: [/SINGLEVALUE/],
-              attributes: {
-                queries: [
-                  { name: /Name/, value: /Reference/ },
-                  { name: /NominalValue/, value: /750/ },
-                ],
-              },
-            },
-          },
-        },
       },
     },
   ]);

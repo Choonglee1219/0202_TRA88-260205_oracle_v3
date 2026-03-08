@@ -61,7 +61,7 @@ const getItemRow = (
       type: "item",
       Name:
         name?.toString().length > 0
-          ? name.toString()
+          ? (category ? `${category} || ${name}` : name.toString())
           : category ?? String(localId),
     },
   };
@@ -178,9 +178,6 @@ const computeTableData = async (
   return rows;
 };
 
-/**
- * Heloooooooooo
- */
 export const itemsDataTemplate = (_state: ItemsDataState) => {
   const state: Required<ItemsDataState> = {
     emptySelectionWarning: true,

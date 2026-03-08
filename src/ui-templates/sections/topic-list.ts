@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { BCFTopics, newTopic, updateTopic } from "../../bim-components/BCFTopics";
-import { topicListTable } from "../../ui-components/TopicList";
+import { topicListTable } from "../../ui-components/TopicListTable";
 import { appIcons } from "../../globals";
 
 export interface TopicListState {

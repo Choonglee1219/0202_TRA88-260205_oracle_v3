@@ -1,3 +1,3 @@
 export * from "./QueriesList";
-export * from "./TopicList";
+export * from "./TopicListTable";
 export * from "./ViewTemplatesList";

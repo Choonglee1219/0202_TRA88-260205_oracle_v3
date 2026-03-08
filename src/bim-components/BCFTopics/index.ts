@@ -127,6 +127,7 @@ export class BCFTopics extends OBC.Component {
               renderedFaces: FRAGS.RenderedFaces.ONE,
               opacity: 0.1,
               transparent: true,
+              depthTest: false,
             });
             const colorModelIdMap = await fragments.guidsToModelIdMap(guids);
             await highlighter.highlightByID(styleName, colorModelIdMap, false, false);

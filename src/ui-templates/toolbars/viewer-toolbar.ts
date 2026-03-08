@@ -2,9 +2,9 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import * as FRAGS from "@thatopen/fragments";
-import * as THREE from "three";
 import { appIcons, tooltips } from "../../globals";
 import { MeasurerUI } from "../../bim-components/Measurer/src";
+import { Colorize } from "../../ui-components/Colorize";
 
 export interface ViewerToolbarState {
   components: OBC.Components;
@@ -152,51 +152,6 @@ ViewerToolbarState
     target.loading = false;
   };
 
-  const colorInputId = BUI.Manager.newRandomId();
-  const getColorValue = () => {
-    const input = document.getElementById(
-      colorInputId,
-    ) as BUI.ColorInput | null;
-    if (!input) return null;
-    return input.color;
-  };
-
-  const onApplyColor = async ({ target }: { target: BUI.Button }) => {
-    const colorValue = getColorValue();
-    const selection = highlighter.selection.select;
-    if (OBC.ModelIdMapUtils.isEmpty(selection) || !colorValue) return;
-    const color = new THREE.Color(colorValue);
-    const style = [...highlighter.styles.entries()].find(([, definition]) => {
-      if (!definition) return false;
-      return definition.color.getHex() === color.getHex();
-    });
-    target.loading = true;
-    if (style) {
-      const name = style[0];
-      if (name === "select") {
-        target.loading = false;
-        return;
-      }
-      await highlighter.highlightByID(name, selection, false, false);
-    } else {
-      highlighter.styles.set(colorValue, {
-        color,
-        renderedFaces: FRAGS.RenderedFaces.ONE,
-        opacity: 0.5,
-        transparent: true,
-      });
-      await highlighter.highlightByID(colorValue, selection, false, false);
-    }
-    await highlighter.clear("select");
-    target.loading = false;
-  };
-
-  const onClearColor = async ({ target }: { target: BUI.Button }) => {
-    target.loading = true;
-    await highlighter.clear();
-    target.loading = false;
-  };
-
   return BUI.html`
     <bim-toolbar>
       <bim-toolbar-section label="Visibility" icon=${appIcons.SHOW}>
@@ -208,9 +163,7 @@ ViewerToolbarState
         ${focusBtn}
         <bim-button tooltip-title=${tooltips.HIDE.TITLE} tooltip-text=${tooltips.HIDE.TEXT} icon=${appIcons.HIDE} label="Hide" @click=${onHide}></bim-button> 
         <bim-button tooltip-title=${tooltips.ISOLATE.TITLE} tooltip-text=${tooltips.ISOLATE.TEXT} icon=${appIcons.ISOLATE} label="Isolate" @click=${onIsolate}></bim-button>
-        <bim-color-input id=${colorInputId} color="#FF0000"></bim-color-input>
-        <bim-button icon=${appIcons.COLORIZE} tooltip-title="Apply Color" @click=${onApplyColor}></bim-button>
-        <bim-button icon=${appIcons.CLEAR} tooltip-title="Clear Color" @click=${onClearColor}></bim-button>
+        ${Colorize(components)}
       </bim-toolbar-section> 
       <bim-toolbar-section label="Measure" icon=${appIcons.RULER}>
         ${MeasurerUI(components)}
