@@ -42,6 +42,12 @@ export const appIcons = {
   REFRESH: "/icons/mdi--refresh.svg",
   CLEAR: "/icons/mdi--clear-circle-outline.svg",
   CLASH: "/icons/openmoji--overlapping-white-squares.svg",
+  HOLD: "/icons/flowbite--circle-pause-outline.svg",
+  MINOR: "/icons/mingcute--arrows-down-fill.svg",
+  NORMAL: "/icons/fa7--grip-lines.svg",
+  MAJOR: "/icons/mingcute--arrows-up-fill.svg",
+  CRITICAL: "/icons/ph--warning.svg",
+  STATUS: "/icons/prime--circle-fill.svg",
 };
 
 export const tooltips = {

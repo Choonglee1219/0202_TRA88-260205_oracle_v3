@@ -1,4 +1,5 @@
 import { TopicStyles } from "./types";
+import { appIcons } from "../../../globals";
 
 export const defaultTopicStyles: Required<TopicStyles> = {
   users: {
@@ -8,66 +9,65 @@ export const defaultTopicStyles: Required<TopicStyles> = {
   },
   priorities: {
     "On hold": {
-      icon: "flowbite:circle-pause-outline",
+      icon: appIcons.HOLD,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
+        "--bim-label--c": "#767676",
         "--bim-icon--c": "#767676",
       },
     },
     Minor: {
-      icon: "mingcute:arrows-down-fill",
+      icon: appIcons.MINOR,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
+        "--bim-label--c": "#4CAF50",
         "--bim-icon--c": "#4CAF50",
       },
     },
     Normal: {
-      icon: "fa6-solid:grip-lines",
+      icon: appIcons.NORMAL,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
+        "--bim-label--c": "#FB8C00",
         "--bim-icon--c": "#FB8C00",
       },
     },
     Major: {
-      icon: "mingcute:arrows-up-fill",
+      icon: appIcons.MAJOR,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
+        "--bim-label--c": "#FF5252",
         "--bim-icon--c": "#FF5252",
       },
     },
     Critical: {
-      icon: "ph:warning",
+      icon: appIcons.CRITICAL,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
+        "--bim-label--c": "#FB8C00",
         "--bim-icon--c": "#FB8C00",
       },
     },
   },
   statuses: {
-    Active: {
-      icon: "prime:circle-fill",
+    Open: {
+      icon: appIcons.STATUS,
       style: {
-        backgroundColor: "var(--bim-ui_bg-contrast-20)",
+        backgroundColor: "#500000",
+        "--bim-label--c": "#FB0000",
+        "--bim-icon--c": "#FB0000",
       },
     },
-    "In Progress": {
-      icon: "prime:circle-fill",
+    Assigned: {
+      icon: appIcons.STATUS,
       style: {
         backgroundColor: "#fa89004d",
         "--bim-label--c": "#FB8C00",
         "--bim-icon--c": "#FB8C00",
       },
     },
-    "In Review": {
-      icon: "prime:circle-fill",
-      style: {
-        backgroundColor: "#9c6bff4d",
-        "--bim-label--c": "#9D6BFF",
-        "--bim-icon--c": "#9D6BFF",
-      },
-    },
-    Done: {
-      icon: "prime:circle-fill",
+    Resolved: {
+      icon: appIcons.STATUS,
       style: {
         backgroundColor: "#4CAF504D",
         "--bim-label--c": "#4CAF50",
@@ -75,7 +75,7 @@ export const defaultTopicStyles: Required<TopicStyles> = {
       },
     },
     Closed: {
-      icon: "prime:circle-fill",
+      icon: appIcons.STATUS,
       style: {
         backgroundColor: "#414141",
         "--bim-label--c": "#727272",
@@ -84,53 +84,36 @@ export const defaultTopicStyles: Required<TopicStyles> = {
     },
   },
   types: {
-    Clash: {
-      icon: "gg:close-r",
+    Error: {
+      icon: appIcons.DELETE,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
-        "--bim-icon--c": "#FB8C00",
-      },
-    },
-    Issue: {
-      icon: "mdi:bug-outline",
-      style: {
-        backgroundColor: "var(--bim-ui_bg-contrast-20)",
+        "--bim-label--c": "#FF5252",
         "--bim-icon--c": "#FF5252",
       },
     },
-    Failure: {
-      icon: "mdi:bug-outline",
+    Info: {
+      icon: appIcons.HELP,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
-        "--bim-icon--c": "#FF5252",
+        "--bim-label--c": "#29B6F6",
+        "--bim-icon--c": "#29B6F6",
       },
     },
-    Inquiry: {
-      icon: "majesticons:comment-line",
+    Unknown: {
+      icon: appIcons.HELP,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
-        "--bim-icon--c": "#FF5252",
+        "--bim-label--c": "#9E9E9E",
+        "--bim-icon--c": "#9E9E9E",
       },
     },
-    Fault: {
-      icon: "ph:warning",
+    Warning: {
+      icon: appIcons.CRITICAL,
       style: {
         backgroundColor: "var(--bim-ui_bg-contrast-20)",
-        "--bim-icon--c": "#FF5252",
-      },
-    },
-    Remark: {
-      icon: "ph:note-blank-bold",
-      style: {
-        backgroundColor: "var(--bim-ui_bg-contrast-20)",
-        "--bim-icon--c": "#FB8C00",
-      },
-    },
-    Request: {
-      icon: "mynaui:edit-one",
-      style: {
-        backgroundColor: "var(--bim-ui_bg-contrast-20)",
-        "--bim-icon--c": "#9D6BFF",
+        "--bim-label--c": "#FFC107",
+        "--bim-icon--c": "#FFC107",
       },
     },
   },

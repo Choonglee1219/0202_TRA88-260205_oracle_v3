@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { BCFTopics, newTopic, updateTopic } from "../../bim-components/BCFTopics";
-import { topicListTable } from "../../ui-components/TopicListTable";
+import { topicsList } from "../../ui-components/TopicsList";
 import { appIcons } from "../../globals";
 
 export interface TopicListState {
@@ -13,7 +13,7 @@ export const topicListTemplate: BUI.StatefullComponent<
 > = (state) => {
   const { components } = state;
   const bcfTopics = components.get(BCFTopics);
-  const table = topicListTable(components);
+  const [table] = topicsList({ components });
   const newTopicModal = newTopic(components);
   const updateTopicModal = updateTopic(bcfTopics);
 

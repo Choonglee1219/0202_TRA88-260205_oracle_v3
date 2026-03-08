@@ -1,5 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
+import { users } from "../../globals";
 import {
   TopicsListState,
   TopicsListTableData,
@@ -17,6 +18,13 @@ import { setDefaults } from "./src/set-defaults";
  * @returns A tuple containing the created BCF Topics List component and a function to update it.
  */
 export const topicsList = (state: TopicsListState, autoUpdate = true) => {
+  if (!state.dataStyles) {
+    state.dataStyles = {};
+  }
+  if (!state.dataStyles.users) {
+    state.dataStyles.users = users;
+  }
+
   const element = BUI.Component.create<
     BUI.Table<TopicsListTableData>,
     TopicsListState
@@ -24,6 +32,21 @@ export const topicsList = (state: TopicsListState, autoUpdate = true) => {
 
   const [table, updateTable] = element;
   setDefaults(state, table);
+
+  table.selectableRows = true;
+
+  table.addEventListener("click", () => {
+    setTimeout(() => {
+      if (table.selection.size > 1) {
+        const lastSelected = Array.from(table.selection).pop();
+        table.selection.clear();
+        if (lastSelected) {
+          table.selection.add(lastSelected);
+        }
+        table.requestUpdate();
+      }
+    });
+  });
 
   if (autoUpdate) {
     const { components, topics } = state;
