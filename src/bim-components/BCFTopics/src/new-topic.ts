@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
-import * as CUI from "@thatopen/ui-obc";
 import * as OBC from "@thatopen/components";
 import { users } from "../../../globals";
+import { topicFormTemplate, TopicFormUI } from "../../../ui-components/TopicsList/src/form-template";
 
 const addBackdropStyles = () => {
   const styleId = "new-topic-modal-styles";
@@ -19,42 +19,28 @@ const addBackdropStyles = () => {
 };
 
 export const newTopic = (components: OBC.Components) => {
-  const bcf = components.get(OBC.BCFTopics);
-  const [topicForm, updateTopicForm] = CUI.forms.topic({
-    components,
-    styles: { users },
-  });
 
-  const authorDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
-  authorDropdown.label = "Author";
-  authorDropdown.vertical = true;
+  const formTemplate = (state: TopicFormUI) => {
+    return BUI.html`
+      <bim-panel-section fixed label="New Topic" name="topic">
+        ${topicFormTemplate(state)}
+      </bim-panel-section>
+    `;
+  };
 
-  for (const [email, user] of Object.entries(users)) {
-    const option = document.createElement("bim-option") as any;
-    option.label = user.name;
-    option.value = email;
-    if (user.picture) option.setAttribute("img", user.picture);
-    authorDropdown.append(option);
-  }
-
-  if (bcf.config.author) {
-    authorDropdown.value = [bcf.config.author];
-  }
-
-  authorDropdown.addEventListener("change", () => {
-    if (authorDropdown.value.length > 0) {
-      bcf.config.author = authorDropdown.value[0];
+  const [topicForm, updateTopicForm] = BUI.Component.create<BUI.Panel, TopicFormUI>(
+    formTemplate,
+    {
+      components,
+      styles: { users },
     }
-  });
+  );
 
   const modal = BUI.Component.create<HTMLDialogElement>(() => {
     return BUI.html`
       <dialog class="new-topic-modal" style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden;">
        <bim-panel style="width: 50rem;">
-        <bim-panel-section label="Author" fixed>
-          ${authorDropdown}
-        </bim-panel-section>
-        ${topicForm}
+       ${topicForm}
        </bim-panel> 
       </dialog>
     `;

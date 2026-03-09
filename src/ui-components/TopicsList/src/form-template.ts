@@ -16,6 +16,8 @@ interface FormValue {
   labels: Iterable<string>;
   stage: string;
   description: string;
+  creationAuthor: string;
+  dueDate?: string | null;
 }
 
 /**
@@ -65,11 +67,15 @@ const valueTransform: Record<string, (value: any) => any> = {
     if (!(typeof value === "string" && value.trim() !== "")) return undefined;
     return new Date(value);
   },
+  type: (value) => {
+    if (Array.isArray(value) && value.length !== 0) return value[0];
+    return undefined;
+  },
   status: (value) => {
     if (Array.isArray(value) && value.length !== 0) return value[0];
     return undefined;
   },
-  type: (value) => {
+  creationAuthor: (value) => {
     if (Array.isArray(value) && value.length !== 0) return value[0];
     return undefined;
   },
@@ -105,6 +111,7 @@ export const topicFormTemplate = (state: TopicFormUI) => {
 
   const title = value?.title ?? topic?.title ?? OBC.Topic.default.title;
   const status = value?.status ?? topic?.status ?? OBC.Topic.default.status;
+  const creationAuthor = value?.creationAuthor ?? topic?.creationAuthor ?? bcfTopics.config.author;
   const type = value?.type ?? topic?.type ?? OBC.Topic.default.type;
   const priority =
     value?.priority ?? topic?.priority ?? OBC.Topic.default.priority;
@@ -114,9 +121,8 @@ export const topicFormTemplate = (state: TopicFormUI) => {
   const stage = value?.stage ?? topic?.stage ?? OBC.Topic.default.stage;
   const description =
     value?.description ?? topic?.description ?? OBC.Topic.default.description;
-  const dueDate = topic?.dueDate
-    ? topic.dueDate.toISOString().split("T")[0]
-    : null;
+  const dueDate =
+    value?.dueDate ?? (topic?.dueDate ? topic.dueDate.toISOString().split("T")[0] : null);
 
   const statuses = new Set([...bcfTopics.config.statuses]);
   if (status) statuses.add(status);
@@ -173,26 +179,23 @@ export const topicFormTemplate = (state: TopicFormUI) => {
     <div ${BUI.ref(topicForm)} style="display: flex; flex-direction: column; gap: 0.75rem;">
       <div style="display: flex; gap: 0.375rem">
         <bim-text-input @input=${updateSubmitButton} vertical label="Title" name="title" .value=${title}></bim-text-input>
-        ${
-          topic
-            ? BUI.html`
-            <bim-dropdown vertical label="Status" name="status" required>
-              ${[...statuses].map((s) => BUI.html`<bim-option label=${s} .checked=${status === s}></bim-option>`)}
-            </bim-dropdown>`
-            : BUI.html``
-        }
       </div>
       <div style="display: flex; gap: 0.375rem">
         <bim-dropdown vertical label="Type" name="type" required>
           ${[...types].map((t) => BUI.html`<bim-option label=${t} .checked=${type === t}></bim-option>`)}
         </bim-dropdown>
-        <bim-dropdown vertical label="Priority" name="priority">
-          ${[...priorities].map((p) => BUI.html`<bim-option label=${p} .checked=${priority === p}></bim-option>`)}
+        <bim-dropdown vertical label="Status" name="status" required>
+          ${[...statuses].map((s) => BUI.html`<bim-option label=${s} .checked=${status === s}></bim-option>`)}
         </bim-dropdown>
       </div>
       <div style="display: flex; gap: 0.375rem">
-        <bim-dropdown vertical label="Labels" name="labels" multiple>
-          ${[...labelsList].map((l) => BUI.html`<bim-option label=${l} .checked=${labels ? [...labels].includes(l) : false}></bim-option>`)}
+        <bim-dropdown vertical label="Author" name="creationAuthor">
+          ${[...users].map((u) => {
+            const userStyle = styles?.users ? styles.users[u] : null;
+            const name = userStyle ? userStyle.name : u;
+            const img = userStyle?.picture;
+            return BUI.html`<bim-option label=${name} value=${u} .img=${img} .checked=${creationAuthor === u}></bim-option>`;
+          })}
         </bim-dropdown>
         <bim-dropdown vertical label="Assignee" name="assignedTo">
           ${[...users].map((u) => {
@@ -201,6 +204,14 @@ export const topicFormTemplate = (state: TopicFormUI) => {
             const img = userStyle?.picture;
             return BUI.html`<bim-option label=${name} value=${u} .img=${img} .checked=${assignedTo === u}></bim-option>`;
           })}
+        </bim-dropdown>
+      </div>
+      <div style="display: flex; gap: 0.375rem">
+        <bim-dropdown vertical label="Priority" name="priority">
+          ${[...priorities].map((p) => BUI.html`<bim-option label=${p} .checked=${priority === p}></bim-option>`)}
+        </bim-dropdown>
+        <bim-dropdown vertical label="Labels" name="labels" multiple>
+          ${[...labelsList].map((l) => BUI.html`<bim-option label=${l} .checked=${labels ? [...labels].includes(l) : false}></bim-option>`)}
         </bim-dropdown>
       </div>
       <div style="display: flex; gap: 0.375rem">

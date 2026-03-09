@@ -10,11 +10,6 @@ const addBackdropStyles = () => {
       backdrop-filter: blur(4px);
       background-color: rgba(0, 0, 0, 0.4);
     }
-    .update-topic-modal .cancel-btn:hover {
-      --bim-ui_main-base: #6528d7;
-      --bim-ui_main-contrast: red;
-      --bim-icon--c: red;
-    }
   `;
   const styleElement = document.createElement("style");
   styleElement.id = styleId;
@@ -44,6 +39,11 @@ export const updateTopic = (bcfTopics: any) => {
   labelsDropdown.label = "Labels";
   labelsDropdown.vertical = true;
   labelsDropdown.multiple = true;
+
+  const authorDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
+  authorDropdown.label = "Author";
+  authorDropdown.vertical = true;
+  authorDropdown.setAttribute("disabled", "");
 
   const assigneeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   assigneeDropdown.label = "Assignee";
@@ -106,19 +106,22 @@ export const updateTopic = (bcfTopics: any) => {
           ${titleInput}
           <div style="display: flex; gap: 0.5rem;">
             ${typeDropdown}
-            ${priorityDropdown}
+            ${statusDropdown}
           </div>
           <div style="display: flex; gap: 0.5rem;">
-            ${labelsDropdown}
+            ${authorDropdown}
             ${assigneeDropdown}
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            ${priorityDropdown}
+            ${labelsDropdown}
           </div>
           <div style="display: flex; gap: 0.5rem;">
             ${dueDateInput}
             ${stageDropdown}
           </div>
         ${descriptionInput}
-          <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; align-items: flex-end;">
-            ${statusDropdown}
+          <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
             <bim-button class="cancel-btn" style="flex: 0;" label="Cancel" @click=${onCancel}></bim-button>
             <bim-button style="flex: 0;" label="Update" icon=${appIcons.EDIT} @click=${onUpdate}></bim-button>
           </div>
@@ -141,7 +144,7 @@ export const updateTopic = (bcfTopics: any) => {
       if (values) {
         for (const val of values) {
           const opt = document.createElement("bim-option") as any;
-          if (dropdown === assigneeDropdown && users[val]) {
+          if ((dropdown === assigneeDropdown || dropdown === authorDropdown) && users[val]) {
             opt.label = users[val].name;
             opt.value = val;
             if (users[val].picture) opt.setAttribute("img", users[val].picture);
@@ -165,6 +168,7 @@ export const updateTopic = (bcfTopics: any) => {
       dropdown.replaceChildren(...options);
     };
 
+    populate(authorDropdown, bcf.config.users, topic.creationAuthor);
     populate(typeDropdown, bcf.config.types, topic.type);
     populate(priorityDropdown, bcf.config.priorities, topic.priority);
     populate(labelsDropdown, bcf.config.labels, topic.labels);
