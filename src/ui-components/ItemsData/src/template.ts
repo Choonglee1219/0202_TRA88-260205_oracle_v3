@@ -46,13 +46,18 @@ const getItemRow = (
 
   const isRestricted = !!parentRelation && !["HasProperties", "Quantities"].includes(parentRelation);
 
-  if (!isRestricted && modelProcessings.has(localId)) {
-    return modelProcessings.get(localId)!;
-  }
-
   const name = (propertyData[state.defaultItemNameKey] as FRAGS.ItemAttribute)
     ?.value;
   const category = (propertyData._category as FRAGS.ItemAttribute).value;
+
+  if (!isRestricted && modelProcessings.has(localId)) {
+    const cachedRow = modelProcessings.get(localId)!;
+    const newRow = { ...cachedRow, data: { ...cachedRow.data } };
+    newRow.data.Name = name?.toString().length > 0
+      ? (category && !parentRelation ? `${category} || ${name}` : name.toString())
+      : category ?? String(localId);
+    return newRow;
+  }
 
   const row: BUI.TableGroupData<ItemsDataTableData> = {
     data: {
@@ -61,7 +66,7 @@ const getItemRow = (
       type: "item",
       Name:
         name?.toString().length > 0
-          ? (category ? `${category} || ${name}` : name.toString())
+          ? (category && !parentRelation ? `${category} || ${name}` : name.toString())
           : category ?? String(localId),
     },
   };
