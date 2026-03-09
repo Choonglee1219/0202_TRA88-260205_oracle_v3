@@ -71,6 +71,10 @@ export const tooltips = {
     TITLE: "Show All Items",
     TEXT: "Reset the visibility of all hidden items, so they become visible again.",
   },
+  CLEARANCE: {
+    TITLE: "Clearance Check",
+    TEXT: "Measure the North-South or East-West clearance of the two selected objects.",
+  },
 };
 
 export const users: CUI.TopicUserStyles = {

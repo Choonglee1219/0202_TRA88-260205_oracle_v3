@@ -7,6 +7,7 @@ import * as TEMPLATES from "./ui-templates";
 import { appIcons, CONTENT_GRID_ID } from "./globals";
 import { setupFinders } from "./setup/finders";
 import { setupViewTemplates } from "./setup/templaters";
+import { ViewCube } from "./ui-components/ViewCube";
 
 // 🎨Override the bim-label template to use a local SVG icon and apply custom colors
 // @ts-ignore
@@ -64,6 +65,50 @@ world.camera.threePersp.near = 0.5;
 world.camera.threePersp.far = 100000;
 world.camera.threePersp.updateProjectionMatrix();
 world.camera.controls.restThreshold = 0.05;
+
+// 🧊 ViewCube Setup
+if (!customElements.get("bim-view-cube")) {
+  customElements.define("bim-view-cube", ViewCube);
+}
+
+const viewCube = document.createElement("bim-view-cube") as ViewCube;
+viewCube.camera = world.camera.three;
+viewCube.rightText = "Right";
+viewCube.leftText = "Left";
+viewCube.topText = "Top";
+viewCube.bottomText = "Bottom";
+viewCube.frontText = "Front";
+viewCube.backText = "Back";
+
+viewport.append(viewCube);
+
+world.camera.controls.addEventListener("update", () => {
+  viewCube.updateOrientation();
+});
+
+world.camera.projection.onChanged.add(() => {
+  viewCube.camera = world.camera.three;
+  viewCube.updateOrientation();
+});
+
+viewCube.addEventListener("frontclick", () => {
+  world.camera.controls.rotateTo(0, Math.PI / 2, true);
+});
+viewCube.addEventListener("backclick", () => {
+  world.camera.controls.rotateTo(Math.PI, Math.PI / 2, true);
+});
+viewCube.addEventListener("rightclick", () => {
+  world.camera.controls.rotateTo(Math.PI / 2, Math.PI / 2, true);
+});
+viewCube.addEventListener("leftclick", () => {
+  world.camera.controls.rotateTo(-Math.PI / 2, Math.PI / 2, true);
+});
+viewCube.addEventListener("topclick", () => {
+  world.camera.controls.rotateTo(0, 0, true);
+});
+viewCube.addEventListener("bottomclick", () => {
+  world.camera.controls.rotateTo(0, Math.PI, true);
+});
 
 const worldGrid = components.get(OBC.Grids).create(world);
 worldGrid.material.uniforms.uColor.value = new THREE.Color(0x494b50);
