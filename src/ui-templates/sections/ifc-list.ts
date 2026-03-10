@@ -170,7 +170,16 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     for (const model of models) {
       // if (id.includes("DELTA")) continue
       if (model.isDeltaModel) continue;
-      await fragments.core.editor.save(model.modelId);
+      const buffer = await (model as any).getBuffer(false);
+      const blob = new Blob([buffer], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(model as any).name || "model"}.frag`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
     target.loading = false;
   };
