@@ -20,6 +20,7 @@ export const topicsListTemplate: BUI.StatefullComponent<TopicsListState> = (
         data: {
           Guid: topic.guid,
           Title: topic.title,
+          Snapshot: (topic as any).snapshot ?? "",
           Status: topic.status,
           Description: topic.description ?? "",
           Author: topic.creationAuthor,

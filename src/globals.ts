@@ -48,6 +48,7 @@ export const appIcons = {
   MAJOR: "/icons/mingcute--arrows-up-fill.svg",
   CRITICAL: "/icons/ph--warning.svg",
   STATUS: "/icons/prime--circle-fill.svg",
+  IMAGE: "/icons/mdi--image-outline.svg",
 };
 
 export const tooltips = {

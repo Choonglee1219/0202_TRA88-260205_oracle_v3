@@ -140,7 +140,7 @@ export class BCFTopics extends OBC.Component {
   setupTable(table: BUI.Table<any>) {
     table.dataTransform.Title = (value: any, row: any) => {
       return BUI.html`
-        <bim-label style="cursor: pointer;" @click=${async () => {
+        <bim-label style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" @click=${async () => {
           const topic = this.list.get(row.Guid);
           if (topic) await this.restoreViewpoint(topic);
         }}>${value}</bim-label>
@@ -199,7 +199,23 @@ export class BCFTopics extends OBC.Component {
   async loadBCFContent(buffer: ArrayBuffer | Uint8Array) {
     this._loading = true;
     try {
-      const { topics, viewpoints } = await this._bcf.load(new Uint8Array(buffer));
+      const bcf = new Uint8Array(buffer);
+      const { topics, viewpoints } = await this._bcf.load(bcf);
+
+      const zip = new JSZip();
+      await zip.loadAsync(buffer);
+
+      for (const topic of topics) {
+        const folder = zip.folder(topic.guid);
+        if (!folder) continue;
+        const snapshotFile = folder.file("snapshot.png");
+        if (snapshotFile) {
+          const base64 = await snapshotFile.async("base64");
+          (topic as any).snapshot = `data:image/png;base64,${base64}`;
+          this._bcf.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
+        }
+      }
+
       const worlds = this.components.get(OBC.Worlds);
       const world = worlds.list.values().next().value;
       if (world) {

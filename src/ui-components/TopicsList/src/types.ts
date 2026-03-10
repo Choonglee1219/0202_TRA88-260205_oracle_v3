@@ -3,6 +3,7 @@ import * as OBC from "@thatopen/components";
 export type TopicsListTableData = {
   Guid: string;
   Title: string;
+  Snapshot: string;
   Status: string;
   Description: string;
   Author: string;

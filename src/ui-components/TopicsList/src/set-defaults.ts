@@ -2,6 +2,7 @@ import * as BUI from "@thatopen/ui";
 import { TopicsListState, TopicsListTableData } from "./types";
 import { baseTopicTagStyle, defaultTopicStyles } from "./styles";
 import { createAuthorTag } from "./author-tag";
+import { appIcons } from "../../../globals";
 
 export const setDefaults = (
   state: TopicsListState,
@@ -9,10 +10,63 @@ export const setDefaults = (
 ) => {
   const { dataStyles: styles } = state;
 
-  if (table.hiddenColumns.length === 0) table.hiddenColumns = ["Guid", "Actions"];
-  table.columns = ["Title"];
+  if (table.hiddenColumns.length === 0)
+    table.hiddenColumns = ["Guid", "Actions"];
+  table.columns = [
+    { name: "Title", width: "minmax(0, 2fr)" },
+    { name: "Snapshot", width: "70px" },
+    { name: "Status", width: "minmax(0, 1fr)" },
+    { name: "Type", width: "minmax(0, 1fr)" },
+    { name: "Priority", width: "minmax(0, 1fr)" },
+    { name: "Author", width: "minmax(0, 1fr)" },
+    { name: "Assignee", width: "minmax(0, 1fr)" },
+    { name: "Date", width: "minmax(0, 1fr)" },
+    { name: "DueDate", width: "minmax(0, 1fr)" },
+    { name: "Description", width: "minmax(0, 2fr)" },
+  ];
 
   table.dataTransform = {
+    Snapshot: (value) => {
+      if (typeof value !== "string" || !value) return "";
+      
+      const download = (e: Event) => {
+        e.stopPropagation();
+        const a = document.createElement("a");
+        a.href = value;
+        a.download = "snapshot.png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      const showPreview = (e: Event) => {
+        const target = e.currentTarget as HTMLElement;
+        const img = target.querySelector(".snapshot-preview") as HTMLElement;
+        if (img) {
+          const rect = target.getBoundingClientRect();
+          img.style.display = "block";
+          img.style.left = `${rect.left + rect.width / 2}px`;
+          img.style.top = `${rect.top + rect.height / 2}px`;
+        }
+      };
+
+      const hidePreview = (e: Event) => {
+        const target = e.currentTarget as HTMLElement;
+        const img = target.querySelector(".snapshot-preview") as HTMLElement;
+        if (img) img.style.display = "none";
+      };
+
+      return BUI.html`
+        <div 
+          @mouseenter=${showPreview} 
+          @mouseleave=${hidePreview} 
+          style="position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;"
+        >
+          <bim-button icon=${appIcons.IMAGE} @click=${download} tooltip-title="Download Snapshot" style="flex: 0;"></bim-button>
+          <img class="snapshot-preview" src="${value}" style="display: none; position: fixed; transform: translate(1.5rem, -50%); width: auto; height: 10rem; border: 1px solid var(--bim-ui_bg-contrast-20); background-color: var(--bim-ui_bg-base); z-index: 9999; border-radius: 0.25rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: none;">
+        </div>
+      `;
+    },
     Priority: (value) => {
       if (typeof value !== "string") return value;
       const priorityStyles =
@@ -57,6 +111,14 @@ export const setDefaults = (
     Assignee: (value) => {
       if (typeof value !== "string") return value;
       return createAuthorTag(value, styles?.users ?? defaultTopicStyles.users);
+    },
+    Description: (value) => {
+      if (typeof value !== "string") return value;
+      return BUI.html`
+        <bim-label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">
+          ${value}
+        </bim-label>
+      `;
     },
   };
 };
