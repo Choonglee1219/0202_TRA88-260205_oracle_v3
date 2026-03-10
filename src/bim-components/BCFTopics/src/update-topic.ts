@@ -1,5 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
+import * as OBF from "@thatopen/components-front";
 import { appIcons, users } from "../../../globals";
 
 const addBackdropStyles = () => {
@@ -92,6 +93,27 @@ export const updateTopic = (bcfTopics: any) => {
     }
 
     currentTopic.labels = new Set(labelsDropdown.value);
+
+    const viewpoints = components.get(OBC.Viewpoints);
+    const viewpoint = viewpoints.create();
+    const worlds = components.get(OBC.Worlds);
+    const world = worlds.list.values().next().value;
+    if (world) {
+      viewpoint.world = world;
+      await viewpoint.updateCamera();
+    }
+
+    const highlighter = components.get(OBF.Highlighter);
+    const selection = highlighter.selection.select;
+    if (Object.keys(selection).length > 0) {
+      const fragments = components.get(OBC.FragmentsManager);
+      const guids = await fragments.modelIdMapToGuids(selection);
+      for (const guid of guids) {
+        viewpoint.selectionComponents.add(guid);
+      }
+    }
+    currentTopic.viewpoints.clear();
+    currentTopic.viewpoints.add(viewpoint.guid);
 
     await bcf.list.set(currentTopic.guid, currentTopic);
     modal.close();
