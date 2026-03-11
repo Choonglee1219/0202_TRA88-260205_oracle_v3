@@ -180,7 +180,9 @@ export class BCFTopics extends OBC.Component {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(bcfFile);
     a.download = bcfFile.name;
+    document.body.append(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(a.href);
   }
 
@@ -397,6 +399,47 @@ export class BCFTopics extends OBC.Component {
     if (newBcfId) {
        alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
     }
+  }
+
+  // Exporting Topics as JSON
+  exportJSON() {
+    console.log("Exporting JSON...");
+
+    const fragments = this.components.get(OBC.FragmentsManager);
+    const modelNamesArray: string[] = [];
+    for (const [, model] of fragments.list) {
+      const m = model as any;
+      if (m.name) modelNamesArray.push(m.name);
+    }
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const modelNames = modelNamesArray.join("-");
+    const defaultName = `Topics(${year}${month}${day}): ${modelNames}`;
+    const fileName = prompt("JSON 파일 이름을 입력하세요:", defaultName);
+    if (!fileName) return;
+
+    const data = [];
+    for (const topic of this.list.values()) {
+      data.push({
+        GUID: topic.guid,
+        Title: topic.title,
+        Type: topic.type,
+        Status: topic.status,
+        Author: topic.creationAuthor,
+        Assignee: topic.assignedTo,
+        Priority: topic.priority,
+        Labels: Array.from(topic.labels),
+        "Due Date": topic.dueDate,
+        "Created Date": topic.creationDate,
+        Stage: topic.stage,
+        Description: topic.description,
+      });
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const finalName = fileName.endsWith(".json") ? fileName : `${fileName}.json`;
+    this.downloadFile(blob, finalName);
   }
 
   // Saving BCF File to Database

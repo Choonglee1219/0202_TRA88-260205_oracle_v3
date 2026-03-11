@@ -19,13 +19,30 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   bcfTopics.setupTable(table);
 
+  const onNewTopicModalOpen = () => {
+    newTopicModal.showModal();
+  };
+  const onUpdateTopicModalOpen = () => {
+    updateTopicModal.showModal(table.selection);
+  };
+  const onDeleteTopic = () => {
+    bcfTopics.delete(table.selection);
+  };
+  const onClearTopicsList = () => {
+    bcfTopics.deleteAll();
+  };
+  const onSaveTopicsToBCF = () => {
+    bcfTopics.saveBCF();
+  };
+  const onExportTopicsToJSON = () => {
+    bcfTopics.exportJSON();
+  };
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
     table.queryString = input.value;
   };
 
   let panelSection: BUI.PanelSection;
-
   const updateTopicCount = () => {
     if (!panelSection) return;
     let open = 0;
@@ -60,11 +77,12 @@ export const topicListTemplate: BUI.StatefullComponent<
       fixed icon=${appIcons.TASK} label="Topic List">
       <div style="display: flex; gap: 0.5rem;">
         <div style="display: flex; gap: 0.25rem; flex: 1;">
-          <bim-button style="flex: 1;" @click=${() => newTopicModal.showModal()} label="Create Topic" icon=${appIcons.ADD}></bim-button>
-          <bim-button style="flex: 1;" @click=${() => updateTopicModal.showModal(table.selection)} label="Update Topic" icon=${appIcons.REF}></bim-button>
-          <bim-button style="flex: 1;" @click=${() => bcfTopics.delete(table.selection)} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
-          <bim-button style="flex: 1;" @click=${() => bcfTopics.deleteAll()} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
-          <bim-button style="flex: 1;" @click=${() => bcfTopics.saveBCF()} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
+          <bim-button style="flex: 1;" @click=${onNewTopicModalOpen} label="Create Topic" icon=${appIcons.ADD}></bim-button>
+          <bim-button style="flex: 1;" @click=${onUpdateTopicModalOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
+          <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
+          <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
+          <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
+          <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
         </div>
         <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
       </div>
