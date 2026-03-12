@@ -8,6 +8,7 @@ import { users } from "../../globals";
 import { SharedBCF } from "../SharedBCF";
 import { SharedIFC } from "../SharedIFC";
 import { clashInput } from "./src/clash-input";
+import { setModelTransparent } from "../../ui-templates/toolbars/viewer-toolbar";
 
 export * from "./src/new-topic";
 export * from "./src/update-topic";
@@ -114,8 +115,9 @@ export class BCFTopics extends OBC.Component {
           if (guids.length > 0) {
             const modelIdMap = await fragments.guidsToModelIdMap(guids);
             await highlighter.highlightByID("select", modelIdMap);
-            const hider = this.components.get(OBC.Hider);
-            await hider.isolate(modelIdMap);
+            // const hider = this.components.get(OBC.Hider);
+            // await hider.isolate(modelIdMap);
+            setModelTransparent(this.components);
           }
 
           // Restore Colors

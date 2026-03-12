@@ -18,8 +18,14 @@ const originalColors = new Map<
 
 export const setModelTransparent = (components: OBC.Components) => {
   if (originalColors.size > 0) return;
-  const fragments = components.get(OBC.FragmentsManager);
+  const worlds = components.get(OBC.Worlds);
+  for (const world of worlds.list.values()) {
+    if (world.renderer instanceof OBF.PostproductionRenderer) {
+      world.renderer.postproduction.edgesPass.enabled = false;
+    }
+  }
 
+  const fragments = components.get(OBC.FragmentsManager);
   const materials = [...fragments.core.models.materials.list.values()];
   for (const material of materials) {
     if (material.userData.customId) continue;
@@ -46,13 +52,19 @@ export const setModelTransparent = (components: OBC.Components) => {
       material.opacity = 0.01;
       material.color.setColorName("cyan");
     } else {
-      material.opacity = 0.01;
-      material.lodColor.setColorName("grey");
+      material.opacity = 0.001;
+      material.lodColor.setColorName("black");
     }
   }
 };
 
-export const restoreModelMaterials = () => {
+export const restoreModelMaterials = (components: OBC.Components) => {
+  const worlds = components.get(OBC.Worlds);
+  for (const world of worlds.list.values()) {
+    if (world.renderer instanceof OBF.PostproductionRenderer) {
+      world.renderer.postproduction.edgesPass.enabled = true;
+    }
+  }
   for (const [material, data] of originalColors) {
     const { color, transparent, opacity, depthWrite } = data;
     material.transparent = transparent;
@@ -95,15 +107,9 @@ ViewerToolbarState
 
   const onToggleGhost = () => {
     if (originalColors.size) {
-      restoreModelMaterials();
-      if (world.renderer instanceof OBF.PostproductionRenderer) {
-        world.renderer.postproduction.edgesPass.enabled = true;
-      }
+      restoreModelMaterials(components);
     } else {
       setModelTransparent(components);
-      if (world.renderer instanceof OBF.PostproductionRenderer) {
-        world.renderer.postproduction.edgesPass.enabled = false;
-      }
     }
   };
 
