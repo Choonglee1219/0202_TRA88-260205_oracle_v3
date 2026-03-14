@@ -66,7 +66,7 @@ export const viewportGridTemplate: BUI.StatefullComponent<ViewportGridState> = (
     const onModelSection = () => {
       disableAll(["clipper"]);
       clipper.enabled = !clipper.enabled;
-      highlighter.enabled = !clipper.enabled;
+      highlighter.enabled = true; // Clipper 활성화 시에도 객체 선택 가능하도록 변경
       update();
     };
 
