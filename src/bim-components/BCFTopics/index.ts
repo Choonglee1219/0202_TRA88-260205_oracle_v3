@@ -21,6 +21,7 @@ export class BCFTopics extends OBC.Component {
   private _bcf: OBC.BCFTopics;
   private _loading = false;
   private _clashModal: HTMLDialogElement | null = null;
+  private _targetSphere: THREE.Mesh | null = null;
 
   get list() {
     return this._bcf.list;
@@ -134,6 +135,64 @@ export class BCFTopics extends OBC.Component {
             const colorModelIdMap = await fragments.guidsToModelIdMap(guids);
             await highlighter.highlightByID(styleName, colorModelIdMap, false, false);
           }
+
+          // Focus on the selection with the minimum bounding box area
+          const target = new THREE.Vector3();
+          let foundCenter = false;
+
+          const guidsForCenter = Array.from(viewpoint.selectionComponents);
+          if (guidsForCenter.length > 0) {
+            const centerModelIdMap = await fragments.guidsToModelIdMap(guidsForCenter);
+            let minBBoxSize = Infinity;
+
+            for (const modelId in centerModelIdMap) {
+              const expressIds = centerModelIdMap[modelId];
+              for (const id of expressIds) {
+                const singleMap = { [modelId]: new Set([id]) };
+                const bboxes = await fragments.getBBoxes(singleMap);
+                
+                if (bboxes.length > 0) {
+                  const itemBox = new THREE.Box3();
+                  for (const box of bboxes) {
+                    itemBox.union(box);
+                  }
+                  
+                  const size = new THREE.Vector3();
+                  itemBox.getSize(size);
+                  const bboxSize = size.lengthSq();
+                  
+                  if (bboxSize > 0 && bboxSize < minBBoxSize) {
+                    minBBoxSize = bboxSize;
+                    itemBox.getCenter(target);
+                    foundCenter = true;
+                  }
+                }
+              }
+            }
+          }
+
+          const camera = viewpoint.world.camera as OBC.OrthoPerspectiveCamera;
+
+          if (!foundCenter) {
+            camera.controls.getTarget(target);
+          }
+
+          if (!this._targetSphere) {
+            const geometry = new THREE.SphereGeometry(0.01, 32, 32);
+            const material = new THREE.MeshBasicMaterial({ 
+              color: 0xff0000, 
+              transparent: true, 
+              opacity: 0,
+              depthTest: false,
+            });
+            this._targetSphere = new THREE.Mesh(geometry, material);
+            viewpoint.world.scene.three.add(this._targetSphere);
+          }
+
+          this._targetSphere.position.copy(target);
+          
+          const sphereBound = new THREE.Sphere(target, 0.01);
+          await camera.controls.fitToSphere(sphereBound, true);
         }
       }
     }
