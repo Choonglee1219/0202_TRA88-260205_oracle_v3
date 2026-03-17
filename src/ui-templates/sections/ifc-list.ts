@@ -105,6 +105,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   
   const updateLoadedModelsList = () => {
     const models = [...fragments.list.values()];
+    // 이름을 기준으로 오름차순 정렬
+    models.sort((a: any, b: any) => (a.name || "Untitled").localeCompare(b.name || "Untitled"));
     loadedTable.data = models.map(model => ({
       data: {
         id: (model as any).uuid || Math.random().toString(),
@@ -474,7 +476,9 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
           if (!customGroups.includes(groupName)) groupName = "None";
           return groupName === activeGroupFilter;
         })
-      : sharedFRAG.list;
+      : [...sharedFRAG.list]; // 원본 배열 보호를 위해 복사
+
+    filteredList.sort((a, b) => a.name.localeCompare(b.name));
 
     fragTable.data = filteredList.map(file => {
       let groupName = fragGroups.get(file.id) || "None";
@@ -641,7 +645,9 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
           if (!customGroups.includes(groupName)) groupName = "None";
           return groupName === activeGroupFilter;
         })
-      : sharedIFC.list;
+      : [...sharedIFC.list]; // 원본 배열 보호를 위해 복사
+
+    filteredList.sort((a, b) => a.name.localeCompare(b.name));
 
     ifcTable.data = filteredList.map(file => {
       let groupName = ifcGroups.get(file.id) || "None";
