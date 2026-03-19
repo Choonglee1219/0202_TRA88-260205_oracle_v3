@@ -732,12 +732,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     <bim-panel-section icon=${appIcons.MODEL} label="IFC List">
       <div style="display: flex; gap: 0.25rem;">
         <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200"></bim-text-input>
-        <bim-button style="flex: 0;" icon=${appIcons.ADD}>
-          <bim-context-menu style="gap: 0.25rem;">
-            <bim-button label="IFC" @click=${onAddIfcModel}></bim-button>
-            <bim-button label="Fragments" @click=${onAddFragmentsModel}></bim-button>
-          </bim-context-menu> 
-        </bim-button>
+        <bim-button @click=${onAddIfcModel} style="flex: 0;" icon=${appIcons.ADD}></bim-button>
         <bim-button style="flex: 0" icon=${appIcons.SAVE} @click=${onSave}></bim-button>
       </div>
       <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -747,7 +742,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
           <bim-button @click=${onDisposeSelectedModels} label="Dispose" style="flex: 0;"></bim-button>
         </div>
       </div>
-      <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; height: 10rem;">
+      <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; height: 10rem; min-height: 10rem; flex-shrink: 0;">
         ${loadedTable}
       </div>
       
