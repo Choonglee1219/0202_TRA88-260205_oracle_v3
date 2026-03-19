@@ -184,7 +184,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     accept: string,
     multiple: boolean,
     onLoad: (file: File, target: BUI.Button) => Promise<void>,
-  ) => async ({ target }: { target: BUI.Button }) => {
+  ) => (e: Event) => {
+    const target = (e.target as HTMLElement).closest("bim-button") as BUI.Button | null;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = accept;
@@ -193,19 +194,17 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     input.addEventListener("change", async () => {
       const file = input.files?.[0];
       if (!file) return;
-      target.loading = true;
+      if (target) target.loading = true;
       try {
-        await onLoad(file, target);
+        if (target) await onLoad(file, target);
       } catch (error) {
         console.error("Error loading file:", error);
         alert("파일 로드 중 오류가 발생했습니다. 콘솔을 확인하세요.");
       } finally {
-        target.loading = false;
+        if (target) target.loading = false;
         BUI.ContextMenu.removeMenus();
       }
     });
-
-    input.addEventListener("cancel", () => (target.loading = false));
 
     input.click();
   };
@@ -277,24 +276,27 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     ifcTable.queryString = input.value;
   };
   
-  const onSave = async ({ target }: { target: BUI.Button }) => {
-    target.loading = true;
-    const models = [...fragments.list.values()];
-    for (const model of models) {
-      // if (id.includes("DELTA")) continue
-      if (model.isDeltaModel) continue;
-      const buffer = await (model as any).getBuffer(false);
-      const blob = new Blob([buffer], { type: "application/octet-stream" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(model as any).name || "model"}.frag`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+  const onSave = async (e: Event) => {
+    const target = (e.target as HTMLElement).closest("bim-button") as BUI.Button | null;
+    if (target) target.loading = true;
+    try {
+      const models = [...fragments.list.values()];
+      for (const model of models) {
+        if (model.isDeltaModel) continue;
+        const buffer = await (model as any).getBuffer(false);
+        const blob = new Blob([buffer], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${(model as any).name || "model"}.frag`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } finally {
+      if (target) target.loading = false;
     }
-    target.loading = false;
   };
 
   const loadIFCModel = async (ifcid: number) => {
@@ -754,8 +756,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         <div style="display: flex; gap: 0.25rem;">
         <bim-button @click=${onSelectAllFragModels} label="Select All" style="flex: 0;"></bim-button>
         <bim-button @click=${(e: Event) => {
-          const target = e.target as BUI.Button;
-          onLoadSelectedFragModels(target);
+          const target = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
+          if (target) onLoadSelectedFragModels(target);
         }} label="Load" icon=${appIcons.OPEN} style="flex: 0;"></bim-button>
         </div>
       </div>
