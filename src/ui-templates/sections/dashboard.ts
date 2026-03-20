@@ -1,0 +1,411 @@
+import * as BUI from "@thatopen/ui";
+import * as OBC from "@thatopen/components";
+import * as OBF from "@thatopen/components-front";
+import Chart from "chart.js/auto";
+import { appIcons } from "../../globals";
+
+export interface DashboardPanelState {
+  components: OBC.Components;
+}
+
+export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState> = (state) => {
+  const { components } = state;
+  const fragments = components.get(OBC.FragmentsManager);
+  const highlighter = components.get(OBF.Highlighter);
+  const finder = components.get(OBC.ItemsFinder);
+  
+  let categoryChart: Chart | null = null;
+  let floorChart: Chart | null = null;
+  let typeCharts: Chart[] = [];
+
+  let catCanvas: HTMLCanvasElement | null = null;
+  let floorCanvas: HTMLCanvasElement | null = null;
+  let chartsContainer: HTMLDivElement | null = null;
+
+  const categoryElementMap = new Map<string, Record<string, Set<number>>>();
+  const floorElementMap = new Map<string, Record<string, Set<number>>>();
+
+  const updateDashboard = async (target?: BUI.Button) => {
+    if (!catCanvas || !floorCanvas || !chartsContainer) return;
+    if (target) target.loading = true;
+
+    // 1. 카테고리별 데이터 수집
+    const categoryCounts: Record<string, number> = {};
+    const categoryDetailedData = new Map<string, Record<string, { total: number, oTypes: Record<string, number> }>>();
+    categoryElementMap.clear();
+
+    const categories = [
+      "IFCWALL", "IFCSLAB", "IFCDOOR", "IFCWINDOW", "IFCCOLUMN", 
+      "IFCBEAM", "IFCSTAIR", "IFCRAILING", "IFCSPACE", "IFCFURNISHINGELEMENT"
+    ];
+
+    for (const cat of categories) {
+      const modelIdMap: OBC.ModelIdMap = {};
+      let count = 0;
+      const displayCat = cat.replace(/^IFC/i, "");
+      categoryDetailedData.set(displayCat, {});
+
+      const categoriesRegex = [new RegExp(`^${cat}$`, "i")];
+
+      for (const [modelId, model] of fragments.list) {
+        try {
+          const items = await model.getItemsOfCategories(categoriesRegex);
+          const localIds = Object.values(items).flat();
+          if (localIds.length > 0) {
+            modelIdMap[modelId] = new Set(localIds);
+            count += localIds.length;
+
+            // 타입별(PredefinedType, ObjectType) 데이터 상세 수집 (Type 객체 참조 포함)
+            const itemsData = await model.getItemsData(localIds, { 
+              attributesDefault: true,
+              relationsDefault: { attributes: false, relations: false },
+              relations: {
+                IsTypedBy: { attributes: true, relations: false }, // IFC4 방식 타입 참조
+                IsDefinedBy: { attributes: true, relations: false } // IFC2x3 방식 타입 참조
+              }
+            });
+
+            for (const item of itemsData) {
+              const extractValue = (attr: any): any => {
+                if (attr === null || attr === undefined) return null;
+                if (Array.isArray(attr)) return attr.length > 0 ? extractValue(attr[0]) : null;
+                if (typeof attr === "object" && "value" in attr) return attr.value;
+                return attr;
+              };
+
+              let pType = extractValue((item as any).PredefinedType);
+              let oType = extractValue((item as any).ObjectType);
+
+              // 인스턴스에 값이 없으면 연결된 Type 객체(예: IfcWallType)에서 속성을 가져옵니다.
+              if (!pType || !oType) {
+                const relatedTypes = [
+                  ...((item as any).IsTypedBy || []),
+                  ...((item as any).IsDefinedBy || [])
+                ];
+                for (const typeObj of relatedTypes) {
+                  if (!pType && typeObj.PredefinedType) pType = extractValue(typeObj.PredefinedType);
+                  if (!oType && typeObj.ObjectType) oType = extractValue(typeObj.ObjectType);
+                }
+              }
+
+              // 대소문자 구분을 없애기 위해 모두 대문자로 통일
+              const oTypeStr = oType ? String(oType).toUpperCase() : "UNSPECIFIED";
+              const pTypeStr = (pType && String(pType).toUpperCase() !== "NOTDEFINED") ? String(pType).toUpperCase() : "UNSPECIFIED";
+
+              const catData = categoryDetailedData.get(displayCat)!;
+              if (!catData[pTypeStr]) catData[pTypeStr] = { total: 0, oTypes: {} };
+              catData[pTypeStr].total++;
+              if (!catData[pTypeStr].oTypes[oTypeStr]) catData[pTypeStr].oTypes[oTypeStr] = 0;
+              catData[pTypeStr].oTypes[oTypeStr]++;
+            }
+          }
+        } catch (e) {
+          console.warn(`Error querying category ${cat}:`, e);
+        }
+      }
+
+      if (count > 0) {
+        categoryCounts[displayCat] = count;
+        categoryElementMap.set(displayCat, modelIdMap);
+      }
+    }
+
+    // 2. 층별 데이터 수집
+    const floorCounts: Record<string, number> = {};
+    floorElementMap.clear();
+
+    try {
+      finder.create("dash_all_storeys", [{ categories: [/IFCBUILDINGSTOREY/i] }]);
+      const storeysMap = await finder.list.get("dash_all_storeys")?.test({ modelIds: [/.*/] });
+      finder.list.delete("dash_all_storeys");
+
+      if (storeysMap && !OBC.ModelIdMapUtils.isEmpty(storeysMap)) {
+        const storeyNames = new Set<string>();
+        
+        for (const [modelId, ids] of Object.entries(storeysMap)) {
+          const model = fragments.list.get(modelId);
+          if (model) {
+            const itemsData = await model.getItemsData(Array.from(ids), { attributesDefault: true });
+            for (const item of itemsData) {
+              const nameAttr = (item as any).Name;
+              if (nameAttr && nameAttr.value) {
+                storeyNames.add(nameAttr.value);
+              }
+            }
+          }
+        }
+
+        for (const sName of storeyNames) {
+          const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const qName = `dash_floor_${sName}`;
+          finder.create(qName, [{
+            relation: {
+              name: "ContainedInStructure",
+              query: {
+                categories: [/IFCBUILDINGSTOREY/i],
+                attributes: {
+                  queries: [{ name: /Name/, value: new RegExp(`^${escapeRegExp(sName)}$`, "i") }]
+                }
+              }
+            }
+          }]);
+
+          const fQuery = finder.list.get(qName);
+          if (fQuery) {
+            const fItems = await fQuery.test({ modelIds: [/.*/] });
+            if (fItems && !OBC.ModelIdMapUtils.isEmpty(fItems)) {
+              let count = 0;
+              for (const ids of Object.values(fItems)) count += ids.size;
+              if (count > 0) {
+                floorCounts[sName] = count;
+                floorElementMap.set(sName, fItems);
+              }
+            }
+          }
+          finder.list.delete(qName);
+        }
+      }
+    } catch (e) {
+      console.warn("Error processing floors", e);
+    }
+
+    // 3. 차트 렌더링 함수
+    const renderChart = (
+      canvas: HTMLCanvasElement, 
+      instance: Chart | null, 
+      labelMap: Record<string, number>, 
+      dataMap: Map<string, Record<string, Set<number>>>, 
+      labelTitle: string, 
+      color: string
+    ) => {
+      const labels = Object.keys(labelMap);
+      const data = Object.values(labelMap);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return instance;
+
+      if (instance) instance.destroy();
+
+      return new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: labelTitle,
+            data: data,
+            backgroundColor: color,
+            borderColor: color.replace('0.6', '1'),
+            borderWidth: 1,
+            borderRadius: 4,
+            hoverBackgroundColor: color.replace('0.6', '0.9')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (_event, elements) => {
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const selectedLabel = labels[index];
+              const modelIdMap = dataMap.get(selectedLabel);
+              
+              if (modelIdMap && !OBC.ModelIdMapUtils.isEmpty(modelIdMap)) {
+                highlighter.highlightByID("select", modelIdMap);
+              } else {
+                highlighter.clear("select");
+              }
+            } else {
+              highlighter.clear("select");
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#a0a0a0' } }
+          },
+          scales: {
+            x: { ticks: { color: '#a0a0a0' } },
+            y: { ticks: { color: '#a0a0a0', stepSize: 1 } }
+          }
+        }
+      });
+    };
+
+    categoryChart = renderChart(catCanvas, categoryChart, categoryCounts, categoryElementMap, 'Category Count', 'rgba(54, 162, 235, 0.6)');
+    floorChart = renderChart(floorCanvas, floorChart, floorCounts, floorElementMap, 'Storey Count', 'rgba(255, 159, 64, 0.6)');
+
+    // 4. 카테고리별 타입 중첩 파이(Doughnut) 차트 동적 렌더링
+    for (const chart of typeCharts) {
+      chart.destroy();
+    }
+    typeCharts = [];
+    chartsContainer.innerHTML = "";
+
+    const baseColors = [
+      'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)', 
+      'rgba(75, 192, 192, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)', 
+      'rgba(199, 199, 199, 0.8)', 'rgba(83, 102, 255, 0.8)', 'rgba(40, 159, 64, 0.8)'
+    ];
+
+    let catColorIdx = 0;
+    for (const [cat, catData] of categoryDetailedData.entries()) {
+      if (Object.keys(catData).length === 0) continue;
+
+      const wrapper = document.createElement("div");
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      wrapper.style.alignItems = "center";
+      wrapper.style.background = "var(--bim-ui_bg-contrast-20)";
+      wrapper.style.padding = "1rem";
+      wrapper.style.borderRadius = "0.5rem";
+      wrapper.style.minHeight = "280px";
+
+      const title = document.createElement("div");
+      title.style.fontWeight = "bold";
+      title.style.marginBottom = "0.5rem";
+      title.style.color = "var(--bim-ui_main-contrast)";
+      title.textContent = cat;
+      wrapper.appendChild(title);
+
+      const canvasContainer = document.createElement("div");
+      canvasContainer.style.position = "relative";
+      canvasContainer.style.width = "100%";
+      canvasContainer.style.flex = "1";
+
+      const canvas = document.createElement("canvas");
+      canvasContainer.appendChild(canvas);
+      wrapper.appendChild(canvasContainer);
+      chartsContainer.appendChild(wrapper);
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+
+      const innerLabels: string[] = [];
+      const innerData: number[] = [];
+      const innerColors: string[] = [];
+      const innerKeys: string[] = [];
+
+      const outerLabels: string[] = [];
+      const outerData: number[] = [];
+      const outerColors: string[] = [];
+      const outerKeys: string[] = [];
+
+      let ptIdx = 0;
+      for (const [pType, ptData] of Object.entries(catData)) {
+        innerLabels.push(pType);
+        innerData.push(ptData.total);
+        innerKeys.push(pType);
+        
+        const baseColor = baseColors[(catColorIdx + ptIdx) % baseColors.length];
+        innerColors.push(baseColor);
+        
+        let otIdx = 0;
+        for (const [oType, count] of Object.entries(ptData.oTypes)) {
+          outerLabels.push(`${pType} - ${oType}`);
+          outerData.push(count);
+          outerKeys.push(oType);
+          
+          const alpha = Math.max(0.2, 0.8 - (otIdx * 0.15));
+          outerColors.push(baseColor.replace('0.8)', `${alpha})`));
+          otIdx++;
+        }
+        ptIdx++;
+      }
+      catColorIdx++;
+
+      const chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          datasets: [
+            { data: outerData, backgroundColor: outerColors, weight: 2 },
+            { data: innerData, backgroundColor: innerColors, weight: 1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context: any) => {
+                  const isOuter = context.datasetIndex === 0;
+                  const label = isOuter ? outerLabels[context.dataIndex] : innerLabels[context.dataIndex];
+                  return `${label}: ${context.raw}`;
+                }
+              }
+            }
+          },
+          onClick: async (_event, elements) => {
+            if (elements.length > 0) {
+              const el = elements[0];
+              const isOuter = el.datasetIndex === 0;
+              const typeVal = isOuter ? outerKeys[el.index] : innerKeys[el.index];
+              const attrName = isOuter ? "ObjectType" : "PredefinedType";
+              
+              // 타입이 없는(UNSPECIFIED) 빈 데이터 클릭 시 선택 해제
+              if (typeVal === "UNSPECIFIED") {
+                highlighter.clear("select");
+                return;
+              }
+
+              // Queries 패널과 완벽히 동일한 방식으로 Finder 쿼리 생성
+              const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regexVal = new RegExp(`^${escapeRegExp(typeVal)}$`, "i");
+              const catRegex = new RegExp(cat, "i");
+
+              const query: any = {
+                categories: [catRegex],
+                attributes: {
+                  queries: [{ name: new RegExp(`^${attrName}$`, "i"), value: regexVal }]
+                }
+              };
+
+              const qName = `dash_chart_query_${Date.now()}`;
+              finder.create(qName, [query]);
+              const fQuery = finder.list.get(qName);
+              if (fQuery) {
+                const items = await fQuery.test({ modelIds: [/.*/] });
+                if (!OBC.ModelIdMapUtils.isEmpty(items)) highlighter.highlightByID("select", items);
+                else highlighter.clear("select");
+              }
+              finder.list.delete(qName);
+            } else {
+              highlighter.clear("select");
+            }
+          }
+        }
+      });
+      
+      typeCharts.push(chart);
+    }
+
+    if (target) target.loading = false;
+  };
+
+  // 모델이 업로드/삭제 될 때 차트 업데이트 예약
+  fragments.list.onItemSet.add(() => setTimeout(updateDashboard, 500));
+  fragments.list.onItemDeleted.add(() => setTimeout(updateDashboard, 500));
+
+  // 초기 로드시 실행
+  setTimeout(updateDashboard, 500);
+
+  return BUI.html`
+    <bim-panel-section fixed icon=${appIcons.CHART} label="Dashboard">
+      <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <bim-button style="flex: 0;" @click=${(e: Event) => updateDashboard(e.target as BUI.Button)} icon=${appIcons.REFRESH} tooltip-title="Refresh Charts"></bim-button>
+      </div>
+      
+      <bim-label>By Category</bim-label>
+      <div style="width: 100%; height: 250px; padding: 0.5rem; margin-bottom: 1rem; background: var(--bim-ui_bg-contrast-20); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+        <canvas ${BUI.ref((e) => { if (e) catCanvas = e as HTMLCanvasElement; })}></canvas>
+      </div>
+
+      <bim-label>By Floor (Storey)</bim-label>
+      <div style="width: 100%; height: 250px; padding: 0.5rem; background: var(--bim-ui_bg-contrast-20); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+        <canvas ${BUI.ref((e) => { if (e) floorCanvas = e as HTMLCanvasElement; })}></canvas>
+      </div>
+      
+      <bim-label style="margin-top: 1rem;">By Category & Type (Nested Doughnut)</bim-label>
+      <div ${BUI.ref((e) => { if (e) chartsContainer = e as HTMLDivElement; })} style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%; margin-top: 0.5rem;">
+      </div>
+    </bim-panel-section>
+  `;
+};

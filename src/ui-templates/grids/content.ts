@@ -49,6 +49,11 @@ type BCFList = {
   state: TEMPLATES.BCFListPanelState;
 };
 
+type Dashboard = {
+  name: "dashboard";
+  state: TEMPLATES.DashboardPanelState;
+};
+
 export type ContentGridElements = [
   Viewer,
   IFCList,
@@ -59,6 +64,7 @@ export type ContentGridElements = [
   PropsManager,
   TopicList,
   BCFList,
+  Dashboard,
 ];
 
 export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "FullScreen"];
@@ -115,6 +121,10 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.bcfListPanelTemplate,
         initialState: { components },
       },
+      dashboard: {
+        template: TEMPLATES.dashboardPanelTemplate,
+        initialState: { components },
+      },
       viewer: state.viewportTemplate,
     };
 
@@ -144,19 +154,19 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: `
           "propsManager viewer" var(--top-row-height, auto)
           "elementData viewer" 1fr
-          / var(--left-col-width) 1fr
+          / var(--half-col-width, 1fr) 1fr
         `,
       },
       FullScreen: {
         template: `
-          "viewer" 1fr
-          / 1fr
+          "dashboard viewer" 1fr
+          / var(--half-col-width, 1fr) 1fr
         `,
       },
     };
 
     // --- 드래그를 이용한 컬럼 리사이즈 로직 ---
-    let isResizing: "left" | "right" | "top" | "bottom" | null = null;
+    let isResizing: "left" | "right" | "top" | "bottom" | "half" | null = null;
     let startX = 0;
     let startY = 0;
     let startWidth = 0;
@@ -164,6 +174,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
     // 초기 행(Row) 높이를 추적하여 상한/하한선을 고정
     let initialTopRowHeight: number | null = null;
     let initialBottomRowHeight: number | null = null;
+    let initialHalfColWidth: number | null = null;
 
     grid.addEventListener("pointerdown", (e: PointerEvent) => {
       // 그리드의 gap(빈 공간)을 정확히 클릭했을 때만 반응하도록
@@ -189,9 +200,11 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       if (rows.length >= 3) bottomGapCenter = rect.bottom - paddingBottom - rows[rows.length - 1] - rowGap / 2;
 
       if (leftGapCenter !== -1 && Math.abs(e.clientX - leftGapCenter) <= colGap) {
-        isResizing = "left";
+        const currentTemplate = grid.layouts[grid.layout as ContentGridLayouts[number]]?.template || "";
+        isResizing = currentTemplate.includes("--half-col-width") ? "half" : "left";
         startX = e.clientX;
         startWidth = cols[0]; // 시작 사이즈 (가로/세로 공용)
+        if (isResizing === "half" && initialHalfColWidth === null) initialHalfColWidth = startWidth;
         grid.setPointerCapture(e.pointerId);
         e.preventDefault();
       } else if (rightGapCenter !== -1 && Math.abs(e.clientX - rightGapCenter) <= colGap) {
@@ -223,7 +236,15 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       const baseColWidth = parseFloat(MEDIUM_COLUMN_WIDTH) * remPx; // 컬럼의 초기 기준값
 
       if (isResizing) {
-        if (isResizing === "left") {
+        if (isResizing === "half") {
+          const baseWidth = initialHalfColWidth ?? startWidth;
+          let newWidth = startWidth + (e.clientX - startX);
+          const rect = grid.getBoundingClientRect();
+          const minWidth = Math.max(100, baseWidth - rangeLimit);
+          const maxWidth = Math.min(rect.width - 100, baseWidth + rangeLimit);
+          newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+          grid.style.setProperty("--half-col-width", `${newWidth}px`);
+        } else if (isResizing === "left") {
           let newWidth = startWidth + (e.clientX - startX);
           const minWidth = Math.max(50, baseColWidth - rangeLimit);
           const maxWidth = baseColWidth + rangeLimit;

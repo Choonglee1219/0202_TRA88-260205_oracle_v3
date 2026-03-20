@@ -3,6 +3,7 @@ import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import { appIcons } from "../../globals";
 import { itemsData } from "../../ui-components/ItemsData";
+import { quantityChartModal } from "../../bim-components/QuantityChart";
 
 export interface ItemsDataPanelState {
   components: OBC.Components;
@@ -12,6 +13,8 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
   ItemsDataPanelState
 > = (state) => {
   const { components } = state;
+
+  const chartModal = quantityChartModal();
 
   const highlighter = components.get(OBF.Highlighter);
 
@@ -61,6 +64,11 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
 
   const sectionId = BUI.Manager.newRandomId();
 
+  const showQuantitiesChart = () => {
+    const data = propsTable.value;
+    (chartModal as any).show(data);
+  };
+
   return BUI.html`
     <bim-panel-section ${BUI.ref((e) => {
       section = e as BUI.PanelSection;
@@ -78,7 +86,8 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
         <bim-text-input ${BUI.ref((e) => { searchInput = e as BUI.TextInput; })} @input=${search} vertical placeholder="Search..." debounce="200"></bim-text-input>
         <bim-button style="flex: 0;" @click=${onClearSearch} icon=${appIcons.CLEAR} tooltip-title="Clear Search"></bim-button>
         <bim-button style="flex: 0;" @click=${toggleExpanded} icon=${appIcons.EXPAND} tooltip-title="Toggle Expanded"></bim-button>
-        <bim-button style="flex: 0;" @click=${() => propsTable.downloadData("ElementData", "csv")} icon=${appIcons.EXPORT} tooltip-title="Export Data" tooltip-text="Export the shown properties to CSV."></bim-button>
+        <bim-button style="flex: 0;" @click=${() => propsTable.downloadData("ElementData", "json")} icon=${appIcons.EXPORT} tooltip-title="Export Data" tooltip-text="Export the shown properties."></bim-button>
+        <bim-button style="flex: 0;" @click=${showQuantitiesChart} icon=${appIcons.CHART} tooltip-title="Show Quantities of Selected Elements as Chart"></bim-button>
       </div>
       ${propsTable}
     </bim-panel-section> 
