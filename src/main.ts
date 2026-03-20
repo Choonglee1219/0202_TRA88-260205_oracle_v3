@@ -210,8 +210,9 @@ highlighter.setup({
   selectMaterialDefinition: {
     color: new THREE.Color("#bcf124"),
     renderedFaces: 1,
-    opacity: 1,
-    transparent: false,
+    opacity: 0.8,
+    transparent: true,
+    depthTest: false,
   },
 });
 
