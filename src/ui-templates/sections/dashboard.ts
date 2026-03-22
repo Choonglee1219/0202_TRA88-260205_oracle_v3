@@ -3,6 +3,7 @@ import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import Chart from "chart.js/auto";
 import { appIcons } from "../../globals";
+import { setModelTransparent, restoreModelMaterials } from "../toolbars/viewer-toolbar";
 
 export interface DashboardPanelState {
   components: OBC.Components;
@@ -12,7 +13,6 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
   const { components } = state;
   const fragments = components.get(OBC.FragmentsManager);
   const highlighter = components.get(OBF.Highlighter);
-  const finder = components.get(OBC.ItemsFinder);
   
   let categoryChart: Chart | null = null;
   let floorChart: Chart | null = null;
@@ -25,148 +25,136 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
   const categoryElementMap = new Map<string, Record<string, Set<number>>>();
   const floorElementMap = new Map<string, Record<string, Set<number>>>();
 
+  const applyFocusAndGhost = async (modelIdMap: OBC.ModelIdMap | null) => {
+    // 항상 이전 재질 상태와 선택을 초기화하여 모델 교체 시 Ghost 버그 방지
+    restoreModelMaterials(components);
+    highlighter.clear("select");
+    
+    if (modelIdMap && !OBC.ModelIdMapUtils.isEmpty(modelIdMap)) {
+      highlighter.highlightByID("select", modelIdMap);
+      setModelTransparent(components);
+      const worlds = components.get(OBC.Worlds);
+      const world = worlds.list.values().next().value;
+      if (world && world.camera instanceof OBC.SimpleCamera) {
+        await world.camera.fitToItems(modelIdMap);
+      }
+    }
+  };
+
   const updateDashboard = async (target?: BUI.Button) => {
     if (!catCanvas || !floorCanvas || !chartsContainer) return;
     if (target) target.loading = true;
+
+    // UI 스레드 블로킹 방지를 위한 미세 딜레이
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // 0. 준비: Classifier (튜토리얼 방식 적용)
+    const classifier = components.get(OBC.Classifier);
+    
+    try {
+      await classifier.byCategory({ classificationName: "entities" });
+      await classifier.byIfcBuildingStorey({ classificationName: "storeys" });
+    } catch (e) {
+      console.warn("Classifier grouping error:", e);
+    }
+
+    const entitiesClass = classifier.list.get("entities");
+    const storeysClass = classifier.list.get("storeys");
 
     // 1. 카테고리별 데이터 수집
     const categoryCounts: Record<string, number> = {};
     const categoryDetailedData = new Map<string, Record<string, { total: number, oTypes: Record<string, number> }>>();
     categoryElementMap.clear();
 
-    const categories = [
-      "IFCWALL", "IFCSLAB", "IFCDOOR", "IFCWINDOW", "IFCCOLUMN", 
-      "IFCBEAM", "IFCSTAIR", "IFCRAILING", "IFCSPACE", "IFCFURNISHINGELEMENT"
-    ];
-
-    for (const cat of categories) {
-      const modelIdMap: OBC.ModelIdMap = {};
-      let count = 0;
-      const displayCat = cat.replace(/^IFC/i, "");
-      categoryDetailedData.set(displayCat, {});
-
-      const categoriesRegex = [new RegExp(`^${cat}$`, "i")];
-
-      for (const [modelId, model] of fragments.list) {
-        try {
-          const items = await model.getItemsOfCategories(categoriesRegex);
-          const localIds = Object.values(items).flat();
-          if (localIds.length > 0) {
-            modelIdMap[modelId] = new Set(localIds);
-            count += localIds.length;
-
-            // 타입별(PredefinedType, ObjectType) 데이터 상세 수집 (Type 객체 참조 포함)
-            const itemsData = await model.getItemsData(localIds, { 
-              attributesDefault: true,
-              relationsDefault: { attributes: false, relations: false },
-              relations: {
-                IsTypedBy: { attributes: true, relations: false }, // IFC4 방식 타입 참조
-                IsDefinedBy: { attributes: true, relations: false } // IFC2x3 방식 타입 참조
-              }
-            });
-
-            for (const item of itemsData) {
-              const extractValue = (attr: any): any => {
-                if (attr === null || attr === undefined) return null;
-                if (Array.isArray(attr)) return attr.length > 0 ? extractValue(attr[0]) : null;
-                if (typeof attr === "object" && "value" in attr) return attr.value;
-                return attr;
-              };
-
-              let pType = extractValue((item as any).PredefinedType);
-              let oType = extractValue((item as any).ObjectType);
-
-              // 인스턴스에 값이 없으면 연결된 Type 객체(예: IfcWallType)에서 속성을 가져옵니다.
-              if (!pType || !oType) {
-                const relatedTypes = [
-                  ...((item as any).IsTypedBy || []),
-                  ...((item as any).IsDefinedBy || [])
-                ];
-                for (const typeObj of relatedTypes) {
-                  if (!pType && typeObj.PredefinedType) pType = extractValue(typeObj.PredefinedType);
-                  if (!oType && typeObj.ObjectType) oType = extractValue(typeObj.ObjectType);
-                }
-              }
-
-              // 대소문자 구분을 없애기 위해 모두 대문자로 통일
-              const oTypeStr = oType ? String(oType).toUpperCase() : "UNSPECIFIED";
-              const pTypeStr = (pType && String(pType).toUpperCase() !== "NOTDEFINED") ? String(pType).toUpperCase() : "UNSPECIFIED";
-
-              const catData = categoryDetailedData.get(displayCat)!;
-              if (!catData[pTypeStr]) catData[pTypeStr] = { total: 0, oTypes: {} };
-              catData[pTypeStr].total++;
-              if (!catData[pTypeStr].oTypes[oTypeStr]) catData[pTypeStr].oTypes[oTypeStr] = 0;
-              catData[pTypeStr].oTypes[oTypeStr]++;
-            }
-          }
-        } catch (e) {
-          console.warn(`Error querying category ${cat}:`, e);
+    if (entitiesClass) {
+      for (const [catName, group] of entitiesClass.entries()) {
+        const upperCat = catName.toUpperCase();
+        
+        // 형상이 없는 관계, 속성 객체 및 불필요한 시스템 컨테이너 제외
+        if (upperCat.includes("REL") || upperCat.includes("TYPE") || upperCat.includes("PROPERTY") ||
+            ["IFCPROJECT", "IFCSITE", "IFCBUILDING", "IFCBUILDINGSTOREY", "IFCOPENINGELEMENT", "IFCGRID", "IFCANNOTATION"].includes(upperCat)) {
+          continue;
         }
-      }
 
-      if (count > 0) {
-        categoryCounts[displayCat] = count;
-        categoryElementMap.set(displayCat, modelIdMap);
+        const displayCat = upperCat.replace(/^IFC/i, "");
+        const modelIdMap = await group.get();
+        const validModelIdMap: OBC.ModelIdMap = {};
+        let count = 0;
+        for (const [modelId, ids] of Object.entries(modelIdMap)) {
+          if (ids.size === 0 || !fragments.list.has(modelId)) continue;
+          validModelIdMap[modelId] = ids;
+          count += ids.size;
+        }
+        if (count === 0) continue;
+        
+        categoryDetailedData.set(displayCat, {});
+
+        for (const [modelId, ids] of Object.entries(validModelIdMap)) {
+          const model = fragments.list.get(modelId);
+          if (!model) continue;
+
+          const itemsData = await model.getItemsData(Array.from(ids), { 
+            attributesDefault: true,
+            relationsDefault: { attributes: false, relations: false },
+            relations: { IsTypedBy: { attributes: true, relations: false } }
+          });
+
+          for (const item of itemsData) {
+            const extractValue = (attr: any): any => {
+              if (attr === null || attr === undefined) return null;
+              if (Array.isArray(attr)) return attr.length > 0 ? extractValue(attr[0]) : null;
+              if (typeof attr === "object" && "value" in attr) return attr.value;
+              return attr;
+            };
+
+            let pType = extractValue((item as any).PredefinedType);
+            let oType = extractValue((item as any).ObjectType);
+
+            if (!pType || !oType) {
+              const relatedTypes = [ ...((item as any).IsTypedBy || []) ];
+              for (const typeObj of relatedTypes) {
+                if (!pType && typeObj.PredefinedType) pType = extractValue(typeObj.PredefinedType);
+                if (!oType && typeObj.ObjectType) oType = extractValue(typeObj.ObjectType);
+              }
+            }
+
+            const oTypeStr = oType ? String(oType).toUpperCase() : "UNSPECIFIED";
+            const pTypeStr = (pType && String(pType).toUpperCase() !== "NOTDEFINED") ? String(pType).toUpperCase() : "UNSPECIFIED";
+
+            const catData = categoryDetailedData.get(displayCat)!;
+            if (!catData[pTypeStr]) catData[pTypeStr] = { total: 0, oTypes: {} };
+            catData[pTypeStr].total++;
+            if (!catData[pTypeStr].oTypes[oTypeStr]) catData[pTypeStr].oTypes[oTypeStr] = 0;
+            catData[pTypeStr].oTypes[oTypeStr]++;
+          }
+        }
+
+        if (count > 0) {
+          categoryCounts[displayCat] = count;
+          categoryElementMap.set(displayCat, validModelIdMap);
+        }
       }
     }
 
-    // 2. 층별 데이터 수집
+    // 2. 층별 데이터 수집 (튜토리얼 방식 적용 - Classifier 활용)
     const floorCounts: Record<string, number> = {};
     floorElementMap.clear();
 
-    try {
-      finder.create("dash_all_storeys", [{ categories: [/IFCBUILDINGSTOREY/i] }]);
-      const storeysMap = await finder.list.get("dash_all_storeys")?.test({ modelIds: [/.*/] });
-      finder.list.delete("dash_all_storeys");
-
-      if (storeysMap && !OBC.ModelIdMapUtils.isEmpty(storeysMap)) {
-        const storeyNames = new Set<string>();
-        
-        for (const [modelId, ids] of Object.entries(storeysMap)) {
-          const model = fragments.list.get(modelId);
-          if (model) {
-            const itemsData = await model.getItemsData(Array.from(ids), { attributesDefault: true });
-            for (const item of itemsData) {
-              const nameAttr = (item as any).Name;
-              if (nameAttr && nameAttr.value) {
-                storeyNames.add(nameAttr.value);
-              }
-            }
-          }
+    if (storeysClass) {
+      for (const [sName, group] of storeysClass.entries()) {
+        const modelIdMap = await group.get();
+        const validModelIdMap: OBC.ModelIdMap = {};
+        let count = 0;
+        for (const [modelId, ids] of Object.entries(modelIdMap)) {
+          if (ids.size === 0 || !fragments.list.has(modelId)) continue;
+          validModelIdMap[modelId] = ids;
+          count += ids.size;
         }
-
-        for (const sName of storeyNames) {
-          const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const qName = `dash_floor_${sName}`;
-          finder.create(qName, [{
-            relation: {
-              name: "ContainedInStructure",
-              query: {
-                categories: [/IFCBUILDINGSTOREY/i],
-                attributes: {
-                  queries: [{ name: /Name/, value: new RegExp(`^${escapeRegExp(sName)}$`, "i") }]
-                }
-              }
-            }
-          }]);
-
-          const fQuery = finder.list.get(qName);
-          if (fQuery) {
-            const fItems = await fQuery.test({ modelIds: [/.*/] });
-            if (fItems && !OBC.ModelIdMapUtils.isEmpty(fItems)) {
-              let count = 0;
-              for (const ids of Object.values(fItems)) count += ids.size;
-              if (count > 0) {
-                floorCounts[sName] = count;
-                floorElementMap.set(sName, fItems);
-              }
-            }
-          }
-          finder.list.delete(qName);
+        if (count > 0) {
+          floorCounts[sName] = count;
+          floorElementMap.set(sName, validModelIdMap);
         }
       }
-    } catch (e) {
-      console.warn("Error processing floors", e);
     }
 
     // 3. 차트 렌더링 함수
@@ -207,14 +195,9 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
               const index = elements[0].index;
               const selectedLabel = labels[index];
               const modelIdMap = dataMap.get(selectedLabel);
-              
-              if (modelIdMap && !OBC.ModelIdMapUtils.isEmpty(modelIdMap)) {
-                highlighter.highlightByID("select", modelIdMap);
-              } else {
-                highlighter.clear("select");
-              }
+              applyFocusAndGhost(modelIdMap || null);
             } else {
-              highlighter.clear("select");
+              applyFocusAndGhost(null);
             }
           },
           plugins: {
@@ -342,33 +325,35 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
               
               // 타입이 없는(UNSPECIFIED) 빈 데이터 클릭 시 선택 해제
               if (typeVal === "UNSPECIFIED") {
-                highlighter.clear("select");
+                applyFocusAndGhost(null);
                 return;
               }
 
-              // Queries 패널과 완벽히 동일한 방식으로 Finder 쿼리 생성
               const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              const regexVal = new RegExp(`^${escapeRegExp(typeVal)}$`, "i");
-              const catRegex = new RegExp(cat, "i");
 
-              const query: any = {
-                categories: [catRegex],
+              // Queries 패널의 동작과 동일하게 ItemsFinder 사용
+              const finder = components.get(OBC.ItemsFinder);
+              const qName = "dash_doughnut_query";
+              const queryVal = new RegExp(`^${escapeRegExp(typeVal)}$`, "i");
+              const queryCat = new RegExp(`^IFC${cat}$`, "i");
+
+              finder.create(qName, [{
+                categories: [queryCat],
                 attributes: {
-                  queries: [{ name: new RegExp(`^${attrName}$`, "i"), value: regexVal }]
+                  queries: [{ name: new RegExp(`^${attrName}$`, "i"), value: queryVal }]
                 }
-              };
+              }]);
 
-              const qName = `dash_chart_query_${Date.now()}`;
-              finder.create(qName, [query]);
               const fQuery = finder.list.get(qName);
               if (fQuery) {
                 const items = await fQuery.test({ modelIds: [/.*/] });
-                if (!OBC.ModelIdMapUtils.isEmpty(items)) highlighter.highlightByID("select", items);
-                else highlighter.clear("select");
+                applyFocusAndGhost(items);
+              } else {
+                applyFocusAndGhost(null);
               }
               finder.list.delete(qName);
             } else {
-              highlighter.clear("select");
+              applyFocusAndGhost(null);
             }
           }
         }
@@ -382,7 +367,11 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
 
   // 모델이 업로드/삭제 될 때 차트 업데이트 예약
   fragments.list.onItemSet.add(() => setTimeout(updateDashboard, 500));
-  fragments.list.onItemDeleted.add(() => setTimeout(updateDashboard, 500));
+  fragments.list.onItemDeleted.add(() => {
+    restoreModelMaterials(components);
+    highlighter.clear("select");
+    setTimeout(updateDashboard, 500);
+  });
 
   // 초기 로드시 실행
   setTimeout(updateDashboard, 500);
