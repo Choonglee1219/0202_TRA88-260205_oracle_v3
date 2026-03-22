@@ -465,7 +465,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
 
   const fragTable = document.createElement("bim-table") as BUI.Table<FRAGTableData>;
   fragTable.hiddenColumns = ["id", "Group"]; // Group 컬럼도 숨기고 Name 컬럼 안에 전부 통합하여 렌더링
-  (fragTable as any).groupedBy = ["Group"];
   fragTable.headersHidden = true; // 1. 컬럼명 라인 숨김
   fragTable.expanded = true; // 기본적으로 그룹을 펼쳐서 보여줌
   fragTable.noIndentation = true;
@@ -500,7 +499,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   const selectedFragModels = new Set<number>();
 
   const onSelectAllFragModels = () => {
-    const visibleData = fragTable.value.map(v => v.data);
+    // 그룹 헤더 등 id가 없는 computed row를 제외하고 실제 모델 데이터만 필터링
+    const visibleData = fragTable.value.map(v => v.data).filter(d => d.id !== undefined);
     const allSelected = visibleData.length > 0 && visibleData.every(d => selectedFragModels.has(d.id as number));
     if (allSelected) {
       visibleData.forEach(d => selectedFragModels.delete(d.id as number));
@@ -600,7 +600,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
 
   const ifcTable = document.createElement("bim-table") as BUI.Table<IFCTableData>;
   ifcTable.hiddenColumns = ["id", "Group"];
-  (ifcTable as any).groupedBy = ["Group"];
   ifcTable.headersHidden = true;
   ifcTable.expanded = true;
   ifcTable.noIndentation = true;
@@ -610,7 +609,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   const selectedIfcModels = new Set<number>();
 
   const onSelectAllIfcModels = () => {
-    const visibleData = ifcTable.value.map(v => v.data);
+    // 그룹 헤더 등 id가 없는 computed row를 제외하고 실제 모델 데이터만 필터링
+    const visibleData = ifcTable.value.map(v => v.data).filter(d => d.id !== undefined);
     const allSelected = visibleData.length > 0 && visibleData.every(d => selectedIfcModels.has(d.id as number));
     if (allSelected) {
       visibleData.forEach(d => selectedIfcModels.delete(d.id as number));

@@ -28,10 +28,10 @@
   },
   "dependencies": {
     "@sgratzl/chartjs-chart-boxplot": "^4.4.5",
-    "@thatopen/components": "~3.2.0",
-    "@thatopen/components-front": "~3.2.0",
-    "@thatopen/fragments": "~3.2.0",
-    "@thatopen/ui": "~3.2.0",
+    "@thatopen/components": "^3.3.2",
+    "@thatopen/components-front": "^3.3.3",
+    "@thatopen/fragments": "^3.3.6",
+    "@thatopen/ui": "^3.3.3",
     "@thatopen/ui-obc": "^3.3.3",
     "@types/chart.js": "^2.9.41",
     "@types/dotenv": "^8.2.3",
@@ -46,6 +46,6 @@
     "multer": "^2.0.2",
     "oracledb": "^6.10.0",
     "three": "0.175.0",
-    "web-ifc": "0.0.72"
+    "web-ifc": "0.0.77"
   }
 }
