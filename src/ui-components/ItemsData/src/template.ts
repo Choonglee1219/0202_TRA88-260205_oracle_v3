@@ -233,8 +233,28 @@ export const itemsDataTemplate = (_state: ItemsDataState) => {
     }
   };
 
+  const onRowCreated = (
+    e: CustomEvent<BUI.RowCreatedEventDetail<ItemsDataTableData>>,
+  ) => {
+    e.stopImmediatePropagation();
+    const { row } = e.detail;
+    
+    row.onclick = async () => {
+      const { modelId, localId } = row.data;
+      if (!modelId || localId === undefined) return;
+
+      const worlds = components.get(OBC.Worlds);
+      const world = worlds.list.values().next().value;
+      
+      if (world && world.camera && "fitToItems" in world.camera) {
+        const modelIdMap = { [modelId]: new Set([localId]) };
+        await (world.camera as any).fitToItems(modelIdMap);
+      }
+    };
+  };
+
   return BUI.html`
-    <bim-table @cellcreated=${onCellCreated} ${BUI.ref(onTableCreated)}>
+    <bim-table @rowcreated=${onRowCreated} @cellcreated=${onCellCreated} ${BUI.ref(onTableCreated)}>
       ${
         emptySelectionWarning
           ? BUI.html`
