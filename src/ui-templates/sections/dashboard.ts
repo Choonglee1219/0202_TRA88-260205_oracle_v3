@@ -15,15 +15,12 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
   const highlighter = components.get(OBF.Highlighter);
   
   let categoryChart: Chart | null = null;
-  let floorChart: Chart | null = null;
   let typeCharts: Chart[] = [];
 
   let catCanvas: HTMLCanvasElement | null = null;
-  let floorCanvas: HTMLCanvasElement | null = null;
   let chartsContainer: HTMLDivElement | null = null;
 
   const categoryElementMap = new Map<string, Record<string, Set<number>>>();
-  const floorElementMap = new Map<string, Record<string, Set<number>>>();
 
   const applyFocusAndGhost = async (modelIdMap: OBC.ModelIdMap | null) => {
     // 항상 이전 재질 상태와 선택을 초기화하여 모델 교체 시 Ghost 버그 방지
@@ -42,7 +39,7 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
   };
 
   const updateDashboard = async (target?: BUI.Button) => {
-    if (!catCanvas || !floorCanvas || !chartsContainer) return;
+    if (!catCanvas || !chartsContainer) return;
     if (target) target.loading = true;
 
     // UI 스레드 블로킹 방지를 위한 미세 딜레이
@@ -53,13 +50,11 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
     
     try {
       await classifier.byCategory({ classificationName: "entities" });
-      await classifier.byIfcBuildingStorey({ classificationName: "storeys" });
     } catch (e) {
       console.warn("Classifier grouping error:", e);
     }
 
     const entitiesClass = classifier.list.get("entities");
-    const storeysClass = classifier.list.get("storeys");
 
     // 1. 카테고리별 데이터 수집
     const categoryCounts: Record<string, number> = {};
@@ -134,27 +129,6 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
           } catch (error) {
             console.warn(`Error extracting detailed types for ${displayCat}:`, error);
           }
-        }
-      }
-    }
-
-    // 2. 층별 데이터 수집 (튜토리얼 방식 적용 - Classifier 활용)
-    const floorCounts: Record<string, number> = {};
-    floorElementMap.clear();
-
-    if (storeysClass) {
-      for (const [sName, group] of storeysClass.entries()) {
-        const modelIdMap = await group.get();
-        const validModelIdMap: OBC.ModelIdMap = {};
-        let count = 0;
-        for (const [modelId, ids] of Object.entries(modelIdMap)) {
-          if (ids.size === 0 || !fragments.list.has(modelId)) continue;
-          validModelIdMap[modelId] = ids;
-          count += ids.size;
-        }
-        if (count > 0) {
-          floorCounts[sName] = count;
-          floorElementMap.set(sName, validModelIdMap);
         }
       }
     }
@@ -281,7 +255,6 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
     };
 
     categoryChart = renderChart(catCanvas, categoryChart, topCategoryCounts, categoryElementMap, 'Category Count');
-    floorChart = renderChart(floorCanvas, floorChart, floorCounts, floorElementMap, 'Storey Count');
 
     // 4. 카테고리별 타입 중첩 파이(Doughnut) 차트 동적 렌더링
     for (const chart of typeCharts) {
@@ -374,8 +347,8 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
         type: 'doughnut',
         data: {
           datasets: [
-            { data: outerData, backgroundColor: outerColors, weight: 2 },
-            { data: innerData, backgroundColor: innerColors, weight: 1 }
+            { data: outerData, backgroundColor: outerColors, weight: 2, borderWidth: 1 },
+            { data: innerData, backgroundColor: innerColors, weight: 1, borderWidth: 1 }
           ]
         },
         options: {
@@ -480,11 +453,6 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
         <canvas ${BUI.ref((e) => { if (e) catCanvas = e as HTMLCanvasElement; })}></canvas>
       </div>
 
-      <bim-label>By Floor (Storey)</bim-label>
-      <div style="width: 100%; height: 250px; padding: 0.5rem; background: var(--bim-ui_bg-contrast-20); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
-        <canvas ${BUI.ref((e) => { if (e) floorCanvas = e as HTMLCanvasElement; })}></canvas>
-      </div>
-      
       <bim-label style="margin-top: 1rem;">By Category & Type (Nested Doughnut)</bim-label>
       <div ${BUI.ref((e) => { if (e) chartsContainer = e as HTMLDivElement; })} style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%; margin-top: 0.5rem;">
       </div>
