@@ -312,6 +312,18 @@ fragments.list.onItemSet.add(async ({ value: model }) => {
   const modelIdMap = { [model.modelId]: new Set(localIds) };
   classifier.addGroupItems("PermanentHidden", "HiddenItems", modelIdMap);
   await hider.set(false, modelIdMap);
+
+  const boxer = components.get(OBC.BoundingBoxer);
+  boxer.list.clear();
+  boxer.addFromModels([new RegExp(`^${model.modelId}$`)]);
+  const box = boxer.get();
+  boxer.list.clear();
+
+  if (!box.isEmpty()) {
+    const sphere = new THREE.Sphere();
+    box.getBoundingSphere(sphere);
+    world.camera.controls.fitToSphere(sphere, true);
+  }
 });
 
 // 🔎Finder Setup - "src > setup > finders.ts"
