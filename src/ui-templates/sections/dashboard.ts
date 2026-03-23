@@ -87,51 +87,53 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
         }
         if (count === 0) continue;
         
+        categoryCounts[displayCat] = count;
+        categoryElementMap.set(displayCat, validModelIdMap);
         categoryDetailedData.set(displayCat, {});
 
         for (const [modelId, ids] of Object.entries(validModelIdMap)) {
           const model = fragments.list.get(modelId);
           if (!model) continue;
 
-          const itemsData = await model.getItemsData(Array.from(ids), { 
-            attributesDefault: true,
-            relationsDefault: { attributes: false, relations: false },
-            relations: { IsTypedBy: { attributes: true, relations: false } }
-          });
+          try {
+            const itemsData = await model.getItemsData(Array.from(ids), { 
+              attributesDefault: true,
+              relationsDefault: { attributes: false, relations: false },
+              relations: { IsTypedBy: { attributes: true, relations: false } }
+            });
 
-          for (const item of itemsData) {
-            const extractValue = (attr: any): any => {
-              if (attr === null || attr === undefined) return null;
-              if (Array.isArray(attr)) return attr.length > 0 ? extractValue(attr[0]) : null;
-              if (typeof attr === "object" && "value" in attr) return attr.value;
-              return attr;
-            };
+            for (const item of itemsData) {
+              const extractValue = (attr: any): any => {
+                if (attr === null || attr === undefined) return null;
+                if (Array.isArray(attr)) return attr.length > 0 ? extractValue(attr[0]) : null;
+                if (typeof attr === "object" && "value" in attr) return attr.value;
+                return attr;
+              };
 
-            let pType = extractValue((item as any).PredefinedType);
-            let oType = extractValue((item as any).ObjectType);
+              let pType = extractValue((item as any).PredefinedType);
+              let oType = extractValue((item as any).ObjectType);
 
-            if (!pType || !oType) {
-              const relatedTypes = [ ...((item as any).IsTypedBy || []) ];
-              for (const typeObj of relatedTypes) {
-                if (!pType && typeObj.PredefinedType) pType = extractValue(typeObj.PredefinedType);
-                if (!oType && typeObj.ObjectType) oType = extractValue(typeObj.ObjectType);
+              if (!pType || !oType) {
+                const relatedTypes = [ ...((item as any).IsTypedBy || []) ];
+                for (const typeObj of relatedTypes) {
+                  if (!pType && typeObj.PredefinedType) pType = extractValue(typeObj.PredefinedType);
+                  if (!oType && typeObj.ObjectType) oType = extractValue(typeObj.ObjectType);
+                }
               }
+
+              const oTypeStr = oType ? String(oType).toUpperCase() : "UNSPECIFIED";
+              // 값이 아예 없는 경우에만 UNSPECIFIED, NOTDEFINED 등의 실제 값이 있으면 그대로 사용
+              const pTypeStr = pType ? String(pType).toUpperCase() : "UNSPECIFIED";
+
+              const catData = categoryDetailedData.get(displayCat)!;
+              if (!catData[pTypeStr]) catData[pTypeStr] = { total: 0, oTypes: {} };
+              catData[pTypeStr].total++;
+              if (!catData[pTypeStr].oTypes[oTypeStr]) catData[pTypeStr].oTypes[oTypeStr] = 0;
+              catData[pTypeStr].oTypes[oTypeStr]++;
             }
-
-            const oTypeStr = oType ? String(oType).toUpperCase() : "UNSPECIFIED";
-            const pTypeStr = (pType && String(pType).toUpperCase() !== "NOTDEFINED") ? String(pType).toUpperCase() : "UNSPECIFIED";
-
-            const catData = categoryDetailedData.get(displayCat)!;
-            if (!catData[pTypeStr]) catData[pTypeStr] = { total: 0, oTypes: {} };
-            catData[pTypeStr].total++;
-            if (!catData[pTypeStr].oTypes[oTypeStr]) catData[pTypeStr].oTypes[oTypeStr] = 0;
-            catData[pTypeStr].oTypes[oTypeStr]++;
+          } catch (error) {
+            console.warn(`Error extracting detailed types for ${displayCat}:`, error);
           }
-        }
-
-        if (count > 0) {
-          categoryCounts[displayCat] = count;
-          categoryElementMap.set(displayCat, validModelIdMap);
         }
       }
     }
@@ -158,13 +160,44 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
     }
 
     // 3. 차트 렌더링 함수
+    // Colorhunt Gradient 테마에서 영감을 받은 다채로운 네온/파스텔 팔레트
+    const basePalettes = [
+      { h: 280, s: 85 }, // Vivid Purple
+      { h: 340, s: 85 }, // Hot Pink
+      { h: 16,  s: 90 }, // Coral/Orange
+      { h: 195, s: 90 }, // Bright Cyan
+      { h: 145, s: 80 }, // Emerald Green
+      { h: 45,  s: 95 }, // Golden Yellow
+      { h: 220, s: 85 }, // Deep Blue
+      { h: 350, s: 85 }  // Crimson
+    ];
+
+    // Category Chart용 상위 6개 필터링
+    const topCategoryCounts: Record<string, number> = {};
+    Object.entries(categoryCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6)
+      .forEach(([cat, count]) => { topCategoryCounts[cat] = count; });
+
+    // 공통 툴팁 스타일 (BIM UI 다크 테마 반영)
+    const commonTooltipOptions: any = {
+      backgroundColor: 'rgba(30, 32, 38, 0.95)',
+      titleColor: '#ffffff',
+      bodyColor: '#d4d4d4',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      borderWidth: 1,
+      padding: 10,
+      cornerRadius: 6,
+      titleFont: { family: 'sans-serif', size: 13, weight: 'bold' },
+      bodyFont: { family: 'sans-serif', size: 12 }
+    };
+
     const renderChart = (
       canvas: HTMLCanvasElement, 
       instance: Chart | null, 
       labelMap: Record<string, number>, 
       dataMap: Map<string, Record<string, Set<number>>>, 
-      labelTitle: string, 
-      color: string
+      labelTitle: string
     ) => {
       const labels = Object.keys(labelMap);
       const data = Object.values(labelMap);
@@ -173,6 +206,19 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
 
       if (instance) instance.destroy();
 
+      const bgColors = labels.map((_, i) => {
+        const p = basePalettes[i % basePalettes.length];
+        return `hsla(${p.h}, ${p.s}%, 55%, 0.8)`;
+      });
+      const bdColors = labels.map((_, i) => {
+        const p = basePalettes[i % basePalettes.length];
+        return `hsla(${p.h}, ${p.s}%, 55%, 1)`;
+      });
+      const hbColors = labels.map((_, i) => {
+        const p = basePalettes[i % basePalettes.length];
+        return `hsla(${p.h}, ${p.s}%, 65%, 0.9)`;
+      });
+
       return new Chart(ctx, {
         type: 'bar',
         data: {
@@ -180,16 +226,19 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
           datasets: [{
             label: labelTitle,
             data: data,
-            backgroundColor: color,
-            borderColor: color.replace('0.6', '1'),
+            backgroundColor: bgColors,
+            borderColor: bdColors,
             borderWidth: 1,
             borderRadius: 4,
-            hoverBackgroundColor: color.replace('0.6', '0.9')
+            hoverBackgroundColor: hbColors
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: {
+            padding: { top: 25 } // 막대 위 숫자가 잘리지 않도록 상단 여백 추가
+          },
           onClick: (_event, elements) => {
             if (elements.length > 0) {
               const index = elements[0].index;
@@ -201,18 +250,38 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
             }
           },
           plugins: {
-            legend: { labels: { color: '#a0a0a0' } }
+            legend: { display: false }, // 막대마다 색상이 다르므로 범례는 숨기는 것이 깔끔합니다.
+            tooltip: commonTooltipOptions
           },
           scales: {
             x: { ticks: { color: '#a0a0a0' } },
             y: { ticks: { color: '#a0a0a0', stepSize: 1 } }
           }
-        }
+        },
+        plugins: [{
+          id: 'barDataLabels',
+          afterDatasetsDraw: (chart: any) => {
+            const ctx = chart.ctx;
+            chart.data.datasets.forEach((dataset: any, i: number) => {
+              const meta = chart.getDatasetMeta(i);
+              meta.data.forEach((bar: any, index: number) => {
+                const dataVal = dataset.data[index];
+                if (dataVal > 0) {
+                  ctx.fillStyle = '#d4d4d4';
+                  ctx.font = 'bold 12px sans-serif';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'bottom';
+                  ctx.fillText(dataVal.toString(), bar.x, bar.y - 4);
+                }
+              });
+            });
+          }
+        }]
       });
     };
 
-    categoryChart = renderChart(catCanvas, categoryChart, categoryCounts, categoryElementMap, 'Category Count', 'rgba(54, 162, 235, 0.6)');
-    floorChart = renderChart(floorCanvas, floorChart, floorCounts, floorElementMap, 'Storey Count', 'rgba(255, 159, 64, 0.6)');
+    categoryChart = renderChart(catCanvas, categoryChart, topCategoryCounts, categoryElementMap, 'Category Count');
+    floorChart = renderChart(floorCanvas, floorChart, floorCounts, floorElementMap, 'Storey Count');
 
     // 4. 카테고리별 타입 중첩 파이(Doughnut) 차트 동적 렌더링
     for (const chart of typeCharts) {
@@ -221,15 +290,12 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
     typeCharts = [];
     chartsContainer.innerHTML = "";
 
-    const baseColors = [
-      'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)', 
-      'rgba(75, 192, 192, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)', 
-      'rgba(199, 199, 199, 0.8)', 'rgba(83, 102, 255, 0.8)', 'rgba(40, 159, 64, 0.8)'
-    ];
-
     let catColorIdx = 0;
-    for (const [cat, catData] of categoryDetailedData.entries()) {
-      if (Object.keys(catData).length === 0) continue;
+    
+    // 상위 6개 카테고리(topCategoryCounts)에 대해서만 파이 차트 생성 제한
+    for (const cat of Object.keys(topCategoryCounts)) {
+      const catData = categoryDetailedData.get(cat);
+      if (!catData || Object.keys(catData).length === 0) continue;
 
       const wrapper = document.createElement("div");
       wrapper.style.display = "flex";
@@ -270,28 +336,39 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
       const outerColors: string[] = [];
       const outerKeys: string[] = [];
 
+      // 현재 카테고리(차트)의 메인 테마 색상 설정
+      const palette = basePalettes[catColorIdx % basePalettes.length];
+      const ptCount = Object.keys(catData).length;
+
       let ptIdx = 0;
       for (const [pType, ptData] of Object.entries(catData)) {
+        // 안쪽 링: 항목 수에 따라 명도(Lightness)를 75%에서 35% 사이로 점진적 변화
+        const lightness = ptCount > 1 ? 75 - (ptIdx * (40 / (ptCount - 1))) : 60;
+        const innerColor = `hsla(${palette.h}, ${palette.s}%, ${lightness}%, 0.9)`;
+
         innerLabels.push(pType);
         innerData.push(ptData.total);
         innerKeys.push(pType);
+        innerColors.push(innerColor);
         
-        const baseColor = baseColors[(catColorIdx + ptIdx) % baseColors.length];
-        innerColors.push(baseColor);
-        
+        const otCount = Object.keys(ptData.oTypes).length;
         let otIdx = 0;
         for (const [oType, count] of Object.entries(ptData.oTypes)) {
           outerLabels.push(`${pType} - ${oType}`);
           outerData.push(count);
           outerKeys.push(oType);
           
-          const alpha = Math.max(0.2, 0.8 - (otIdx * 0.15));
-          outerColors.push(baseColor.replace('0.8)', `${alpha})`));
+          // 바깥쪽 링: 세부 항목 수에 따라 투명도(Alpha)를 0.9에서 0.3 사이로 점진적 변화
+          const alpha = otCount > 1 ? 0.9 - (otIdx * (0.6 / (otCount - 1))) : 0.8;
+          const outerColor = `hsla(${palette.h}, ${palette.s}%, ${lightness}%, ${alpha})`;
+          outerColors.push(outerColor);
           otIdx++;
         }
         ptIdx++;
       }
       catColorIdx++;
+
+      const totalCount = innerData.reduce((a, b) => a + b, 0);
 
       const chart = new Chart(ctx, {
         type: 'doughnut',
@@ -307,6 +384,7 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
           plugins: {
             legend: { display: false },
             tooltip: {
+              ...commonTooltipOptions,
               callbacks: {
                 label: (context: any) => {
                   const isOuter = context.datasetIndex === 0;
@@ -356,7 +434,22 @@ export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState>
               applyFocusAndGhost(null);
             }
           }
-        }
+        },
+        plugins: [{
+          id: 'centerText',
+          beforeDraw: (chart: any) => {
+            const { width, height, ctx } = chart;
+            ctx.restore();
+            ctx.font = "bold 26px sans-serif";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#ffffff";
+            const text = totalCount.toString();
+            const textX = Math.round((width - ctx.measureText(text).width) / 2);
+            const textY = height / 2;
+            ctx.fillText(text, textX, textY);
+            ctx.save();
+          }
+        }]
       });
       
       typeCharts.push(chart);
