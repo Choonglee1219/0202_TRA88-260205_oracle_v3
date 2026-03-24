@@ -201,6 +201,9 @@ await ifcLoader.setup({
     absolute: true,
     path: "/node_modules/web-ifc/",
   },
+  webIfc: {
+    COORDINATE_TO_ORIGIN: false,
+  },
 });
 
 // ✅Highlighter Setup

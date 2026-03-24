@@ -1,8 +1,8 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import JSZip from "jszip";
 import { SharedBCF } from "../../SharedBCF";
 import { SharedIFC } from "../../SharedIFC";
+import { processClashZip } from "./unzip-processing";
 
 const addClashInputStyles = () => {
   const styleId = "clash-input-modal-styles";
@@ -286,23 +286,18 @@ export const clashInput = (bcfTopics: any) => {
         throw new Error(`Server responded with ${response.status}: ${errorText}`);
       }
 
-      const blob = await response.blob();
+      const zipBlob = await response.blob();
+      
+      // ZIP 파일 압축 해제 및 파싱 로직 호출
+      const { bcfBlob, clashData } = await processClashZip(zipBlob);
 
-      const zip = new JSZip();
-      await zip.loadAsync(blob);
-      let topicCount = 0;
-      zip.forEach((relativePath) => {
-        if (relativePath.endsWith("markup.bcf")) {
-          topicCount++;
-        }
-      });
-
-      if (topicCount === 0) {
-        alert("간섭체크를 정상적으로 수행하였으나 간섭 개수가 없습니다.");
+      if (!bcfBlob || clashData.length === 0) {
+        alert("간섭체크를 정상적으로 수행하였으나 BCF 데이터 또는 간섭이 없습니다.");
         return;
       }
 
-      const file = new File([blob], `${nameInput.value}.bcf`);
+      // BCF Blob을 File 객체로 변환하여 DB에 저장
+      const file = new File([bcfBlob], `${nameInput.value}.bcf`);
 
       const sharedBCF = new SharedBCF();
       const ifcIds = [selectedModelA.id];
@@ -312,10 +307,14 @@ export const clashInput = (bcfTopics: any) => {
       const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
       
       if (newBcfId) {
-        alert(`간섭 체크 완료: ${topicCount}개의 간섭이 발견되었습니다.`);
+        alert(`간섭 체크 완료: ${clashData.length}개의 간섭이 발견되었습니다.`);
         const buffer = await file.arrayBuffer();
         await bcfTopics.loadBCFContent(buffer);
         bcfTopics.onRefresh.trigger();
+        
+        // JSON 간섭 좌표를 이용해 3D Clash Map 생성
+        bcfTopics.drawClashMap(clashData);
+        
         modal.close();
       } else {
         alert("Failed to save BCF to database.");

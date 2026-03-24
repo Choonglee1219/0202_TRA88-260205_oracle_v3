@@ -167,7 +167,7 @@ app.post("/api/clash", async (req: Request, res: Response) => {
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    console.log(`Received BCF size from service: ${buffer.length} bytes`);
+    console.log(`Received ZIP size from service: ${buffer.length} bytes`);
 
     res.setHeader("Content-Type", response.headers.get("Content-Type") || "application/octet-stream");
     res.send(buffer);

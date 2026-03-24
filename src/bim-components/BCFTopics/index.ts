@@ -8,6 +8,7 @@ import { users } from "../../globals";
 import { SharedBCF } from "../SharedBCF";
 import { SharedIFC } from "../SharedIFC";
 import { clashInput } from "./src/clash-input";
+import { ClashPointData } from "./src/unzip-processing";
 import { setModelTransparent } from "../../ui-templates/toolbars/viewer-toolbar";
 
 export * from "./src/new-topic";
@@ -22,6 +23,7 @@ export class BCFTopics extends OBC.Component {
   private _loading = false;
   private _clashModal: HTMLDialogElement | null = null;
   private _targetSphere: THREE.Mesh | null = null;
+  private _clashSpheres: THREE.Mesh[] = []; // Clash map spheres 관리 배열
 
   get list() {
     return this._bcf.list;
@@ -298,7 +300,6 @@ export class BCFTopics extends OBC.Component {
           }
         }
       }
-      console.log(topics, viewpoints);
     } finally {
       this._loading = false;
     }
@@ -557,6 +558,44 @@ export class BCFTopics extends OBC.Component {
     }
     
     return Array.from(new Set(validIndices)).map(i => loadedModels[i].id);
+  }
+
+  // 3D Clash Map Visualization
+  drawClashMap(clashData: ClashPointData[]) {
+    const worlds = this.components.get(OBC.Worlds);
+    const world = worlds.list.values().next().value;
+    if (!world) return;
+
+    this.clearClashMap(); // 기존 맵 지우기
+
+    const geometry = new THREE.SphereGeometry(0.1, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0xff0000, // 빨간색
+      depthTest: false, // 다른 객체에 가려져도 보이게 하려면 false
+      transparent: true,
+      opacity: 0.8
+    });
+
+    for (const item of clashData) {
+      if (item.clash_point && item.clash_point.length === 3) {
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(
+          item.clash_point[0], 
+          item.clash_point[2], 
+          -item.clash_point[1]
+        );
+        world.scene.three.add(mesh);
+        this._clashSpheres.push(mesh);
+      }
+    }
+  }
+
+  clearClashMap() {
+    for (const sphere of this._clashSpheres) {
+      sphere.removeFromParent();
+      sphere.geometry.dispose();
+    }
+    this._clashSpheres = [];
   }
 
   // Open Clash Detection Modal

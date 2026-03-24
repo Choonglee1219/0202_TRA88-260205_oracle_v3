@@ -212,7 +212,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   const onAddIfcModel = createFileInputHandler(".ifc", false, async (file) => {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
-    const model = await ifcLoader.load(bytes, true, file.name.replace(".ifc", ""));
+    const model = await ifcLoader.load(bytes, false, file.name.replace(".ifc", ""));
     (model as any).name = file.name.replace(".ifc", "");
     updateLoadedModelsList();
     const globalProps = components.get(PropertiesManager);
@@ -302,7 +302,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   const loadIFCModel = async (ifcid: number) => {
     const ifc = await sharedIFC.loadIFC(ifcid);
     if (ifc && ifc.content) {
-      const model = await ifcLoader.load(ifc.content, true, ifc.name);
+      const model = await ifcLoader.load(ifc.content, false, ifc.name);
       (model as any).name = ifc.name;
       updateLoadedModelsList();
       (model as any).dbId = ifcid;
