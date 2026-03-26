@@ -307,6 +307,17 @@ export const clashInput = (bcfTopics: any) => {
       const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
       
       if (newBcfId) {
+        // --- JSON 간섭 좌표를 별도 컬럼에 저장 ---
+        try {
+          await fetch(`/api/bcf/${newBcfId}/clash`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(clashData)
+          });
+        } catch (e) {
+          console.error("Failed to save clash data to DB", e);
+        }
+
         alert(`간섭 체크 완료: ${clashData.length}개의 간섭이 발견되었습니다.`);
         const buffer = await file.arrayBuffer();
         await bcfTopics.loadBCFContent(buffer);

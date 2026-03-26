@@ -76,7 +76,7 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       alert("No Property Sets found on the selected elements.");
       return;
     }
-    propsList.selection = new Set();
+    propsList.selection.clear();
     updateAssignProps({ names: props, psets: [...psets] });
     assignProps.showModal();
   };

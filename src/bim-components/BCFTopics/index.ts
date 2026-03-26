@@ -22,7 +22,6 @@ export class BCFTopics extends OBC.Component {
   private _bcf: OBC.BCFTopics;
   private _loading = false;
   private _clashModal: HTMLDialogElement | null = null;
-  private _targetSphere: THREE.Mesh | null = null;
   private _clashSpheres: THREE.Mesh[] = []; // Clash map spheres 관리 배열
 
   get list() {
@@ -83,10 +82,6 @@ export class BCFTopics extends OBC.Component {
         console.log("The following comment has been updated:", comment);
       });
     });
-
-    this._bcf.list.onItemUpdated.add(({ value: topic }) => {
-      console.log(`Topic ${topic.title} was updated!`);
-    });
   }
 
   getSelectedTopics(selection: Set<any>) {
@@ -138,63 +133,30 @@ export class BCFTopics extends OBC.Component {
             await highlighter.highlightByID(styleName, colorModelIdMap, false, false);
           }
 
-          // Focus on the selection with the minimum bounding box area
-          const target = new THREE.Vector3();
-          let foundCenter = false;
+          const camera = viewpoint.world.camera as OBC.OrthoPerspectiveCamera;
+          
+          const clashSphere = this._clashSpheres.find(s => s.userData.topicGuid === topic.guid);
 
-          const guidsForCenter = Array.from(viewpoint.selectionComponents);
-          if (guidsForCenter.length > 0) {
-            const centerModelIdMap = await fragments.guidsToModelIdMap(guidsForCenter);
-            let minBBoxSize = Infinity;
-
-            for (const modelId in centerModelIdMap) {
-              const expressIds = centerModelIdMap[modelId];
-              for (const id of expressIds) {
-                const singleMap = { [modelId]: new Set([id]) };
-                const bboxes = await fragments.getBBoxes(singleMap);
-                
-                if (bboxes.length > 0) {
-                  const itemBox = new THREE.Box3();
-                  for (const box of bboxes) {
-                    itemBox.union(box);
-                  }
-                  
-                  const size = new THREE.Vector3();
-                  itemBox.getSize(size);
-                  const bboxSize = size.lengthSq();
-                  
-                  if (bboxSize > 0 && bboxSize < minBBoxSize) {
-                    minBBoxSize = bboxSize;
-                    itemBox.getCenter(target);
-                    foundCenter = true;
-                  }
+          if (clashSphere) {
+            const sphereBound = new THREE.Sphere(clashSphere.position, 1.0);
+            await camera.controls.fitToSphere(sphereBound, true);
+          } else {
+            const guidsForCenter = Array.from(viewpoint.selectionComponents);
+            if (guidsForCenter.length > 0) {
+              const centerModelIdMap = await fragments.guidsToModelIdMap(guidsForCenter);
+              const bboxes = await fragments.getBBoxes(centerModelIdMap);
+              if (bboxes.length > 0) {
+                const itemBox = new THREE.Box3();
+                for (const box of bboxes) {
+                  itemBox.union(box);
                 }
+                const sphereBound = new THREE.Sphere();
+                itemBox.getBoundingSphere(sphereBound);
+                sphereBound.radius *= 1.2; // 너무 꽉 차지 않게 약간 여유를 둠
+                await camera.controls.fitToSphere(sphereBound, true);
               }
             }
           }
-
-          const camera = viewpoint.world.camera as OBC.OrthoPerspectiveCamera;
-
-          if (!foundCenter) {
-            camera.controls.getTarget(target);
-          }
-
-          if (!this._targetSphere) {
-            const geometry = new THREE.SphereGeometry(0.01, 32, 32);
-            const material = new THREE.MeshBasicMaterial({ 
-              color: 0xff0000, 
-              transparent: true, 
-              opacity: 0,
-              depthTest: false,
-            });
-            this._targetSphere = new THREE.Mesh(geometry, material);
-            viewpoint.world.scene.three.add(this._targetSphere);
-          }
-
-          this._targetSphere.position.copy(target);
-          
-          const sphereBound = new THREE.Sphere(target, 0.01);
-          await camera.controls.fitToSphere(sphereBound, true);
         }
       }
     }
@@ -584,6 +546,7 @@ export class BCFTopics extends OBC.Component {
           item.clash_point[2], 
           -item.clash_point[1]
         );
+        mesh.userData.topicGuid = item.clash_guid; // 줌인을 위해 토픽 GUID 저장
         world.scene.three.add(mesh);
         this._clashSpheres.push(mesh);
       }
