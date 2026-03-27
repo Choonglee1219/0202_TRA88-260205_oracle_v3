@@ -1,12 +1,12 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import * as WEBIFC from "web-ifc";
 import { PropertiesManager } from "../../bim-components/PropsManager";
 import { globalPropsList } from "../../bim-components/PropsManager/src/props-list";
 import { assignPropsModal } from "../../bim-components/PropsManager/src/assign-props";
 import { newPropModal } from "../../bim-components/PropsManager/src/new-prop";
 import { appIcons } from "../../globals";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 export interface GlobalPropsSectionState {
   components: OBC.Components;
@@ -35,7 +35,7 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
 
   const onAdd = async () => {
     const selection = propsList.selection;
-    const highlighter = components.get(OBF.Highlighter);
+    const highlighter = components.get(Highlighter);
     const fragments = components.get(OBC.FragmentsManager);
     const modelIdMap = highlighter.selection.select;
     if (selection.size === 0) {

@@ -1,8 +1,8 @@
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import * as THREE from "three";
 import { ClashPointData } from "./clash-result-parser";
 import { clashInput } from "./clash-input";
+import { Highlighter } from "../../Highlighter";
 
 export class ClashMapDisplay {
   private components: OBC.Components;
@@ -28,7 +28,7 @@ export class ClashMapDisplay {
     this.clearClashMap();
 
     this.isClashMapActive = true;
-    const highlighter = this.components.get(OBF.Highlighter);
+    const highlighter = this.components.get(Highlighter);
     highlighter.enabled = false;
 
     const geometry = new THREE.SphereGeometry(1.0, 32, 32);
@@ -63,7 +63,7 @@ export class ClashMapDisplay {
     if (!this.isClashMapActive) return;
     
     this.isClashMapActive = false;
-    const highlighter = this.components.get(OBF.Highlighter);
+    const highlighter = this.components.get(Highlighter);
     highlighter.enabled = true;
 
     const worlds = this.components.get(OBC.Worlds);

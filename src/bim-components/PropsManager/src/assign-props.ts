@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import { PropertiesManager } from "..";
+import { Highlighter } from "../../Highlighter";
 
 interface AssignPropsModalState {
   components: OBC.Components;
@@ -15,7 +15,7 @@ const template: BUI.StatefullComponent<AssignPropsModalState> = (state) => {
 
   const panelSectionID = `form-${BUI.Manager.newRandomId()}`;
   const globalProps = components.get(PropertiesManager);
-  const highlighter = components.get(OBF.Highlighter);
+  const highlighter = components.get(Highlighter);
 
   const onAdd = async ({ target }: { target: BUI.Button }) => {
     const panelSection = document.getElementById(

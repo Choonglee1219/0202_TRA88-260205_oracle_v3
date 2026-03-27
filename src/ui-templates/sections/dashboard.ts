@@ -1,9 +1,9 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import Chart from "chart.js/auto";
 import { appIcons } from "../../globals";
 import { setModelTransparent, restoreModelMaterials } from "../toolbars/viewer-toolbar";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 export interface DashboardPanelState {
   components: OBC.Components;
@@ -12,7 +12,7 @@ export interface DashboardPanelState {
 export const dashboardPanelTemplate: BUI.StatefullComponent<DashboardPanelState> = (state) => {
   const { components } = state;
   const fragments = components.get(OBC.FragmentsManager);
-  const highlighter = components.get(OBF.Highlighter);
+  const highlighter = components.get(Highlighter);
   
   let categoryChart: Chart | null = null;
   let typeCharts: Chart[] = [];

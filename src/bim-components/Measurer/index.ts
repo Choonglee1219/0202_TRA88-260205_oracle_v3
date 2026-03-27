@@ -1,6 +1,7 @@
 import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import * as THREE from "three";
+import { Highlighter } from "../Highlighter";
 
 export class Measurer extends OBC.Component {
   static uuid = "939bb2bc-7d31-4a44-811d-68e4dd286c35" as const;
@@ -12,7 +13,7 @@ export class Measurer extends OBC.Component {
   }
 
   async getMeasure() {
-    const highlighter = this.components.get(OBF.Highlighter);
+    const highlighter = this.components.get(Highlighter);
     const modelIdMap = highlighter.selection.select;
     if (OBC.ModelIdMapUtils.isEmpty(modelIdMap)) return;
 

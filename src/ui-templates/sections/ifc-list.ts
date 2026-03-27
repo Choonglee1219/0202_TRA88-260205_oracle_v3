@@ -212,7 +212,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   const onAddIfcModel = createFileInputHandler(".ifc", false, async (file) => {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
-    const model = await ifcLoader.load(bytes, false, file.name.replace(".ifc", ""));
+    const model = await ifcLoader.load(bytes, false, file.name.replace(".ifc", "")); // 좌표 원점 조정 해제
     (model as any).name = file.name.replace(".ifc", "");
     updateLoadedModelsList();
     const globalProps = components.get(PropertiesManager);

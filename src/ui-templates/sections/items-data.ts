@@ -1,9 +1,9 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import { appIcons } from "../../globals";
 import { itemsData } from "../../ui-components/ItemsData";
 import { quantityChartModal } from "../../bim-components/QuantityChart";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 export interface ItemsDataPanelState {
   components: OBC.Components;
@@ -16,7 +16,7 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
 
   const chartModal = quantityChartModal();
 
-  const highlighter = components.get(OBF.Highlighter);
+  const highlighter = components.get(Highlighter);
 
   const [propsTable, updatePropsTable] = itemsData({
     components,

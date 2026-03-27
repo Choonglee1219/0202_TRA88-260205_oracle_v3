@@ -1,16 +1,16 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
 import { appIcons } from "../../globals";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 const paletteColors = [
   "#C00000", "#FFC000", "#00B050", "#00B0F0", "#0070C0", "#7030A0",
 ];
 
 export const Colorize = (components: OBC.Components) => {
-  const highlighter = components.get(OBF.Highlighter);
+  const highlighter = components.get(Highlighter);
 
   const applyColor = async (colorValue: string) => {
     const selection = highlighter.selection.select;

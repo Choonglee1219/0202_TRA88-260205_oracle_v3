@@ -1,9 +1,9 @@
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
 import { setModelTransparent } from "../../../ui-templates/toolbars/viewer-toolbar";
 import { ClashMapDisplay } from "./clash-map";
+import { Highlighter } from "../../Highlighter";
 
 export class TopicViewpointManager {
   private components: OBC.Components;
@@ -24,7 +24,7 @@ export class TopicViewpointManager {
       await viewpoint.updateCamera();
     }
 
-    const highlighter = this.components.get(OBF.Highlighter);
+    const highlighter = this.components.get(Highlighter);
     const selection = highlighter.selection.select;
     if (Object.keys(selection).length > 0) {
       const fragments = this.components.get(OBC.FragmentsManager);
@@ -53,7 +53,7 @@ export class TopicViewpointManager {
         const viewpoint = viewpoints.list.get(viewpointGuid);
         if (viewpoint && viewpoint.world) {
           await viewpoint.go();
-          const highlighter = this.components.get(OBF.Highlighter);
+          const highlighter = this.components.get(Highlighter);
           await highlighter.clear();
           const fragments = this.components.get(OBC.FragmentsManager);
 
@@ -73,8 +73,8 @@ export class TopicViewpointManager {
           const guids = Array.from(viewpoint.selectionComponents);
           if (guids.length > 0) {
             const modelIdMap = await fragments.guidsToModelIdMap(guids);
-            await highlighter.highlightByID("select", modelIdMap);
             setModelTransparent(this.components);
+            await highlighter.highlightByID("select", modelIdMap);
           }
 
           // Restore Colors

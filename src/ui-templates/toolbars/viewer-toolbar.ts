@@ -5,6 +5,7 @@ import * as FRAGS from "@thatopen/fragments";
 import { appIcons, tooltips } from "../../globals";
 import { MeasurerUI } from "../../bim-components/Measurer/src";
 import { Colorize } from "../../ui-components/Colorize";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 export interface ViewerToolbarState {
   components: OBC.Components;
@@ -85,7 +86,7 @@ ViewerToolbarState
 > = (state) => {
   const { components, world } = state;
   
-  const highlighter = components.get(OBF.Highlighter);
+  const highlighter = components.get(Highlighter);
   const hider = components.get(OBC.Hider);
   
   let hiddenItemsBtn: BUI.Button | undefined;

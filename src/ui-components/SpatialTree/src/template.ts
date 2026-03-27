@@ -1,9 +1,9 @@
 import * as FRAGS from "@thatopen/fragments";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import * as BUI from "@thatopen/ui";
 import { SpatialTreeItem } from "@thatopen/fragments";
 import { SpatialTreeState, SpatialTreeData } from "./types";
+import { Highlighter } from "../../../bim-components/Highlighter";
 
 const getModelTree = async (
   model: FRAGS.FragmentsModel,
@@ -89,7 +89,7 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
   ) => {
     e.stopImmediatePropagation();
     const { row } = e.detail;
-    const highlighter = components.get(OBF.Highlighter);
+    const highlighter = components.get(Highlighter);
     const fragments = components.get(OBC.FragmentsManager);
     row.onclick = async () => {
       if (!selectHighlighterName) return;

@@ -1,9 +1,9 @@
 import MarkdownIt from "markdown-it";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import * as BUI from "@thatopen/ui";
 import { QueriesListState } from "./types";
 import { appIcons } from "../../../globals";
+import { Highlighter } from "../../../bim-components/Highlighter";
 
 const markdownFiles = import.meta.glob("../../../markdown/*.md", {
   query: "raw",
@@ -22,7 +22,7 @@ export const queriesListTemplate: BUI.StatefullComponent<QueriesListState> = (
 ) => {
   const { components, queryString } = state;
   const finder = components.get(OBC.ItemsFinder);
-  const highlighter = components.get(OBF.Highlighter);
+  const highlighter = components.get(Highlighter);
 
   const tableData = [...finder.list.keys()]
     .filter((key) => {

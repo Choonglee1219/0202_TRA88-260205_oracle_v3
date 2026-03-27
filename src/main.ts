@@ -8,6 +8,7 @@ import { appIcons, CONTENT_GRID_ID } from "./globals";
 import { setupFinders } from "./setup/finders";
 import { setupViewTemplates } from "./setup/templaters";
 import { ViewCube } from "./ui-components/ViewCube";
+import { Highlighter } from "./bim-components/Highlighter";
 
 // 🎨Override the bim-label template to use a local SVG icon and apply custom colors
 // @ts-ignore
@@ -40,6 +41,11 @@ BUI.Manager.init();
 
 // 🌐Components Setup
 const components = new OBC.Components();
+
+// Override the default OBF.Highlighter with our custom one.
+// This must be done before any other component tries to get the highlighter.
+const customHighlighter = new Highlighter(components);
+components.add(Highlighter.uuid, customHighlighter);
 
 // 🌐Worlds Setup and Configuration
 const worlds = components.get(OBC.Worlds);
@@ -176,8 +182,13 @@ fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
   material.polygonOffset = true;
   material.polygonOffsetUnits = 4;
   material.polygonOffsetFactor = 2;
-  material.transparent = true;
-  material.opacity = 0.5;
+  // This logic is to apply a default transparency to the base model materials.
+  // We must avoid overriding materials created by the Highlighter.
+  const isHighlighterMaterial = material.name.includes("select") || material.name.startsWith("#");
+  if (!isHighlighterMaterial) {
+    material.transparent = true;
+    material.opacity = 0.5;
+  }
 });
 
 // 📷Camera EventHandler
@@ -202,12 +213,13 @@ await ifcLoader.setup({
     path: "/node_modules/web-ifc/",
   },
   webIfc: {
-    COORDINATE_TO_ORIGIN: false,
+    COORDINATE_TO_ORIGIN: false,  // 좌표 원점 조정 해제
   },
 });
 
 // ✅Highlighter Setup
-const highlighter = components.get(OBF.Highlighter);
+const highlighter = components.get(Highlighter);
+
 highlighter.setup({
   world,
   selectMaterialDefinition: {

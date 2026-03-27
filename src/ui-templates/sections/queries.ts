@@ -1,8 +1,8 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import { appIcons } from "../../globals";
 import { queriesList } from "../../ui-components";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 export interface QueriesPanelState {
   components: OBC.Components;
@@ -14,7 +14,7 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
 ) => {
   const { components, isAdmin } = state;
   const finder = components.get(OBC.ItemsFinder);
-  const highlighter = components.get(OBF.Highlighter);
+  const highlighter = components.get(Highlighter);
 
   const [element, updateList] = queriesList({ components });
 

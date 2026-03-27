@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import { appIcons, users } from "../../../globals";
+import { Highlighter } from "../../Highlighter";
 
 const addBackdropStyles = () => {
   const styleId = "update-topic-modal-styles";
@@ -103,7 +103,7 @@ export const updateTopic = (bcfTopics: any) => {
       await viewpoint.updateCamera();
     }
 
-    const highlighter = components.get(OBF.Highlighter);
+    const highlighter = components.get(Highlighter);
     const selection = highlighter.selection.select;
     if (Object.keys(selection).length > 0) {
       const fragments = components.get(OBC.FragmentsManager);

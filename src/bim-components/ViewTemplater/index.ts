@@ -1,8 +1,8 @@
 import * as OBC from "@thatopen/components";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
-import * as OBF from "@thatopen/components-front";
 import { ViewTemplate } from "./src";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 export class ViewTemplater extends OBC.Component {
   static uuid = "226f2357-5e8c-43e5-a43a-594356e43b67" as const;
@@ -19,7 +19,7 @@ export class ViewTemplater extends OBC.Component {
 
     const { defaultVisibility, visibilityExceptions, colors } = template;
 
-    const highlighter = this.components.get(OBF.Highlighter);
+    const highlighter = this.components.get(Highlighter);
     const hider = this.components.get(OBC.Hider);
     const finder = this.components.get(OBC.ItemsFinder);
 
@@ -76,7 +76,7 @@ export class ViewTemplater extends OBC.Component {
   }
 
   async reset() {
-    const highlighter = this.components.get(OBF.Highlighter);
+    const highlighter = this.components.get(Highlighter);
     const hider = this.components.get(OBC.Hider);
 
     const promises = [highlighter.clear(), hider.set(true)];

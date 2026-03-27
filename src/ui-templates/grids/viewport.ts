@@ -3,6 +3,7 @@ import * as OBF from "@thatopen/components-front";
 import * as BUI from "@thatopen/ui";
 import { ViewerToolbarState, viewerToolbarTemplate } from "..";
 import { appIcons } from "../../globals";
+import { Highlighter } from "../../bim-components/Highlighter";
 
 type BottomToolbar = { name: "bottomToolbar"; state: ViewerToolbarState };
 type LeftToolbar = { name: "leftToolbar"; state: {} };
@@ -22,7 +23,7 @@ export const viewportGridTemplate: BUI.StatefullComponent<ViewportGridState> = (
   const { components, world } = state;
 
   const leftToolbarTemplate: BUI.StatefullComponent = (_: {}, update) => {
-    const highlighter = components.get(OBF.Highlighter);
+    const highlighter = components.get(Highlighter);
     const lengthMeasurer = components.get(OBF.LengthMeasurement);
     const areaMeasurer = components.get(OBF.AreaMeasurement);
     const clipper = components.get(OBC.Clipper);
