@@ -68,6 +68,20 @@ export const topicListTemplate: BUI.StatefullComponent<
   bcfTopics.list.onItemUpdated.add(() => setTimeout(updateTopicCount, 100));
   bcfTopics.list.onItemDeleted.add(() => setTimeout(updateTopicCount, 100));
 
+  // 3D 화면에서 간섭 구(Sphere) 클릭 시, Topic List 테이블 행 자동 선택 및 줌인
+  bcfTopics.onClashSphereClicked.add((guid) => {
+    const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === guid);
+    if (targetGroup) {
+      table.selection.clear();
+      table.selection.add(targetGroup.data); // 테이블 체크박스 활성화
+
+      const topic = bcfTopics.list.get(guid);
+      if (topic) {
+        bcfTopics.restoreViewpoint(topic); // 해당 구체로 자연스럽게 카메라 줌인
+      }
+    }
+  });
+
   return BUI.html`
     <bim-panel-section
       ${BUI.ref((e) => {

@@ -1,15 +1,10 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
-import * as FRAGS from "@thatopen/fragments";
-import * as THREE from "three";
-import JSZip from "jszip";
 import { users } from "../../globals";
-import { SharedBCF } from "../SharedBCF";
-import { SharedIFC } from "../SharedIFC";
-import { clashInput } from "./src/clash-input";
-import { ClashPointData } from "./src/unzip-processing";
-import { setModelTransparent } from "../../ui-templates/toolbars/viewer-toolbar";
+import { ClashPointData } from "./src/clash-result-parser";
+import { BCFFileOperations } from "./src/bcf-file-operations";
+import { ClashMapDisplay } from "./src/clash-map";
+import { TopicViewpointManager } from "./src/topic-viewpoint";
 
 export * from "./src/new-topic";
 export * from "./src/update-topic";
@@ -19,13 +14,27 @@ export class BCFTopics extends OBC.Component {
   static uuid = "e7526972-853c-4392-b6c6-33435e123456" as const;
   enabled = true;
   readonly onRefresh = new OBC.Event<void>();
-  private _bcf: OBC.BCFTopics;
+  public _bcf: OBC.BCFTopics;
   private _loading = false;
-  private _clashModal: HTMLDialogElement | null = null;
-  private _clashSpheres: THREE.Mesh[] = []; // Clash map spheres 관리 배열
+
+  // Events for ClashMapDisplay to trigger
+  readonly onClashSphereClicked = new OBC.Event<string>();
+  readonly onClashMapCleared = new OBC.Event<void>();
+
+  private bcfFileOperations: BCFFileOperations;
+  private clashMapDisplay: ClashMapDisplay;
+  private topicViewpointManager: TopicViewpointManager;
 
   get list() {
     return this._bcf.list;
+  }
+
+  get isClashMapActive() {
+    return this.clashMapDisplay.isClashMapActive;
+  }
+
+  clearClashMap() {
+    this.clashMapDisplay.clearClashMap();
   }
 
   // Setting up BCFTopics
@@ -51,36 +60,14 @@ export class BCFTopics extends OBC.Component {
       labels: new Set(["R"])
     };
 
-    const viewpoints = components.get(OBC.Viewpoints);
+    // Initialize helper classes
+    this.clashMapDisplay = new ClashMapDisplay(this.components, this.onClashSphereClicked, this.onClashMapCleared);
+    this.topicViewpointManager = new TopicViewpointManager(this.components, this.clashMapDisplay);
+    this.bcfFileOperations = new BCFFileOperations(this);
+
     this._bcf.list.onItemSet.add(async ({ value: topic }) => {
       if (this._loading) return;
-      const viewpoint = viewpoints.create();
-      const worlds = components.get(OBC.Worlds);
-      const world = worlds.list.values().next().value;
-      if (world) {
-        viewpoint.world = world;
-        await viewpoint.updateCamera();
-      }
-
-      const highlighter = components.get(OBF.Highlighter);
-      const selection = highlighter.selection.select;
-      if (Object.keys(selection).length > 0) {
-        const fragments = components.get(OBC.FragmentsManager);
-        const guids = await fragments.modelIdMapToGuids(selection);
-        for (const guid of guids) {
-          viewpoint.selectionComponents.add(guid);
-        }
-      }
-
-      topic.viewpoints.add(viewpoint.guid);
-
-      topic.comments.onItemSet.add(({ value: comment }) => {
-        comment.viewpoint = viewpoint.guid;
-      });
-
-      topic.comments.onItemUpdated.add(({ value: comment }) => {
-        console.log("The following comment has been updated:", comment);
-      });
+      await this.topicViewpointManager.createViewpointForTopic(topic);
     });
   }
 
@@ -97,75 +84,13 @@ export class BCFTopics extends OBC.Component {
   }
 
   async restoreViewpoint(topic: OBC.Topic) {
-    if (topic.viewpoints.size > 0) {
-      const viewpointGuid = topic.viewpoints.values().next().value;
-      if (viewpointGuid) {
-        const viewpoints = this.components.get(OBC.Viewpoints);
-        const viewpoint = viewpoints.list.get(viewpointGuid);
-        if (viewpoint && viewpoint.world) {
-          await viewpoint.go();
-          const highlighter = this.components.get(OBF.Highlighter);
-          await highlighter.clear();
-          const fragments = this.components.get(OBC.FragmentsManager);
-
-          // Restore Selection
-          const guids = Array.from(viewpoint.selectionComponents);
-          if (guids.length > 0) {
-            const modelIdMap = await fragments.guidsToModelIdMap(guids);
-            await highlighter.highlightByID("select", modelIdMap);
-            // const hider = this.components.get(OBC.Hider);
-            // await hider.isolate(modelIdMap);
-            setModelTransparent(this.components);
-          }
-
-          // Restore Colors
-          for (const [colorHex, guids] of viewpoint.componentColors) {
-            if (!guids || guids.length === 0) continue;
-            const styleName = `#${colorHex}`;
-            highlighter.styles.set(styleName, {
-              color: new THREE.Color(styleName),
-              renderedFaces: FRAGS.RenderedFaces.ONE,
-              opacity: 0.1,
-              transparent: true,
-              depthTest: false,
-            });
-            const colorModelIdMap = await fragments.guidsToModelIdMap(guids);
-            await highlighter.highlightByID(styleName, colorModelIdMap, false, false);
-          }
-
-          const camera = viewpoint.world.camera as OBC.OrthoPerspectiveCamera;
-          
-          const clashSphere = this._clashSpheres.find(s => s.userData.topicGuid === topic.guid);
-
-          if (clashSphere) {
-            const sphereBound = new THREE.Sphere(clashSphere.position, 1.0);
-            await camera.controls.fitToSphere(sphereBound, true);
-          } else {
-            const guidsForCenter = Array.from(viewpoint.selectionComponents);
-            if (guidsForCenter.length > 0) {
-              const centerModelIdMap = await fragments.guidsToModelIdMap(guidsForCenter);
-              const bboxes = await fragments.getBBoxes(centerModelIdMap);
-              if (bboxes.length > 0) {
-                const itemBox = new THREE.Box3();
-                for (const box of bboxes) {
-                  itemBox.union(box);
-                }
-                const sphereBound = new THREE.Sphere();
-                itemBox.getBoundingSphere(sphereBound);
-                sphereBound.radius *= 1.2; // 너무 꽉 차지 않게 약간 여유를 둠
-                await camera.controls.fitToSphere(sphereBound, true);
-              }
-            }
-          }
-        }
-      }
-    }
+    await this.topicViewpointManager.restoreViewpoint(topic);
   }
 
   setupTable(table: BUI.Table<any>) {
     table.dataTransform.Title = (value: any, row: any) => {
       return BUI.html`
-        <bim-label style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" @click=${async () => {
+        <bim-label data-topic-guid=${row.Guid} style="cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" @click=${async () => {
           const topic = this.list.get(row.Guid);
           if (topic) await this.restoreViewpoint(topic);
         }}>${value}</bim-label>
@@ -173,7 +98,6 @@ export class BCFTopics extends OBC.Component {
     };
   }
 
-  // Deleting Topics
   delete(selection: Set<any>) {
     if (selection.size === 0) return;
     const topics = this.getSelectedTopics(selection);
@@ -188,7 +112,6 @@ export class BCFTopics extends OBC.Component {
     }
   }
 
-  // Deleting All Topics
   deleteAll() {
     if (this.list.size === 0) return;
     const confirmation = confirm(`Are you sure you want to delete all ${this.list.size} topics?`);
@@ -200,372 +123,44 @@ export class BCFTopics extends OBC.Component {
     }
   }
 
-  private downloadFile(blob: Blob, name: string) {
-    const bcfFile = new File([blob], name);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(bcfFile);
-    a.download = bcfFile.name;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(a.href);
+  importBCF() {
+    this.bcfFileOperations.importBCF();
   }
 
-  private createFileInput(callback: (file: File) => void) {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".bcf";
-    input.multiple = false;
-    input.addEventListener("change", () => {
-      const file = input.files?.[0];
-      if (file) callback(file);
-    });
-    input.click();
+  exportBCF(name?: string) {
+    this.bcfFileOperations.exportBCF(name);
+  }
+
+  saveBCF() {
+    this.bcfFileOperations.saveBCF();
+  }
+
+  exportJSON() {
+    this.bcfFileOperations.exportJSON();
+  }
+
+  saveBCFToDB() {
+    this.bcfFileOperations.saveBCFToDB();
   }
 
   async loadBCFContent(buffer: ArrayBuffer | Uint8Array) {
     this._loading = true;
     try {
-      const bcf = new Uint8Array(buffer);
-      const { topics, viewpoints } = await this._bcf.load(bcf);
-
-      const zip = new JSZip();
-      await zip.loadAsync(buffer);
-
-      for (const topic of topics) {
-        const folder = zip.folder(topic.guid);
-        if (!folder) continue;
-        const snapshotFile = folder.file("snapshot.png");
-        if (snapshotFile) {
-          const base64 = await snapshotFile.async("base64");
-          (topic as any).snapshot = `data:image/png;base64,${base64}`;
-          this._bcf.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
-        }
-      }
-
-      const worlds = this.components.get(OBC.Worlds);
-      const world = worlds.list.values().next().value;
-      if (world) {
-        for (const viewpoint of viewpoints) {
-          viewpoint.world = world;
-          const cam = viewpoint.camera;
-          const pos = cam.camera_view_point;
-          const dir = cam.camera_direction;
-          if ((cam as any).view_to_world_scale) {
-            const offset = 80;
-            pos.x -= dir.x * offset;
-            pos.y -= dir.y * offset;
-            pos.z -= dir.z * offset;
-            (cam as any).view_to_world_scale = 1;
-            (cam as any).aspect_ratio = 3;
-            (cam as any).field_of_view = 60;
-          }
-        }
-      }
+      await this.bcfFileOperations.loadBCFContent(buffer);
     } finally {
       this._loading = false;
     }
   }
 
-  // Importing BCF File
-  importBCF() {
-    this.createFileInput(async (file) => {
-      const buffer = await file.arrayBuffer();
-      await this.loadBCFContent(buffer);
-    });
-  }
-
-  // Creating BCF Blob
-  private async createBCFBlob(name?: string) {
-    if (!name) {
-      name = "topics.bcf";
-      const fragments = this.components.get(OBC.FragmentsManager);
-      if (fragments.list.size > 0) {
-        const model = fragments.list.values().next().value;
-        if (model && (model as any).name) {
-          name = `${(model as any).name}.bcf`;
-        }
-      }
-    }
-    const blob = await this._bcf.export();
-    try {
-      const zip = new JSZip();
-      await zip.loadAsync(blob);
-      const topicFolders = new Set<string>();
-      zip.forEach((relativePath) => {
-        if (relativePath.endsWith("markup.bcf")) {
-          const folder = relativePath.substring(0, relativePath.lastIndexOf("/") + 1);
-          topicFolders.add(folder);
-        }
-      });
-      for (const folder of topicFolders) {
-        const markupPath = folder + "markup.bcf";
-        const markupFile = zip.file(markupPath);
-        if (markupFile) {
-          const xmlStr = await markupFile.async("string");
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
-          const viewpoints = xmlDoc.getElementsByTagName("Viewpoint");
-          for (let i = 0; i < viewpoints.length; i++) {
-            viewpoints[i].textContent = "viewpoint.bcfv";
-          }
-          const snapshots = xmlDoc.getElementsByTagName("Snapshot");
-          for (let i = 0; i < snapshots.length; i++) {
-            snapshots[i].textContent = "snapshot.png";
-          }
-          const serializer = new XMLSerializer();
-          const newXmlStr = serializer.serializeToString(xmlDoc);
-          zip.file(markupPath, newXmlStr);
-        }
-        const folderZip = zip.folder(folder);
-        if (folderZip) {
-          const bcfvFiles = folderZip.file(/.*\.bcfv$/);
-          for (const file of bcfvFiles) {
-            const xmlStr = await file.async("string");
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
-            const visibility = xmlDoc.getElementsByTagName("Visibility");
-            if (visibility.length > 0) {
-              const visTag = visibility[0];
-              visTag.setAttribute("DefaultVisibility", "true");
-              const exceptions = visTag.getElementsByTagName("Exceptions");
-              if (exceptions.length > 0) {
-                visTag.removeChild(exceptions[0]);
-              }
-            }
-            const vectors = ["CameraViewPoint", "CameraDirection", "CameraUpVector"];
-            for (const vecName of vectors) {
-              const vecNodes = xmlDoc.getElementsByTagName(vecName);
-              if (vecNodes.length > 0) {
-                const vecNode = vecNodes[0];
-                const xNode = vecNode.getElementsByTagName("X")[0];
-                const yNode = vecNode.getElementsByTagName("Y")[0];
-                const zNode = vecNode.getElementsByTagName("Z")[0];
-                if (xNode && yNode && zNode) {
-                  const x = parseFloat(xNode.textContent || "0");
-                  const y = parseFloat(yNode.textContent || "0");
-                  const z = parseFloat(zNode.textContent || "0");
-                  xNode.textContent = String(x);
-                  yNode.textContent = String(y);
-                  zNode.textContent = String(z);
-                }
-              }
-            }
-            const serializer = new XMLSerializer();
-            const newXmlStr = serializer.serializeToString(xmlDoc);
-            zip.file(folder + "viewpoint.bcfv", newXmlStr);
-            if (!file.name.endsWith("viewpoint.bcfv")) {
-              zip.remove(file.name);
-            }
-          }
-          const pngFiles = folderZip.file(/.*\.png$/);
-          for (const file of pngFiles) {
-            if (!file.name.endsWith("snapshot.png")) {
-              const content = await file.async("blob");
-              zip.file(folder + "snapshot.png", content);
-              zip.remove(file.name);
-            }
-          }
-        }
-      }
-      const newBlob = await zip.generateAsync({ type: "blob" });
-      return { blob: newBlob, name };
-    } catch (e) {
-      console.error("Error post-processing BCF:", e);
-      return { blob, name };
-    }
-  }
-
-  // Exporting BCF File
-  async exportBCF(name?: string) {
-    const { blob, name: fileName } = await this.createBCFBlob(name);
-    this.downloadFile(blob, fileName);
-  }
-
-  // New function: Save current topics as BCF to DB
-  async saveBCF() {
-    const fragments = this.components.get(OBC.FragmentsManager);
-    const sharedIFC = new SharedIFC();
-    const loadedModels: { id: number; name: string }[] = [];
-    
-    for (const [uuid, model] of fragments.list) {
-      const m = model as any;
-      const dbId = m.dbId || sharedIFC.getIfcIdByModelUUID(uuid);
-      if (dbId) {
-        loadedModels.push({ id: dbId, name: m.name || "Untitled" });
-      }
-    }
-
-    if (loadedModels.length === 0) {
-      alert("데이터베이스에 저장된 IFC 모델이 로드되어 있지 않습니다. BCF를 저장할 수 없습니다.");
-      return;
-    }
-
-    const ifcIds = this.selectTargetModels(loadedModels);
-    if (!ifcIds) return;
-
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-
-    const selectedModels = loadedModels.filter(m => ifcIds.includes(m.id));
-    const modelNames = selectedModels.map(m => m.name).join("-");
-    const defaultName = `Topics(${year}${month}${day}): ${modelNames}`;
-    const fileName = prompt("BCF 파일 이름을 입력하세요:", defaultName);
-    if (!fileName) return;
-
-    const { blob } = await this.createBCFBlob(fileName);
-    const file = new File([blob], fileName);
-
-    const sharedBCF = new SharedBCF();
-    const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
-    if (newBcfId) {
-       alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
-    }
-  }
-
-  // Exporting Topics as JSON
-  exportJSON() {
-    console.log("Exporting JSON...");
-
-    const fragments = this.components.get(OBC.FragmentsManager);
-    const modelNamesArray: string[] = [];
-    for (const [, model] of fragments.list) {
-      const m = model as any;
-      if (m.name) modelNamesArray.push(m.name);
-    }
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const modelNames = modelNamesArray.join("-");
-    const defaultName = `Topics(${year}${month}${day}): ${modelNames}`;
-    const fileName = prompt("JSON 파일 이름을 입력하세요:", defaultName);
-    if (!fileName) return;
-
-    const data = [];
-    for (const topic of this.list.values()) {
-      data.push({
-        GUID: topic.guid,
-        Title: topic.title,
-        Type: topic.type,
-        Status: topic.status,
-        Author: topic.creationAuthor,
-        Assignee: topic.assignedTo,
-        Priority: topic.priority,
-        Labels: Array.from(topic.labels),
-        "Due Date": topic.dueDate,
-        "Created Date": topic.creationDate,
-        Stage: topic.stage,
-        Description: topic.description,
-      });
-    }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const finalName = fileName.endsWith(".json") ? fileName : `${fileName}.json`;
-    this.downloadFile(blob, finalName);
-  }
-
-  // Saving BCF File to Database
-  async saveBCFToDB() {
-    this.createFileInput(async (file) => {
-      const fragments = this.components.get(OBC.FragmentsManager);
-      const sharedIFC = new SharedIFC();
-      const loadedModels: { id: number; name: string }[] = [];
-      
-      for (const [uuid, model] of fragments.list) {
-        const m = model as any;
-        const dbId = m.dbId || sharedIFC.getIfcIdByModelUUID(uuid);
-        console.log(`Model: ${m.name}, UUID: ${uuid}, Found DB ID: ${dbId}`);
-        if (dbId) {
-          loadedModels.push({ id: dbId, name: m.name || "Untitled" });
-        }
-      }
-      console.log("Models available for BCF attachment:", loadedModels);
-
-      if (loadedModels.length === 0) {
-        alert("데이터베이스에 저장된 IFC 모델이 로드되어 있지 않습니다. BCF를 저장할 수 없습니다.");
-        return;
-      }
-
-      const ifcIds = this.selectTargetModels(loadedModels);
-      if (!ifcIds) return;
-
-      const sharedBCF = new SharedBCF();
-      const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
-      if (newBcfId) {
-         alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
-         const buffer = await file.arrayBuffer();
-         await this.loadBCFContent(buffer);
-         this.onRefresh.trigger();
-      }
-    });
-  }
-
-  private selectTargetModels(loadedModels: { id: number; name: string }[]): number[] | null {
-    if (loadedModels.length === 1) return [loadedModels[0].id];
-
-    const options = loadedModels.map((m, i) => `${i + 1}. ${m.name}`).join("\n");
-    const defaultSelection = loadedModels.map((_, i) => i + 1).join(", ");
-    const userInput = prompt(`BCF를 연결할 IFC 모델을 선택하세요 (번호 입력, 쉼표로 구분):\n${options}`, defaultSelection);
-    
-    if (!userInput) return null;
-
-    const indices = userInput.split(",").map(s => parseInt(s.trim()) - 1);
-    const validIndices = indices.filter(i => !isNaN(i) && i >= 0 && i < loadedModels.length);
-
-    if (validIndices.length === 0) {
-      alert("잘못된 선택입니다.");
-      return null;
-    }
-    
-    return Array.from(new Set(validIndices)).map(i => loadedModels[i].id);
-  }
-
-  // 3D Clash Map Visualization
   drawClashMap(clashData: ClashPointData[]) {
-    const worlds = this.components.get(OBC.Worlds);
-    const world = worlds.list.values().next().value;
-    if (!world) return;
-
-    this.clearClashMap(); // 기존 맵 지우기
-
-    const geometry = new THREE.SphereGeometry(0.1, 32, 32);
-    const material = new THREE.MeshBasicMaterial({ 
-      color: 0xff0000, // 빨간색
-      depthTest: false, // 다른 객체에 가려져도 보이게 하려면 false
-      transparent: true,
-      opacity: 0.8
-    });
-
-    for (const item of clashData) {
-      if (item.clash_point && item.clash_point.length === 3) {
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(
-          item.clash_point[0], 
-          item.clash_point[2], 
-          -item.clash_point[1]
-        );
-        mesh.userData.topicGuid = item.clash_guid; // 줌인을 위해 토픽 GUID 저장
-        world.scene.three.add(mesh);
-        this._clashSpheres.push(mesh);
-      }
-    }
+    this.clashMapDisplay.drawClashMap(clashData);
   }
 
-  clearClashMap() {
-    for (const sphere of this._clashSpheres) {
-      sphere.removeFromParent();
-      sphere.geometry.dispose();
-    }
-    this._clashSpheres = [];
-  }
-
-  // Open Clash Detection Modal
   openClashDetectionModal() {
-    if (!this._clashModal) {
-      this._clashModal = clashInput(this);
-    }
-    this._clashModal?.showModal();
+    this.clashMapDisplay.openClashDetectionModal(async (buffer, clashData) => {
+      await this.loadBCFContent(buffer);
+      this.onRefresh.trigger();
+      this.drawClashMap(clashData);
+    });
   }
 }

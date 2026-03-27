@@ -6,6 +6,7 @@ import {
   CONTENT_GRID_ID,
   MEDIUM_COLUMN_WIDTH,
 } from "../../globals";
+import { BCFTopics } from "../../bim-components/BCFTopics";
 
 type Viewer = "viewer";
 
@@ -80,6 +81,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
 ) => {
   const { components } = state;
   const fragments = components.get(OBC.FragmentsManager);
+  const bcfTopics = components.get(BCFTopics);
 
   const onCreated = (e?: Element) => {
     if (!e) return;
@@ -146,7 +148,8 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       },
       Queries: {
         template: `
-          "queries viewer elementData" 1fr
+          "queries viewer elementData" var(--top-row-height, 1fr)
+          "queries dashboard elementData" 1fr
           / var(--left-col-width) 1fr var(--right-col-width)
         `,
       },
@@ -159,8 +162,8 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       },
       FullScreen: {
         template: `
-          "dashboard viewer" 1fr
-          / var(--half-col-width, 1fr) 1fr
+          "viewer" 1fr
+          / 1fr
         `,
       },
     };
@@ -175,6 +178,13 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
     let initialTopRowHeight: number | null = null;
     let initialBottomRowHeight: number | null = null;
     let initialHalfColWidth: number | null = null;
+
+    // 레이아웃이 BCFManager로 변경될 때 BCF 목록을 자동으로 새로고침
+    grid.addEventListener("layoutchange", () => {
+      if (grid.layout === "BCFManager") {
+        bcfTopics.onRefresh.trigger();
+      }
+    });
 
     grid.addEventListener("pointerdown", (e: PointerEvent) => {
       // 그리드의 gap(빈 공간)을 정확히 클릭했을 때만 반응하도록

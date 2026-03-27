@@ -59,12 +59,14 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
 
   let activeClashMapId: number | null = null;
 
+  bcfTopics.onClashMapCleared.add(() => {
+    activeClashMapId = null;
+  });
+
   const toggleClashMap = async (bcfId: number, btn: BUI.Button) => {
     // 이미 켜져 있는 것을 다시 누르면 끄기
     if (activeClashMapId === bcfId) {
       bcfTopics.clearClashMap();
-      activeClashMapId = null;
-      updateBcfList({ files: currentFiles });
       return;
     }
 
@@ -86,7 +88,6 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
       console.error("Error loading clash map", e);
     } finally {
       btn.loading = false;
-      updateBcfList({ files: currentFiles }); // 버튼 색상 변경을 위한 리렌더링
     }
   };
 
@@ -110,7 +111,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
                       style="flex: 0;" @click=${() => loadBCF(file.id)} icon=${appIcons.IMPORT} tooltip-title="Load Topics">
                     </bim-button>
                     <bim-button 
-                      style="flex: 0; color: ${activeClashMapId === file.id ? 'var(--bim-ui_main-contrast)' : 'inherit'};" @click=${(e: Event) => toggleClashMap(file.id, e.target as BUI.Button)} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map">
+                      style="flex: 0;" @click=${(e: Event) => toggleClashMap(file.id, e.target as BUI.Button)} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map">
                     </bim-button>
                     <bim-button 
                       style="flex: 0;" @click=${() => downloadBCF(file.id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF">

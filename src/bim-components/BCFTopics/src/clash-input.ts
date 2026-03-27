@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { SharedBCF } from "../../SharedBCF";
 import { SharedIFC } from "../../SharedIFC";
-import { processClashZip } from "./unzip-processing";
+import { processClashZip, ClashPointData } from "./clash-result-parser";
 
 const addClashInputStyles = () => {
   const styleId = "clash-input-modal-styles";
@@ -37,8 +37,7 @@ const ifcEntities = new Set([
   "IfcFurnishingElement", "IfcFurniture", "IfcSystemFurnitureElement", 
 ]);
 
-export const clashInput = (bcfTopics: any) => {
-  const components = bcfTopics.components as OBC.Components;
+export const clashInput = (components: OBC.Components, onComplete: (buffer: ArrayBuffer, clashData: ClashPointData[]) => Promise<void>) => {
   const fragments = components.get(OBC.FragmentsManager);
   const sharedIFC = new SharedIFC();
 
@@ -320,12 +319,7 @@ export const clashInput = (bcfTopics: any) => {
 
         alert(`간섭 체크 완료: ${clashData.length}개의 간섭이 발견되었습니다.`);
         const buffer = await file.arrayBuffer();
-        await bcfTopics.loadBCFContent(buffer);
-        bcfTopics.onRefresh.trigger();
-        
-        // JSON 간섭 좌표를 이용해 3D Clash Map 생성
-        bcfTopics.drawClashMap(clashData);
-        
+        await onComplete(buffer, clashData);
         modal.close();
       } else {
         alert("Failed to save BCF to database.");
