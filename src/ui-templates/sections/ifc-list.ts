@@ -192,11 +192,13 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     input.multiple = multiple;
 
     input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
+      const files = input.files;
+      if (!files || files.length === 0) return;
       if (target) target.loading = true;
       try {
-        if (target) await onLoad(file, target);
+        for (let i = 0; i < files.length; i++) {
+          if (target) await onLoad(files[i], target);
+        }
       } catch (error) {
         console.error("Error loading file:", error);
         alert("파일 로드 중 오류가 발생했습니다. 콘솔을 확인하세요.");
@@ -209,7 +211,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     input.click();
   };
 
-  const onAddIfcModel = createFileInputHandler(".ifc", false, async (file) => {
+  const onAddIfcModel = createFileInputHandler(".ifc", true, async (file) => {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     const model = await ifcLoader.load(bytes, false, file.name.replace(".ifc", "")); // 좌표 원점 조정 해제
@@ -744,7 +746,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
           <bim-button @click=${onDisposeSelectedModels} label="Dispose" style="flex: 0;"></bim-button>
         </div>
       </div>
-      <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; height: 10rem; min-height: 10rem; flex-shrink: 0;">
+      <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; height: 8rem; min-height: 8rem; flex-shrink: 0;">
         ${loadedTable}
       </div>
       
