@@ -192,11 +192,13 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     input.multiple = multiple;
 
     input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
+      const files = input.files;
+      if (!files || files.length === 0) return;
       if (target) target.loading = true;
       try {
-        if (target) await onLoad(file, target);
+        for (let i = 0; i < files.length; i++) {
+          if (target) await onLoad(files[i], target);
+        }
       } catch (error) {
         console.error("Error loading file:", error);
         alert("파일 로드 중 오류가 발생했습니다. 콘솔을 확인하세요.");
@@ -209,7 +211,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     input.click();
   };
 
-  const onAddIfcModel = createFileInputHandler(".ifc", false, async (file) => {
+  const onAddIfcModel = createFileInputHandler(".ifc", true, async (file) => {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     const model = await ifcLoader.load(bytes, false, file.name.replace(".ifc", "")); // 좌표 원점 조정 해제
