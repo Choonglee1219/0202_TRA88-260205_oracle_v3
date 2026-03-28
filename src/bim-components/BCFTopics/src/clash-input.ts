@@ -70,10 +70,9 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
   modelADropdown.label = "Model A";
   modelADropdown.vertical = true;
 
-  const selectorAInput = document.createElement("bim-text-input") as BUI.TextInput;
-  selectorAInput.label = "Selector A";
-  selectorAInput.vertical = true;
-  selectorAInput.value = "IfcSlab";
+  const selectorADropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
+  selectorADropdown.label = "Selector A";
+  selectorADropdown.vertical = true;
 
   const selectorAModeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   selectorAModeDropdown.label = "Mode A";
@@ -95,10 +94,9 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
   modelBDropdown.label = "Model B";
   modelBDropdown.vertical = true;
 
-  const selectorBInput = document.createElement("bim-text-input") as BUI.TextInput;
-  selectorBInput.label = "Selector B";
-  selectorBInput.vertical = true;
-  selectorBInput.value = "IfcBeam";
+  const selectorBDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
+  selectorBDropdown.label = "Selector B";
+  selectorBDropdown.vertical = true;
 
   const selectorBModeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   selectorBModeDropdown.label = "Mode B";
@@ -116,24 +114,14 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
   optBA.value = "a";
   selectorBModeDropdown.append(optBI, optBE, optBA);
 
-  const getCorrectedName = (name: string) => {
-    const lowerName = name.trim().toLowerCase();
-    for (const entity of ifcEntities) {
-      if (entity.toLowerCase() === lowerName) {
-        return entity;
-      }
-    }
-    return name;
-  };
-
   const updateName = () => {
     const modelA = modelADropdown.value[0] || "";
-    const selectorA = getCorrectedName(selectorAInput.value || "");
+    const selectorA = selectorADropdown.value[0] || "";
     const modeA = selectorAModeDropdown.value[0];
     const selectorADisplay = modeA === "a" ? "*" : selectorA;
 
     const modelB = modelBDropdown.value[0] || "";
-    const selectorB = getCorrectedName(selectorBInput.value || "");
+    const selectorB = selectorBDropdown.value[0] || "";
     const modeB = selectorBModeDropdown.value[0];
     const selectorBDisplay = modeB === "a" ? "*" : selectorB;
 
@@ -144,46 +132,34 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
     nameInput.value = `Clash(${year}${month}${day}): ${modelA}(${selectorADisplay})-${modelB}(${selectorBDisplay})`;
   };
 
-  const correctInput = (input: BUI.TextInput) => {
-    input.value = getCorrectedName(input.value);
-  };
-
   modelADropdown.addEventListener("change", updateName);
-  selectorAInput.addEventListener("input", updateName);
+  selectorADropdown.addEventListener("change", updateName);
   selectorAModeDropdown.addEventListener("change", () => {
     const mode = selectorAModeDropdown.value[0];
     if (mode === "a") {
-      selectorAInput.value = "";
-      selectorAInput.setAttribute("disabled", "");
+      selectorADropdown.value = [];
+      selectorADropdown.setAttribute("disabled", "");
     } else {
-      selectorAInput.removeAttribute("disabled");
+      selectorADropdown.removeAttribute("disabled");
     }
-    updateName();
-  });
-  selectorAInput.addEventListener("change", () => {
-    correctInput(selectorAInput);
     updateName();
   });
   modelBDropdown.addEventListener("change", updateName);
-  selectorBInput.addEventListener("input", updateName);
+  selectorBDropdown.addEventListener("change", updateName);
   selectorBModeDropdown.addEventListener("change", () => {
     const mode = selectorBModeDropdown.value[0];
     if (mode === "a") {
-      selectorBInput.value = "";
-      selectorBInput.setAttribute("disabled", "");
+      selectorBDropdown.value = [];
+      selectorBDropdown.setAttribute("disabled", "");
     } else {
-      selectorBInput.removeAttribute("disabled");
+      selectorBDropdown.removeAttribute("disabled");
     }
-    updateName();
-  });
-  selectorBInput.addEventListener("change", () => {
-    correctInput(selectorBInput);
     updateName();
   });
 
   const loadedModels: { id: number; name: string }[] = [];
   
-  const refreshModels = () => {
+  const refreshModels = async () => {
     loadedModels.length = 0;
     const optionsA: HTMLElement[] = [];
     const optionsB: HTMLElement[] = [];
@@ -215,6 +191,52 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
     if ((modelBDropdown as any).elements) (modelBDropdown as any).elements.clear();
     modelBDropdown.replaceChildren(...optionsB);
     if (optionsB.length > 0) modelBDropdown.value = [optionsB[0].getAttribute("value")!];
+
+    const classifier = components.get(OBC.Classifier);
+    try {
+      await classifier.byCategory({ classificationName: "entities" });
+    } catch (e) {
+      console.warn("Classifier grouping error:", e);
+    }
+    const entitiesClass = classifier.list.get("entities");
+    
+    const availableCategories = new Set<string>();
+    if (entitiesClass) {
+      for (const catName of entitiesClass.keys()) {
+        const lowerCat = catName.toLowerCase();
+        for (const entity of ifcEntities) {
+          if (entity.toLowerCase() === lowerCat) {
+             availableCategories.add(entity);
+             break;
+          }
+        }
+      }
+    }
+
+    const sortedCategories = Array.from(availableCategories).sort();
+    const catOptionsA: HTMLElement[] = [];
+    const catOptionsB: HTMLElement[] = [];
+
+    const currentSelA = selectorADropdown.value[0];
+    const currentSelB = selectorBDropdown.value[0];
+
+    for (const cat of sortedCategories) {
+      const optA = document.createElement("bim-option") as any;
+      optA.label = cat; optA.value = cat; catOptionsA.push(optA);
+      const optB = document.createElement("bim-option") as any;
+      optB.label = cat; optB.value = cat; catOptionsB.push(optB);
+    }
+
+    if ((selectorADropdown as any).elements) (selectorADropdown as any).elements.clear();
+    selectorADropdown.replaceChildren(...catOptionsA);
+    if (currentSelA && availableCategories.has(currentSelA)) selectorADropdown.value = [currentSelA];
+    else if (catOptionsA.length > 0) selectorADropdown.value = [catOptionsA[0].getAttribute("value")!];
+
+    if ((selectorBDropdown as any).elements) (selectorBDropdown as any).elements.clear();
+    selectorBDropdown.replaceChildren(...catOptionsB);
+    if (currentSelB && availableCategories.has(currentSelB)) selectorBDropdown.value = [currentSelB];
+    else if (catOptionsB.length > 0) selectorBDropdown.value = [catOptionsB[0].getAttribute("value")!];
+
     updateName();
   };
 
@@ -251,14 +273,14 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
         "a": [
           {
             "file": `${modelAName}.ifc`,
-            "selector": getCorrectedName(selectorAInput.value),
+            "selector": selectorADropdown.value[0] || "",
             "mode": selectorAModeDropdown.value[0]
           }
         ],
         "b": [
           {
             "file": `${modelBName}.ifc`,
-            "selector": getCorrectedName(selectorBInput.value),
+            "selector": selectorBDropdown.value[0] || "",
             "mode": selectorBModeDropdown.value[0]
           }
         ],
@@ -347,13 +369,13 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
           <div style="display: flex; gap: 0.5rem;">
             ${modelADropdown}
             ${selectorAModeDropdown}
-            ${selectorAInput}
+            ${selectorADropdown}
           </div>
           <bim-label>Group B</bim-label>
           <div style="display: flex; gap: 0.5rem;">
             ${modelBDropdown}
             ${selectorBModeDropdown}
-            ${selectorBInput}
+            ${selectorBDropdown}
           </div>
           <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
             <bim-button style="flex: 0;" label="Cancel" @click=${onCancel}></bim-button>
@@ -370,8 +392,8 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
 
   // Refresh models when modal opens
   const originalShowModal = modal.showModal.bind(modal);
-  modal.showModal = () => {
-    refreshModels();
+  modal.showModal = async () => {
+    await refreshModels();
     originalShowModal();
   };
 
