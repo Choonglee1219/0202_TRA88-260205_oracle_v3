@@ -73,6 +73,7 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
   const selectorADropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   selectorADropdown.label = "Selector A";
   selectorADropdown.vertical = true;
+  selectorADropdown.multiple = true;
 
   const selectorAModeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   selectorAModeDropdown.label = "Mode A";
@@ -97,6 +98,7 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
   const selectorBDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   selectorBDropdown.label = "Selector B";
   selectorBDropdown.vertical = true;
+  selectorBDropdown.multiple = true;
 
   const selectorBModeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   selectorBModeDropdown.label = "Mode B";
@@ -116,14 +118,16 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
 
   const updateName = () => {
     const modelA = modelADropdown.value[0] || "";
-    const selectorA = selectorADropdown.value[0] || "";
     const modeA = selectorAModeDropdown.value[0];
-    const selectorADisplay = modeA === "a" ? "*" : selectorA;
+    const selectorA = selectorADropdown.value.join(",") || "";
+    let selectorADisplay = modeA === "a" ? "*" : selectorA;
+    if (selectorADisplay.length > 15) selectorADisplay = selectorADisplay.substring(0, 15) + "...";
 
     const modelB = modelBDropdown.value[0] || "";
-    const selectorB = selectorBDropdown.value[0] || "";
     const modeB = selectorBModeDropdown.value[0];
-    const selectorBDisplay = modeB === "a" ? "*" : selectorB;
+    const selectorB = selectorBDropdown.value.join(",") || "";
+    let selectorBDisplay = modeB === "a" ? "*" : selectorB;
+    if (selectorBDisplay.length > 15) selectorBDisplay = selectorBDisplay.substring(0, 15) + "...";
 
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
@@ -217,8 +221,8 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
     const catOptionsA: HTMLElement[] = [];
     const catOptionsB: HTMLElement[] = [];
 
-    const currentSelA = selectorADropdown.value[0];
-    const currentSelB = selectorBDropdown.value[0];
+    const currentSelA = selectorADropdown.value || [];
+    const currentSelB = selectorBDropdown.value || [];
 
     for (const cat of sortedCategories) {
       const optA = document.createElement("bim-option") as any;
@@ -229,12 +233,14 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
 
     if ((selectorADropdown as any).elements) (selectorADropdown as any).elements.clear();
     selectorADropdown.replaceChildren(...catOptionsA);
-    if (currentSelA && availableCategories.has(currentSelA)) selectorADropdown.value = [currentSelA];
+    const validSelsA = currentSelA.filter((v: string) => availableCategories.has(v));
+    if (validSelsA.length > 0) selectorADropdown.value = validSelsA;
     else if (catOptionsA.length > 0) selectorADropdown.value = [catOptionsA[0].getAttribute("value")!];
 
     if ((selectorBDropdown as any).elements) (selectorBDropdown as any).elements.clear();
     selectorBDropdown.replaceChildren(...catOptionsB);
-    if (currentSelB && availableCategories.has(currentSelB)) selectorBDropdown.value = [currentSelB];
+    const validSelsB = currentSelB.filter((v: string) => availableCategories.has(v));
+    if (validSelsB.length > 0) selectorBDropdown.value = validSelsB;
     else if (catOptionsB.length > 0) selectorBDropdown.value = [catOptionsB[0].getAttribute("value")!];
 
     updateName();
@@ -266,89 +272,160 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
       return;
     }
 
-    const body = [
-      {
-        "name": nameInput.value,
-        "mode": checkTypeDropdown.value[0] === "clearance" ? "clearance" : "intersection",
-        "a": [
-          {
-            "file": `${modelAName}.ifc`,
-            "selector": selectorADropdown.value[0] || "",
-            "mode": selectorAModeDropdown.value[0]
-          }
-        ],
-        "b": [
-          {
-            "file": `${modelBName}.ifc`,
-            "selector": selectorBDropdown.value[0] || "",
-            "mode": selectorBModeDropdown.value[0]
-          }
-        ],
-        [checkTypeDropdown.value[0]]: parseFloat(checkValueInput.value),
-        "check_all": true
-      }
-    ];
+    const modeA = selectorAModeDropdown.value[0];
+    const modeB = selectorBModeDropdown.value[0];
 
-    console.log("Clash Detection Input:", JSON.stringify(body, null, 2));
+    const selsA = modeA === "a" ? ["*"] : (selectorADropdown.value.length > 0 ? selectorADropdown.value : []);
+    const selsB = modeB === "a" ? ["*"] : (selectorBDropdown.value.length > 0 ? selectorBDropdown.value : []);
+
+    if (selsA.length === 0) {
+      alert("Please select at least one category for Group A.");
+      return;
+    }
+    if (selsB.length === 0) {
+      alert("Please select at least one category for Group B.");
+      return;
+    }
 
     target.loading = true;
 
+    const sharedBCF = new SharedBCF();
+    const ifcIds = [selectedModelA.id];
+    if (selectedModelB.id !== selectedModelA.id) {
+      ifcIds.push(selectedModelB.id);
+    }
+
+    let totalClashes = 0;
+    let successCount = 0;
+    let allBuffers: ArrayBuffer[] = [];
+    let allClashData: ClashPointData[] = [];
+
+    const isMultiple = selsA.length > 1 || selsB.length > 1;
+
     try {
-      const response = await fetch("/api/clash", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
+      for (const selA of selsA) {
+        for (const selB of selsB) {
+          const currentSelA = selA === "*" ? "" : selA;
+          const currentSelB = selB === "*" ? "" : selB;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server responded with ${response.status}: ${errorText}`);
-      }
+          const displaySelA = selA === "*" ? "All" : selA;
+          const displaySelB = selB === "*" ? "All" : selB;
+          
+          let testName = nameInput.value;
+          if (isMultiple) {
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2);
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            testName = `Clash(${year}${month}${day}): ${modelAName}(${displaySelA})-${modelBName}(${displaySelB})`;
+          }
 
-      const zipBlob = await response.blob();
-      
-      // ZIP 파일 압축 해제 및 파싱 로직 호출
-      const { bcfBlob, clashData } = await processClashZip(zipBlob);
+          const body = [
+            {
+              "name": testName,
+              "mode": checkTypeDropdown.value[0] === "clearance" ? "clearance" : "intersection",
+              "a": [
+                {
+                  "file": `${modelAName}.ifc`,
+                  "selector": currentSelA,
+                  "mode": modeA
+                }
+              ],
+              "b": [
+                {
+                  "file": `${modelBName}.ifc`,
+                  "selector": currentSelB,
+                  "mode": modeB
+                }
+              ],
+              [checkTypeDropdown.value[0]]: parseFloat(checkValueInput.value),
+              "check_all": true
+            }
+          ];
 
-      if (!bcfBlob || clashData.length === 0) {
-        alert("간섭체크를 정상적으로 수행하였으나 BCF 데이터 또는 간섭이 없습니다.");
-        return;
-      }
+          console.log(`Clash Detection Input for ${testName}:`, JSON.stringify(body, null, 2));
 
-      // BCF Blob을 File 객체로 변환하여 DB에 저장
-      const file = new File([bcfBlob], `${nameInput.value}.bcf`);
-
-      const sharedBCF = new SharedBCF();
-      const ifcIds = [selectedModelA.id];
-      if (selectedModelB.id !== selectedModelA.id) {
-        ifcIds.push(selectedModelB.id);
-      }
-      const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
-      
-      if (newBcfId) {
-        // --- JSON 간섭 좌표를 별도 컬럼에 저장 ---
-        try {
-          await fetch(`/api/bcf/${newBcfId}/clash`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(clashData)
+          const response = await fetch("/api/clash", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
           });
-        } catch (e) {
-          console.error("Failed to save clash data to DB", e);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Server responded with ${response.status}: ${errorText} for ${testName}`);
+            continue;
+          }
+
+          const zipBlob = await response.blob();
+          const { bcfBlob, clashData } = await processClashZip(zipBlob);
+
+          if (!bcfBlob || clashData.length === 0) {
+            console.log(`No clashes found for ${testName}.`);
+            continue;
+          }
+
+          const file = new File([bcfBlob], `${testName}.bcf`);
+          const newBcfId = await sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
+          
+          if (newBcfId) {
+            try {
+              await fetch(`/api/bcf/${newBcfId}/clash`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(clashData)
+              });
+            } catch (e) {
+              console.error(`Failed to save clash data to DB for ${testName}`, e);
+            }
+
+            totalClashes += clashData.length;
+            successCount++;
+            allBuffers.push(await file.arrayBuffer());
+            allClashData.push(...clashData);
+          } else {
+            console.error(`Failed to save BCF to database for ${testName}.`);
+          }
+        }
+      }
+
+      if (successCount > 0) {
+        alert(`간섭 체크 완료: 총 ${successCount}개의 조합에서 ${totalClashes}개의 간섭이 발견되어 저장되었습니다.`);
+        
+        // 컴포넌트 목록에서 BCFTopics를 동적으로 찾아서 순환 참조 없이 모든 토픽 로드
+        let bcfTopicsComponent: any = null;
+        for (const [, comp] of components.list) {
+          if (comp && comp.constructor.name === "BCFTopics") {
+            bcfTopicsComponent = comp;
+            break;
+          }
         }
 
-        alert(`간섭 체크 완료: ${clashData.length}개의 간섭이 발견되었습니다.`);
-        const buffer = await file.arrayBuffer();
-        await onComplete(buffer, clashData);
-        modal.close();
+        if (bcfTopicsComponent) {
+          for (const buf of allBuffers) {
+            await bcfTopicsComponent.loadBCFContent(buf);
+          }
+          if (bcfTopicsComponent.onRefresh) {
+            bcfTopicsComponent.onRefresh.trigger();
+          }
+          if (bcfTopicsComponent.drawClashMap && allClashData.length > 0) {
+            bcfTopicsComponent.drawClashMap(allClashData);
+          }
+        }
+
+        if (onComplete && allBuffers.length > 0) {
+          await onComplete(allBuffers[allBuffers.length - 1], allClashData);
+        }
       } else {
-        alert("Failed to save BCF to database.");
+        alert("간섭체크를 완료하였으나 조건에 해당하는 간섭이 없습니다.");
       }
+      
+      modal.close();
 
     } catch (error) {
-      console.error("Error during clash detection request:", error);
+      console.error("Error during clash detection requests:", error);
       alert(`Error during clash detection: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       target.loading = false;
