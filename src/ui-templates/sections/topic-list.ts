@@ -100,6 +100,43 @@ export const topicListTemplate: BUI.StatefullComponent<
     table.queryString = input.value;
   };
 
+  const onUpdateAllSnapshots = async (e: Event) => {
+    const btn = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
+    if (btn) btn.loading = true;
+    
+    try {
+      const worlds = components.get(OBC.Worlds);
+      const world = worlds.list.values().next().value;
+      if (!world || !world.renderer) {
+        alert("렌더러를 찾을 수 없습니다.");
+        return;
+      }
+
+      for (const topic of bcfTopics.list.values()) {
+        // 해당 토픽의 뷰포인트로 복원 (선택, 카메라 이동 등)
+        await bcfTopics.restoreViewpoint(topic);
+        
+        // 카메라 이동 및 화면 렌더링이 완료될 때까지 잠시 대기
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        // 화면 렌더링 후 스냅샷 데이터 추출 및 덮어쓰기
+        world.renderer.three.render(world.scene.three, world.camera.three);
+        const dataUrl = world.renderer.three.domElement.toDataURL("image/png");
+        (topic as any).snapshot = dataUrl;
+        
+        // UI에 스냅샷 갱신을 반영
+        bcfTopics.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
+      }
+
+      alert("모든 토픽의 스냅샷이 성공적으로 업데이트되었습니다. 변경사항을 반영하려면 'Save BCF'를 눌러 데이터베이스에 저장하십시오.");
+    } catch (err) {
+      console.error(err);
+      alert("스냅샷 업데이트 중 오류가 발생했습니다.");
+    } finally {
+      if (btn) btn.loading = false;
+    }
+  };
+
   let panelSection: BUI.PanelSection;
   const updateTopicCount = () => {
     if (!panelSection) return;
@@ -153,6 +190,7 @@ export const topicListTemplate: BUI.StatefullComponent<
           <bim-button style="flex: 1;" @click=${onUpdateTopicModalOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
           <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
           <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
+          <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Update Snapshots" icon=${appIcons.CAMERA}></bim-button>
           <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
           <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
         </div>
