@@ -55,6 +55,24 @@ export const newTopic = (components: OBC.Components) => {
     },
     onSubmit: () => {
       modal.close();
+      
+      setTimeout(() => {
+        const bcfTopics = components.get(OBC.BCFTopics);
+        const worlds = components.get(OBC.Worlds);
+        const world = worlds.list.values().next().value;
+        if (world && world.renderer) {
+          world.renderer.three.render(world.scene.three, world.camera.three);
+          const dataUrl = world.renderer.three.domElement.toDataURL("image/png");
+          
+          const topicsArray = Array.from(bcfTopics.list.values());
+          if (topicsArray.length > 0) {
+            const lastTopic = topicsArray[topicsArray.length - 1];
+            (lastTopic as any).snapshot = dataUrl;
+            bcfTopics.list.onItemUpdated.trigger({ key: lastTopic.guid, value: lastTopic });
+          }
+        }
+      }, 100);
+
       alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
     },
   });

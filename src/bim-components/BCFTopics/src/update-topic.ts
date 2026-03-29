@@ -101,6 +101,11 @@ export const updateTopic = (bcfTopics: any) => {
     if (world) {
       viewpoint.world = world;
       await viewpoint.updateCamera();
+
+      if (world.renderer) {
+        world.renderer.three.render(world.scene.three, world.camera.three);
+        (currentTopic as any).snapshot = world.renderer.three.domElement.toDataURL("image/png");
+      }
     }
 
     const highlighter = components.get(Highlighter);

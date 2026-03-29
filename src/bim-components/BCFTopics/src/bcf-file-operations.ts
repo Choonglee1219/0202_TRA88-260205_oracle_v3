@@ -234,6 +234,7 @@ export class BCFFileOperations {
     const newBcfId = await this.sharedBCF.saveBCF(file, JSON.stringify(ifcIds) as any);
     if (newBcfId) {
        alert("BCF 파일이 데이터베이스에 성공적으로 저장되었습니다.");
+       this.onRefresh.trigger();
     }
   }
 

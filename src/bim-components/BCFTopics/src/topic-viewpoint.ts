@@ -22,6 +22,11 @@ export class TopicViewpointManager {
     if (world) {
       viewpoint.world = world;
       await viewpoint.updateCamera();
+
+      if (world.renderer) {
+        world.renderer.three.render(world.scene.three, world.camera.three);
+        (topic as any).snapshot = world.renderer.three.domElement.toDataURL("image/png");
+      }
     }
 
     const highlighter = this.components.get(Highlighter);

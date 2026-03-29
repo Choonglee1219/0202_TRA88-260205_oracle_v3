@@ -19,11 +19,69 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   bcfTopics.setupTable(table);
 
+  // 테이블에서 토픽 제목(Title) 클릭 시 Viewpoint가 복원되는 기존 동작에 추가로, 해당 테이블 행이 자동으로 선택되도록 동작 확장
+  let lastClickedTopicId: string | null = null;
+  let lastClickTime = 0;
+
+  const originalRestoreViewpoint = bcfTopics.restoreViewpoint.bind(bcfTopics);
+  bcfTopics.restoreViewpoint = async (topic: OBC.Topic) => {
+    const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === topic.guid);
+    if (targetGroup) {
+      table.selection.clear();
+      table.selection.add(targetGroup.data);
+    }
+
+    const now = Date.now();
+    const isDoubleClick = lastClickedTopicId === topic.guid && (now - lastClickTime) < 300;
+    lastClickedTopicId = topic.guid;
+    lastClickTime = now;
+
+    if (isDoubleClick) {
+      onUpdateTopicModalOpen();
+    } else {
+      await originalRestoreViewpoint(topic);
+    }
+  };
+
+  let topicCountBeforeNew = 0;
   const onNewTopicModalOpen = () => {
+    topicCountBeforeNew = bcfTopics.list.size;
     newTopicModal.showModal();
   };
+
+  newTopicModal.addEventListener("close", () => {
+    if (bcfTopics.list.size > topicCountBeforeNew) {
+      setTimeout(() => {
+        const topicsArray = Array.from(bcfTopics.list.values());
+        if (topicsArray.length > 0) {
+          const newTopic = topicsArray[topicsArray.length - 1];
+          const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === newTopic.guid);
+          if (targetGroup) {
+            table.selection.clear();
+            table.selection.add(targetGroup.data);
+          }
+        }
+      }, 150);
+    }
+  });
+
   const onUpdateTopicModalOpen = () => {
+    // 모달을 열기 전, 현재 선택되어 있는 토픽들의 고유 ID(Guid)를 배열에 저장합니다.
+    const selectedGuids = Array.from(table.selection).map((data: any) => data.Guid);
+
     updateTopicModal.showModal(table.selection);
+
+    // 모달이 닫히면 테이블 데이터가 갱신되면서 선택이 해제되므로, 딜레이를 조금 준 후 이전 선택 상태를 복원합니다.
+    updateTopicModal.modal.addEventListener("close", () => {
+      setTimeout(() => {
+        for (const guid of selectedGuids) {
+          const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === guid);
+          if (targetGroup) {
+            table.selection.add(targetGroup.data);
+          }
+        }
+      }, 150);
+    }, { once: true });
   };
   const onDeleteTopic = () => {
     bcfTopics.delete(table.selection);
