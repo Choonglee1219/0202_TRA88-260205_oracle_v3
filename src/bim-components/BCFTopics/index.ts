@@ -83,8 +83,8 @@ export class BCFTopics extends OBC.Component {
     return topics;
   }
 
-  async restoreViewpoint(topic: OBC.Topic) {
-    await this.topicViewpointManager.restoreViewpoint(topic);
+  async restoreViewpoint(topic: OBC.Topic, options?: { updateSnapshot?: boolean }): Promise<boolean> {
+    return this.topicViewpointManager.restoreViewpoint(topic, options);
   }
 
   setupTable(table: BUI.Table<any>) {
@@ -114,7 +114,7 @@ export class BCFTopics extends OBC.Component {
 
   deleteAll() {
     if (this.list.size === 0) return;
-    const confirmation = confirm(`Are you sure you want to delete all ${this.list.size} topics?`);
+    const confirmation = confirm(`현재 토픽 목록(Topic List)에 있는 ${this.list.size}개의 토픽을 삭제하시겠습니까?`);
     if (confirmation) {
       const guids = Array.from(this.list.keys());
       for (const guid of guids) {

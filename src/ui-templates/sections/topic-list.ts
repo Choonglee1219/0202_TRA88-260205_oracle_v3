@@ -24,7 +24,7 @@ export const topicListTemplate: BUI.StatefullComponent<
   let lastClickTime = 0;
 
   const originalRestoreViewpoint = bcfTopics.restoreViewpoint.bind(bcfTopics);
-  bcfTopics.restoreViewpoint = async (topic: OBC.Topic) => {
+  bcfTopics.restoreViewpoint = async (topic: OBC.Topic, options?: { updateSnapshot?: boolean }): Promise<boolean> => {
     const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === topic.guid);
     if (targetGroup) {
       table.selection.clear();
@@ -38,8 +38,9 @@ export const topicListTemplate: BUI.StatefullComponent<
 
     if (isDoubleClick) {
       onUpdateTopicModalOpen();
+      return false;
     } else {
-      await originalRestoreViewpoint(topic);
+      return originalRestoreViewpoint(topic, options);
     }
   };
 
@@ -113,19 +114,27 @@ export const topicListTemplate: BUI.StatefullComponent<
       }
 
       for (const topic of bcfTopics.list.values()) {
-        // 해당 토픽의 뷰포인트로 복원 (선택, 카메라 이동 등)
-        await bcfTopics.restoreViewpoint(topic);
-        
-        // 카메라 이동 및 화면 렌더링이 완료될 때까지 잠시 대기
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        // restoreViewpoint가 스냅샷을 찍었는지 여부를 반환합니다.
+        // Clash 토픽의 경우, 내부적으로 줌인 직후 스냅샷을 찍습니다.
+        const snapshotTaken = await bcfTopics.restoreViewpoint(topic, { updateSnapshot: true });
 
-        // 화면 렌더링 후 스냅샷 데이터 추출 및 덮어쓰기
-        world.renderer.three.render(world.scene.three, world.camera.three);
-        const dataUrl = world.renderer.three.domElement.toDataURL("image/png");
-        (topic as any).snapshot = dataUrl;
-        
-        // UI에 스냅샷 갱신을 반영
-        bcfTopics.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
+        if (snapshotTaken) {
+          // 스냅샷이 내부에서 이미 처리된 경우, UI만 업데이트하고 다음 토픽으로 넘어갑니다.
+          bcfTopics.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
+          await new Promise((resolve) => setTimeout(resolve, 100)); // UI가 멈추지 않도록 짧은 딜레이
+        } else {
+          // Clash 토픽이 아닌 경우, 기존 로직대로 전체 뷰를 잡고 스냅샷을 찍습니다.
+          // 카메라 이동 및 화면 렌더링이 완료될 때까지 잠시 대기
+          await new Promise((resolve) => setTimeout(resolve, 800));
+
+          // 화면 렌더링 후 스냅샷 데이터 추출 및 덮어쓰기
+          world.renderer.three.render(world.scene.three, world.camera.three);
+          const dataUrl = world.renderer.three.domElement.toDataURL("image/png");
+          (topic as any).snapshot = dataUrl;
+          
+          // UI에 스냅샷 갱신을 반영
+          bcfTopics.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
+        }
       }
 
       alert("모든 토픽의 스냅샷이 성공적으로 업데이트되었습니다. 변경사항을 반영하려면 'Save BCF'를 눌러 데이터베이스에 저장하십시오.");

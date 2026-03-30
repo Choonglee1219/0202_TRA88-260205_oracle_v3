@@ -407,6 +407,16 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
           for (const buf of allBuffers) {
             await bcfTopicsComponent.loadBCFContent(buf);
           }
+
+          // Attach clash points to the newly loaded topics
+          for (const clash of allClashData) {
+            if (clash.clash_guid && clash.clash_point) {
+              const topic = bcfTopicsComponent.list.get(clash.clash_guid);
+              if (topic) {
+                (topic as any).clashPoint = clash.clash_point;
+              }
+            }
+          }
           if (bcfTopicsComponent.onRefresh) {
             bcfTopicsComponent.onRefresh.trigger();
           }

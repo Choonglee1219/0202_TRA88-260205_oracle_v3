@@ -23,7 +23,28 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
   const loadBCF = async (bcfId: number) => {
     const bcf = await sharedBCF.loadBCF(bcfId);
     if (bcf && bcf.content) {
+      bcfTopics.deleteAll(); // 이전 토픽 목록을 지웁니다.
       await bcfTopics.loadBCFContent(bcf.content as Uint8Array);
+
+      // BCF에 연결된 간섭 좌표(Clash Data)가 있는지 확인하고, 있다면 토픽에 주입합니다.
+      try {
+        const response = await fetch(`/api/bcf/${bcfId}/clash`);
+        if (response.ok) {
+          const clashData = await response.json();
+          if (clashData && clashData.length > 0) {
+            for (const clash of clashData) {
+              if (clash.clash_guid && clash.clash_point) {
+                const topic = bcfTopics.list.get(clash.clash_guid);
+                if (topic) {
+                  (topic as any).clashPoint = clash.clash_point;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`BCF(id: ${bcfId})의 간섭 좌표를 가져오거나 토픽에 주입하는데 실패했습니다.`, e);
+      }
     }
   };
 
