@@ -21,10 +21,11 @@ const addClashInputStyles = () => {
 
 const ifcEntities = new Set([
   "IfcSpatialZone", "IfcZone", "IfcBuildingStorey", "IfcSpace", 
-  "IfcBeam", "IfcBuildingElementProxy", "IfcChimney", "IfcColumn", "IfcCovering", "IfcCurtainWall", "IfcDoor", "IfcFooting", "IfcMember", "IfcPile", "IfcPlate", "IfcRailing", "IfcRamp", "IfcRampFlight", "IfcRoof", "IfcShadingDevice", "IfcSlab", "IfcStair", "IfcStairFlight", "IfcWall", "IfcWindow",
+  "IfcBuildingElement", "IfcBeam", "IfcBuildingElementProxy", "IfcChimney", "IfcColumn", "IfcCovering", "IfcCurtainWall", "IfcDoor", "IfcFooting", "IfcMember", "IfcPile", "IfcPlate", "IfcRailing", "IfcRamp", "IfcRampFlight", "IfcRoof", "IfcShadingDevice", "IfcSlab", "IfcStair", "IfcStairFlight", "IfcWall", "IfcWindow",
   "IfcCivilElement",
-  "IfcActuator", "IfcAlarm", "IfcController", "IfcFlowInstrument", "IfcProtectiveDeviceTrippingUnit", "IfcSensor", "IfcUnitaryControlElement", 
-  "IfcDistrubutionChamberElement", "IfcAirToAirHeatRecovery", "IfcBoiler","IfcBurner", "IfcChiller", "IfcCoil", "IfcCondenser", "IfcCooledBeam", "IfcCoolingTower", "IfcElectricGenerator", "IfcElectricMotor", "IfcEngine", "IfcEvaporativeCooler", "IfcEvaporator", "IfcHeatExchanger", "IfcHumidifier", "IfcMotorConnection", "IfcSolarDevice", "IfcTransformer", "IfcTubeBundle", "IfcUnitaryEquipment", 
+  "IfcDistrubutionElement",
+  "IfcDistributionControlElement", "IfcActuator", "IfcAlarm", "IfcController", "IfcFlowInstrument", "IfcProtectiveDeviceTrippingUnit", "IfcSensor", "IfcUnitaryControlElement", 
+  "IfcDistributionFlowElement", "IfcDistrubutionChamberElement", "IfcAirToAirHeatRecovery", "IfcBoiler","IfcBurner", "IfcChiller", "IfcCoil", "IfcCondenser", "IfcCooledBeam", "IfcCoolingTower", "IfcElectricGenerator", "IfcElectricMotor", "IfcEngine", "IfcEvaporativeCooler", "IfcEvaporator", "IfcHeatExchanger", "IfcHumidifier", "IfcMotorConnection", "IfcSolarDevice", "IfcTransformer", "IfcTubeBundle", "IfcUnitaryEquipment", 
   "IfcFlowController", "IfcAirTerminalBox", "IfcDamper", "IfcElectricDistributionBoard", "IfcElectricTimeControl", "IfcFlowMeter", "IfcProtectiveDevice", "IfcSwitchingDevice", "IfcValve",
   "IfcFlowFitting", "IfcCableCarrierFitting", "IfcCableFitting", "IfcDuctFitting", "IfcJunctionBox", "IfcPipeFitting",
   "IfcFlowMovingDevice", "IfcCompressor", "IfcFan", "IfcPump",

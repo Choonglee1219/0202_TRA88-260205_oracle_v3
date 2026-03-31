@@ -199,7 +199,7 @@ export const topicListTemplate: BUI.StatefullComponent<
           <bim-button style="flex: 1;" @click=${onUpdateTopicModalOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
           <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
           <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
-          <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Update Snapshots" icon=${appIcons.CAMERA}></bim-button>
+          <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Auto Snapshots" icon=${appIcons.CAMERA}></bim-button>
           <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
           <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
         </div>

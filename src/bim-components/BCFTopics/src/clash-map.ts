@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { ClashPointData } from "./clash-result-parser";
 import { clashInput } from "./clash-input";
 import { Highlighter } from "../../Highlighter";
+import { setModelTransparent, restoreModelMaterials } from "../../../ui-templates/toolbars/viewer-toolbar";
 
 export class ClashMapDisplay {
   private components: OBC.Components;
@@ -30,6 +31,8 @@ export class ClashMapDisplay {
     this.isClashMapActive = true;
     const highlighter = this.components.get(Highlighter);
     highlighter.enabled = false;
+
+    setModelTransparent(this.components);
 
     const geometry = new THREE.SphereGeometry(1.0, 32, 32);
     const material = new THREE.MeshBasicMaterial({ 
@@ -65,6 +68,8 @@ export class ClashMapDisplay {
     this.isClashMapActive = false;
     const highlighter = this.components.get(Highlighter);
     highlighter.enabled = true;
+
+    restoreModelMaterials(this.components);
 
     const worlds = this.components.get(OBC.Worlds);
     const world = worlds.list.values().next().value;
