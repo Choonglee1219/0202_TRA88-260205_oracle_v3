@@ -7,3 +7,4 @@ export * from "./view-templates";
 export * from "./topic-list";
 export * from "./bcf-list";
 export * from "./dashboard";
+export * from "./viewpoints";

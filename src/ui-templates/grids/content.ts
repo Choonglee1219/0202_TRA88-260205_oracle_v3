@@ -30,6 +30,11 @@ type ViewTemplater = {
   state: TEMPLATES.ViewTemplatesPanelState;
 };
 
+type ViewPoints = {
+  name: "viewPoints";
+  state: TEMPLATES.ViewpointsPanelState
+};
+
 type SpatialTree = {
   name: "spatialTree";
   state: TEMPLATES.SpatialTreePanelState;
@@ -66,9 +71,10 @@ export type ContentGridElements = [
   TopicList,
   BCFList,
   Dashboard,
+  ViewPoints,
 ];
 
-export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "FullScreen"];
+export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "ViewPoints", "FullScreen"];
 
 export interface ContentGridState {
   components: OBC.Components;
@@ -109,6 +115,10 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       },
       viewTemplater: {
         template: TEMPLATES.viewTemplatesPanelTemplate,
+        initialState: { components },
+      },
+      viewPoints: {
+        template: TEMPLATES.viewpointsPanelTemplate,
         initialState: { components },
       },
       propsManager: {
@@ -157,6 +167,13 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: `
           "propsManager viewer" var(--top-row-height, auto)
           "elementData viewer" 1fr
+          / var(--half-col-width, 1fr) 1fr
+        `,
+      },
+      ViewPoints: {
+        template: `
+          "viewPoints viewer" var(--top-row-height, auto)
+          "viewPoints viewer" 1fr
           / var(--half-col-width, 1fr) 1fr
         `,
       },

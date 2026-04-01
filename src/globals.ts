@@ -51,6 +51,7 @@ export const appIcons = {
   IMAGE: "/icons/mdi--image-outline.svg",
   CHART: "/icons/mdi--chart-bar.svg",
   MAP: "/icons/mdi--map-marker-radius.svg",
+  PLAY: "/icons/mdi--play.svg",
 };
 
 export const tooltips = {
