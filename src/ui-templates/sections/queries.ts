@@ -96,6 +96,18 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
         };
       }
       if (psetNameInput.value || propNameInput.value || propValInput.value) {
+        let propValueQuery: any = /.*/;
+        if (propValInput.value) {
+          const lowerValue = propValInput.value.toLowerCase();
+          if (['true', 't', 'yes', 'y', '1'].includes(lowerValue)) {
+            propValueQuery = true;
+          } else if (['false', 'f', 'no', 'n', '0'].includes(lowerValue)) {
+            propValueQuery = false;
+          } else {
+            propValueQuery = new RegExp(propValInput.value, "i");
+          }
+        }
+
         query.relation = {
           name: "IsDefinedBy",
           query: {
@@ -120,7 +132,7 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
                     },
                     {
                       name: /NominalValue/,
-                      value: propValInput.value ? new RegExp(propValInput.value, "i") : /.*/,
+                      value: propValueQuery,
                     },
                   ],
                 },

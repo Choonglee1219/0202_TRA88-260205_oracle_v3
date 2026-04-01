@@ -26,7 +26,7 @@ export const quantityChartModal = () => {
     return BUI.html`
       <dialog class="quantity-chart-modal" style="margin: auto; border-radius: 1rem; border: none; padding: 0; overflow: hidden; resize: both; width: 70vw; height: 75vh; min-width: 50rem; min-height: 35rem;">
         <bim-panel style="width: 100%; height: 100%;">
-          <bim-panel-section label="Quantity Summary">
+          <bim-panel-section fixed label="Quantity Summary">
             ${chart}
           </bim-panel-section>
           <div style="display: flex; justify-content: flex-end; padding: 0 1rem 1rem 1rem;">
