@@ -52,7 +52,7 @@ export const appIcons = {
   CHART: "/icons/mdi--chart-bar.svg",
   MAP: "/icons/mdi--map-marker-radius.svg",
   PLAY: "/icons/mdi--play.svg",
-  IDS_CHECK: "/icons/mdi--check-bold.svg",
+  IDS_CHECK: "/icons/mdi--check.svg",
 };
 
 export const tooltips = {
