@@ -28,7 +28,7 @@ export const appIcons = {
   TREE: "/icons/mdi--file-tree-outline.svg",
   LAYOUT: "/icons/tabler--layout-filled.svg",
   SEARCH: "/icons/gravity-ui--magnifier.svg",
-  FULLSCREEN: "/icons/mdi--fit-to-screen.svg",
+  FULL_SCREEN: "/icons/mdi--fit-to-screen.svg",
   HELP: "/icons/mdi--help.svg",
   LINK: "/icons/mdi--external-link.svg",
   SAVE: "/icons/material-symbols--save.svg",
@@ -52,6 +52,7 @@ export const appIcons = {
   CHART: "/icons/mdi--chart-bar.svg",
   MAP: "/icons/mdi--map-marker-radius.svg",
   PLAY: "/icons/mdi--play.svg",
+  IDS_CHECK: "/icons/mdi--check.svg",
 };
 
 export const tooltips = {

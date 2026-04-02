@@ -35,6 +35,11 @@ type ViewPoints = {
   state: TEMPLATES.ViewpointsPanelState
 };
 
+type IDSSpecs = {
+  name: "idsSpecs";
+  state: TEMPLATES.IDSSpecPanelState;
+};
+
 type SpatialTree = {
   name: "spatialTree";
   state: TEMPLATES.SpatialTreePanelState;
@@ -72,9 +77,10 @@ export type ContentGridElements = [
   BCFList,
   Dashboard,
   ViewPoints,
+  IDSSpecs,
 ];
 
-export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "ViewPoints", "FullScreen"];
+export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "ViewPoints", "IDS Check", "FullScreen"];
 
 export interface ContentGridState {
   components: OBC.Components;
@@ -121,6 +127,10 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.viewpointsPanelTemplate,
         initialState: { components },
       },
+      idsSpecs: {
+        template: TEMPLATES.idsSpecPanelTemplate,
+        initialState: { components },
+      },
       propsManager: {
         template: TEMPLATES.globalPropsPanelTemplate,
         initialState: { components },
@@ -160,6 +170,12 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: `
           "queries viewer elementData" var(--top-row-height, 1fr)
           "queries dashboard elementData" 1fr
+          / var(--left-col-width) 1fr var(--right-col-width)
+        `,
+      },
+      "IDS Check": {
+        template: `
+          "idsSpecs viewer elementData" 1fr
           / var(--left-col-width) 1fr var(--right-col-width)
         `,
       },

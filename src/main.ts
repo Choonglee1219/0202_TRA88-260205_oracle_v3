@@ -406,7 +406,9 @@ const contentGridIcons: Record<TEMPLATES.ContentGridLayouts[number], string> = {
   BCFManager: appIcons.REF,
   Queries: appIcons.SEARCH,
   Properties: appIcons.EDIT,
-  FullScreen: appIcons.FULLSCREEN,
+  FullScreen: appIcons.FULL_SCREEN,
+  ViewPoints: appIcons.CAMERA,
+  "IDS Check": appIcons.IDS_CHECK,
 };
 
 // 🏁App Grid Setup
