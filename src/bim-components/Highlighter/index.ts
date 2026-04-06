@@ -100,7 +100,7 @@ export class Highlighter
 
   constructor(components: OBC.Components) {
     super(components);
-    // this.components.add(Highlighter.uuid, this);
+    this.components.add(Highlighter.uuid, this);
     this.eventManager.list.add(this.onSetup);
     this.eventManager.list.add(this.onDisposed);
     this.setStyleEvents();

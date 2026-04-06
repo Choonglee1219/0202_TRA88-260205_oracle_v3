@@ -42,11 +42,6 @@ BUI.Manager.init();
 // 🌐Components Setup
 const components = new OBC.Components();
 
-// Override the default OBF.Highlighter with our custom one.
-// This must be done before any other component tries to get the highlighter.
-const customHighlighter = new Highlighter(components);
-components.add(Highlighter.uuid, customHighlighter);
-
 // 🌐Worlds Setup and Configuration
 const worlds = components.get(OBC.Worlds);
 
@@ -218,7 +213,7 @@ await ifcLoader.setup({
 });
 
 // ✅Highlighter Setup
-const highlighter = components.get(Highlighter);
+const highlighter = new Highlighter(components);
 
 highlighter.setup({
   world,
