@@ -250,8 +250,6 @@ highlighter.updateColors = async () => {
 //   polygonOffsetFactor: 2,
 //   transparent: true,
 //   opacity: 0.2,
-//   depthTest: false,
-//   depthWrite: false,
 // });
 
 // ✂️Clipper Setup
@@ -319,6 +317,11 @@ window.addEventListener("keydown", (event) => {
 
 // 🚚Model Load EventHandler
 fragments.list.onItemSet.add(async ({ value: model }) => {
+  const finder = components.get(OBC.ItemsFinder);
+  for (const [_, query] of finder.list) {
+    query.clearCache();
+  }
+
   model.useCamera(world.camera.three);
   model.getClippingPlanesEvent = () => {
     return Array.from(world.renderer!.three.clippingPlanes) || [];
@@ -346,6 +349,13 @@ fragments.list.onItemSet.add(async ({ value: model }) => {
     const sphere = new THREE.Sphere();
     box.getBoundingSphere(sphere);
     world.camera.controls.fitToSphere(sphere, true);
+  }
+});
+
+fragments.list.onItemDeleted.add(() => {
+  const finder = components.get(OBC.ItemsFinder);
+  for (const [_, query] of finder.list) {
+    query.clearCache();
   }
 });
 

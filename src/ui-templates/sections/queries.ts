@@ -165,7 +165,7 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
 
       const createdQuery = finder.list.get(nameInput.value);
       if (createdQuery) {
-        const items = await createdQuery.test({ modelIds: [/.*/] });
+        const items = await createdQuery.test({ modelIds: [/.*/], force: true });
         if (!OBC.ModelIdMapUtils.isEmpty(items)) {
           highlighter.highlightByID("select", items);
         } else {
