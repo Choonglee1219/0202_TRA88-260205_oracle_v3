@@ -179,7 +179,7 @@ fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
   material.polygonOffsetFactor = 2;
   // This logic is to apply a default transparency to the base model materials.
   // We must avoid overriding materials created by the Highlighter.
-  const isHighlighterMaterial = material.name.includes("select") || material.name.startsWith("#");
+  const isHighlighterMaterial = !!material.userData.customId;
   if (!isHighlighterMaterial) {
     material.transparent = true;
     material.opacity = 0.5;
@@ -220,11 +220,24 @@ highlighter.setup({
   selectMaterialDefinition: {
     color: new THREE.Color("#bcf124"),
     renderedFaces: 1,
-    opacity: 0.8,
+    opacity: 0.3,
     transparent: true,
-    depthTest: false,
   },
 });
+
+const originalUpdateColors = highlighter.updateColors.bind(highlighter);
+highlighter.updateColors = async () => {
+  const hasSelection = !OBC.ModelIdMapUtils.isEmpty(highlighter.selection.select);
+  if (hasSelection) {
+    // 객체를 선택할 때: 외곽선을 해제 -> 색상 변경
+    world.renderer!.postproduction.edgesPass.enabled = false;
+    await originalUpdateColors();
+  } else {
+    // 객체를 해제할 때: 색상 복원 -> 외곽선 복원
+    await originalUpdateColors();
+    world.renderer!.postproduction.edgesPass.enabled = true;
+  }
+};
 
 // // 🖱️Hoverer Setup
 // const hoverer = components.get(OBF.Hoverer);
