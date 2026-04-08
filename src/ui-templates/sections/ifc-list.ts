@@ -211,7 +211,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     input.click();
   };
 
-  const onAddIfcModel = createFileInputHandler(".ifc", true, async (file) => {
+  // 공통 로직 분리: IFC 파일을 로드, FRAG 변환 및 데이터베이스에 저장
+  const processAndSaveIfc = async (file: File) => {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     const model = await ifcLoader.load(bytes, false, file.name.replace(".ifc", "")); // 좌표 원점 조정 해제
@@ -228,37 +229,52 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
       }
     }
     if (modelId) globalProps.loadedFiles.set(modelId, bytes);
-    if (confirm("데이터베이스에 저장하시겠습니까?")) {
-      console.log("Exporting FRAG...");
-      const fragData = await (model as any).getBuffer(false);
-      console.log("FRAG exported.");
-      const fragFile = new File([fragData], file.name.replace(".ifc", ".frag"));
+    console.log("Exporting FRAG...");
+    const fragData = await (model as any).getBuffer(false);
+    console.log("FRAG exported.");
+    const fragFile = new File([fragData], file.name.replace(".ifc", ".frag"));
 
-      console.log("Saving IFC to DB...");
-      const ifcid = await sharedIFC.saveIFC(file);
-      console.log("IFC saved, ID:", ifcid);
-      let fragid = null;
-      if (ifcid) {
-        console.log("Saving FRAG to DB...");
-        fragid = await sharedFRAG.saveFRAG(fragFile);
-        console.log("FRAG saved, ID:", fragid);
-      }
-
-      console.log("Debug: ifcid =", ifcid, "fragid =", fragid);
-
-      if (ifcid && fragid) {
-        alert("IFC 및 FRAG 파일이 데이터베이스에 저장되었습니다.");
-        (model as any).dbId = ifcid;
-        sharedIFC.addModelUUID(ifcid, modelId);
-        sharedFRAG.addModelUUID(fragid, modelId);
-        console.log(`IFC DB 저장 ID: ${ifcid}, FRAG DB 저장 ID: ${fragid}, Model UUID: ${modelId}`);
-        bcfTopics.onRefresh.trigger();
-        await refreshSharedIFCList();
-        await refreshSharedFRAGList();
-      } else {
-        alert("DB 저장 중 오류가 발생하였습니다.");
-      }
+    console.log("Saving IFC to DB...");
+    const ifcid = await sharedIFC.saveIFC(file);
+    console.log("IFC saved, ID:", ifcid);
+    let fragid = null;
+    if (ifcid) {
+      console.log("Saving FRAG to DB...");
+      fragid = await sharedFRAG.saveFRAG(fragFile);
+      console.log("FRAG saved, ID:", fragid);
     }
+
+    if (ifcid && fragid) {
+      alert("IFC 및 FRAG 파일이 데이터베이스에 저장되었습니다.");
+      (model as any).dbId = ifcid;
+      sharedIFC.addModelUUID(ifcid, modelId);
+      sharedFRAG.addModelUUID(fragid, modelId);
+      console.log(`IFC DB 저장 ID: ${ifcid}, FRAG DB 저장 ID: ${fragid}, Model UUID: ${modelId}`);
+      bcfTopics.onRefresh.trigger();
+      await refreshSharedIFCList();
+      await refreshSharedFRAGList();
+    } else {
+      alert("DB 저장 중 오류가 발생하였습니다.");
+    }
+  };
+
+  // 일반 로컬 IFC 모델 추가
+  const onAddIfcModel = createFileInputHandler(".ifc", true, async (file) => {
+    await processAndSaveIfc(file);
+  });
+
+  // EDB 데이터 추가 처리를 위한 핸들러
+  const onProcessEdbData = createFileInputHandler(".ifc", false, async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const response = await fetch("/api/add-edb-data", { method: "POST", body: formData });
+    if (!response.ok) throw new Error("EDB Data processing failed");
+    
+    const blob = await response.blob();
+    // 처리된 파일을 원본 이름에 접두사를 붙여 File 객체로 생성 후 동일 로직 실행
+    const processedFile = new File([blob], `${file.name}_edb`, { type: file.type || "application/octet-stream" });
+    await processAndSaveIfc(processedFile);
   });
 
   const onAddFragmentsModel = createFileInputHandler(".frag", false, async (file) => {
@@ -736,8 +752,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     <bim-panel-section icon=${appIcons.MODEL} label="IFC List">
       <div style="display: flex; gap: 0.25rem;">
         <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200"></bim-text-input>
-        <bim-button @click=${onAddIfcModel} style="flex: 0;" icon=${appIcons.ADD}></bim-button>
-        <bim-button style="flex: 0" icon=${appIcons.SAVE} @click=${onSave}></bim-button>
+        <bim-button style="flex: 0;" icon=${appIcons.ADD} @click=${onAddIfcModel} tooltip-title="Import Model"></bim-button>
+        <bim-button style="flex: 0" icon=${appIcons.ADD} @click=${onProcessEdbData} tooltip-title="Fetch EDB and Import Model"></bim-button>
       </div>
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <bim-label>Loaded Model</bim-label>

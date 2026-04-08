@@ -32,6 +32,12 @@ SELECT
   (SELECT COUNT(*) FROM "ifc_bcf") AS ifc_bcf_total_count
 FROM DUAL;
 
+SELECT "id", "name" FROM "ifc";
+
+SELECT "id", "name" FROM "frag;
+
+DELETE FROM "ifc" WHERE "id" = 162;
+
 
 DROP TABLE "ifc_bcf";
 
