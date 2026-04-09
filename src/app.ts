@@ -828,4 +828,46 @@ app.post("/api/add-edb-data", upload.single("file"), async (req: Request, res: R
   }
 });
 
+// Process IFC via Python microservice: Add Properties
+app.post("/api/add-properties", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded." });
+    }
+
+    const { expressIds, propertiesData } = req.body;
+    
+    if (!expressIds || !propertiesData) {
+      return res.status(400).json({ error: "Missing required property data." });
+    }
+
+    // 파이썬 마이크로서비스로 전송할 FormData 생성
+    const formData = new FormData();
+    const blob = new Blob([req.file.buffer as any], { type: req.file.mimetype || "application/octet-stream" });
+    formData.append("file", blob, req.file.originalname);
+    formData.append("expressIds", expressIds); // JSON stringified array (e.g., "[123, 124]")
+    formData.append("propertiesData", propertiesData); // JSON stringified array of Psets and Properties
+
+    const response = await fetch("http://127.0.0.1:8000/add-properties", {
+      method: "POST",
+      body: formData as any,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: "Error from Python microservice", details: errorText });
+    }
+
+    // 파이썬 서버로부터 처리된 IFC 파일을 받아옵니다.
+    const arrayBuffer = await response.arrayBuffer();
+    const processedBuffer = Buffer.from(arrayBuffer);
+    
+    res.setHeader("Content-Type", response.headers.get("Content-Type") || "application/octet-stream");
+    res.send(processedBuffer);
+  } catch (err) {
+    console.error("Error processing IFC (Add Properties):", err);
+    res.status(500).json({ error: "Internal Server Error", details: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 initPools();

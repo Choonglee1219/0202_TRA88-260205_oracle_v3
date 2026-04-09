@@ -1,292 +1,292 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import * as WEBIFC from "web-ifc";
-import { PropertiesManager } from "../../bim-components/PropsManager";
-import { globalPropsList } from "../../bim-components/PropsManager/src/props-list";
-import { assignPropsModal } from "../../bim-components/PropsManager/src/assign-props";
-import { newPropModal } from "../../bim-components/PropsManager/src/new-prop";
 import { appIcons } from "../../globals";
 import { Highlighter } from "../../bim-components/Highlighter";
+import { SharedIFC } from "../../bim-components/SharedIFC";
+import { SharedFRAG } from "../../bim-components/SharedFRAG";
 
 export interface GlobalPropsSectionState {
   components: OBC.Components;
 }
 
+// Pset과 Property의 데이터 구조 정의
+type PropertyDef = { name: string; value: string };
+type PsetDef = { name: string; props: PropertyDef[] };
+
+// 수정된 IFC 버퍼를 임시 보관하기 위한 로컬 캐시
+const modifiedBufferCache = new Map<string, Uint8Array>();
+let isCacheSyncRegistered = false;
+
 export const globalPropsPanelTemplate: BUI.StatefullComponent<
   GlobalPropsSectionState
 > = (state) => {
   const { components } = state;
+  const fragments = components.get(OBC.FragmentsManager);
+  const highlighter = components.get(Highlighter);
+  const sharedIFC = new SharedIFC();
+  const ifcLoader = components.get(OBC.IfcLoader);
 
-  const [propsList, updatePropsList] = globalPropsList({ components });
-  const globalProps = components.get(PropertiesManager);
-  globalProps.list.onItemAdded.add(() => updatePropsList());
-
-  const [newProps] = newPropModal({
-    components,
-    onSubmit: () => newProps.close(),
-  });
-
-  const [assignProps, updateAssignProps] = assignPropsModal({
-    components,
-    names: [],
-    psets: [],
-    onSubmit: () => assignProps.close(),
-  });
-
-  const onAdd = async () => {
-    const selection = propsList.selection;
-    const highlighter = components.get(Highlighter);
-    const fragments = components.get(OBC.FragmentsManager);
-    const modelIdMap = highlighter.selection.select;
-    if (selection.size === 0) {
-      alert("Please select a property from the list.");
-      return;
-    }
-    if (Object.keys(modelIdMap).length === 0) {
-      alert("Please select an element in the 3D view.");
-      return;
-    }
-    const props = [...selection].map(({ Name }) => Name) as string[];
-    const psets = new Set<string>();
-    for (const [modelID, expressIDs] of Object.entries(modelIdMap)) {
-      const model = fragments.list.get(modelID);
-      if (!model) continue;
-      const ids = Array.from(expressIDs);
-      const itemsData = await model.getItemsData(ids, {
-        attributesDefault: true,
-        relationsDefault: { attributes: false, relations: false },
-        relations: {
-          IsDefinedBy: {
-            attributes: true,
-            relations: true,
-          },
-        },
-      });
-      for (const item of itemsData) {
-        if (item.IsDefinedBy && Array.isArray(item.IsDefinedBy)) {
-          for (const pset of item.IsDefinedBy) {
-            if ((pset as any).Name?.value && Array.isArray((pset as any).HasProperties)) {
-              psets.add((pset as any).Name.value);
-            }
-          }
+  // 모델 Dispose 시 로컬 캐시 메모리 청소 및 동기화 (앱 멈춤 및 메모리 누수 방지)
+  if (!isCacheSyncRegistered) {
+    fragments.list.onItemDeleted.add(() => {
+      for (const key of modifiedBufferCache.keys()) {
+        if (!fragments.list.has(key)) {
+          modifiedBufferCache.delete(key);
         }
       }
-    }
-    if (psets.size === 0) {
-      alert("No Property Sets found on the selected elements.");
-      return;
-    }
-    propsList.selection.clear();
-    updateAssignProps({ names: props, psets: [...psets] });
-    assignProps.showModal();
-  };
-
-  const onImport = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".csv";
-    input.multiple = false;
-
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const data = await file.text();
-      globalProps.addFromText(data);
     });
-
-    input.click();
+    isCacheSyncRegistered = true;
   }
 
-  const onDownload = async ({ target }: { target: BUI.Button }) => {
-    console.log("Download started");
-    target.loading = true;
-    const fragments = components.get(OBC.FragmentsManager);
-    const globalProps = components.get(PropertiesManager);
-    const ifcLoader = components.get(OBC.IfcLoader);
+  // 다중 Pset & Property 폼 상태
+  const initialPsets: PsetDef[] = [{ name: "Custom_Pset", props: [{ name: "", value: "" }] }];
+  
+  // 내부 UI 상태 관리를 위한 커스텀 컴포넌트 생성
+  const [propsForm, updatePropsForm] = BUI.Component.create<BUI.PanelSection, { psets: PsetDef[] }>(
+    (formState) => {
+      const { psets } = formState;
 
-    console.log("Loaded files count:", globalProps.loadedFiles.size);
-    if (globalProps.loadedFiles.size === 0) {
-      alert("내보낼 수 있는 원본 IFC 모델이 없습니다.");
-      target.loading = false;
+      const onAddPset = () => {
+        psets.push({ name: "", props: [{ name: "", value: "" }] });
+        updatePropsForm({ psets });
+      };
+
+      const onRemovePset = (index: number) => {
+        psets.splice(index, 1);
+        updatePropsForm({ psets });
+      };
+
+      const onAddProp = (psetIndex: number) => {
+        psets[psetIndex].props.push({ name: "", value: "" });
+        updatePropsForm({ psets });
+      };
+
+      const onRemoveProp = (psetIndex: number, propIndex: number) => {
+        psets[psetIndex].props.splice(propIndex, 1);
+        updatePropsForm({ psets });
+      };
+
+      return BUI.html`
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <bim-label style="font-weight: bold;">Property Sets</bim-label>
+            <bim-button @click=${onAddPset} label="+ Add Pset" style="flex: 0;"></bim-button>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
+            ${psets.map((pset, pIndex) => BUI.html`
+              <div style="border: 1px solid var(--bim-ui_bg-contrast-20); padding: 0.5rem; border-radius: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <bim-text-input 
+                    value=${pset.name} 
+                    @input=${(e: Event) => { pset.name = (e.target as BUI.TextInput).value; }} 
+                    placeholder="Pset Name (e.g. Pset_WallCommon)" 
+                    style="flex: 1;" vertical>
+                  </bim-text-input>
+                  <bim-button @click=${() => onRemovePset(pIndex)} icon=${appIcons.DELETE} tooltip-title="Remove Pset" style="flex: 0;"></bim-button>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.25rem; padding-left: 1rem; border-left: 2px solid var(--bim-ui_bg-contrast-20);">
+                  ${pset.props.map((prop, propIndex) => BUI.html`
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                      <bim-text-input 
+                        value=${prop.name} 
+                        @input=${(e: Event) => { prop.name = (e.target as BUI.TextInput).value; }} 
+                        placeholder="Property Name" 
+                        style="flex: 1;" vertical>
+                      </bim-text-input>
+                      <bim-text-input 
+                        value=${prop.value} 
+                        @input=${(e: Event) => { prop.value = (e.target as BUI.TextInput).value; }} 
+                        placeholder="Value" 
+                        style="flex: 1;" vertical>
+                      </bim-text-input>
+                      <bim-button @click=${() => onRemoveProp(pIndex, propIndex)} icon=${appIcons.CLEAR} tooltip-title="Remove Property" style="flex: 0;"></bim-button>
+                    </div>
+                  `)}
+                  <bim-button @click=${() => onAddProp(pIndex)} label="+ Add Property" style="margin-top: 0.25rem;"></bim-button>
+                </div>
+              </div>
+            `)}
+            ${psets.length === 0 ? BUI.html`<bim-label style="color: var(--bim-ui_gray-5);">No Property Sets added. Click '+ Add Pset' to begin.</bim-label>` : ""}
+          </div>
+        </div>
+      `;
+    },
+    { psets: initialPsets }
+  );
+
+  const onApply = async ({ target }: { target: BUI.Button }) => {
+    const currentSelection = highlighter.selection.select;
+    const modelIds = Object.keys(currentSelection);
+
+    if (modelIds.length === 0) {
+      alert("3D 뷰어에서 프로퍼티를 추가할 객체를 먼저 선택해주세요.");
       return;
     }
 
-    for (const [modelId, originalBuffer] of globalProps.loadedFiles) {
-      if (!modelId) continue;
-      const model = fragments.list.get(modelId);
-      if (!model) {
-        console.warn(`Model ${modelId} not found in fragments list.`);
-        continue;
-      }
+    // 단순화를 위해 첫 번째 선택된 모델만 타겟으로 함 (다중 모델 지원 시 로직 확장 필요)
+    const targetModelId = modelIds[0];
+    const targetModel = fragments.list.get(targetModelId);
+    const expressIds = Array.from(currentSelection[targetModelId]);
+    const dbId = (targetModel as any)?.dbId;
 
-      const ifcApi = new WEBIFC.IfcAPI();
-      let ifcModelId: number | null = null;
-
-      try {
-        const wasmSettings = ifcLoader.settings.wasm;
-        if (wasmSettings) {
-          ifcApi.SetWasmPath(wasmSettings.path, wasmSettings.absolute);
-        } else {
-          ifcApi.SetWasmPath("/", false);
-        }
-
-        console.log("Initializing WebIFC...");
-        await ifcApi.Init();
-        console.log("WebIFC Initialized");
-
-        ifcModelId = ifcApi.OpenModel(new Uint8Array(originalBuffer));
-        console.log("Model Opened", ifcModelId);
-        const maxId = ifcApi.GetMaxExpressID(ifcModelId);
-        let defaultOwnerHistory: any = null;
-        const ownerHistories = ifcApi.GetLineIDsWithType(ifcModelId, WEBIFC.IFCOWNERHISTORY);
-        if (ownerHistories.size() > 0) {
-          defaultOwnerHistory = ifcApi.GetLine(ifcModelId, ownerHistories.get(0));
-        }
-
-        const { requests } = await (fragments.core as any).editor.getModelRequests(modelId);
-        console.log("Requests retrieved", requests);
-
-        if (requests) {
-          for (const request of requests) {
-            const originalId = request.localId;
-            const payload = request.data;
-            if (!payload) continue;
-
-            let exists = true;
-            if (originalId > maxId) {
-              exists = false;
-            } else {
-              try {
-                const l = ifcApi.GetLine(ifcModelId, originalId);
-                if (!l) exists = false;
-              } catch {
-                exists = false;
-              }
-            }
-
-            const props = payload.data || {};
-
-            if (!exists && payload.category) {
-              const typeId = (WEBIFC as any)[payload.category];
-              if (typeId !== undefined) {
-                const entity: any = ifcApi.CreateIfcEntity(ifcModelId, typeId);
-                entity.expressID = originalId;
-                if (entity.GlobalId === null || entity.GlobalId === undefined) {
-                  const guid = ifcApi.CreateIFCGloballyUniqueId(ifcModelId);
-                  entity.GlobalId = ifcApi.CreateIfcType(ifcModelId, WEBIFC.IFCGLOBALLYUNIQUEID, guid);
-                }
-                if ((entity.OwnerHistory === null || entity.OwnerHistory === undefined) && defaultOwnerHistory) {
-                  entity.OwnerHistory = defaultOwnerHistory;
-                }
-                for (const key in props) {
-                  const propVal = props[key];
-                  if (key === "HasProperties" && Array.isArray(propVal)) {
-                    entity[key] = propVal.map(id => ({ value: id, type: WEBIFC.REF }));
-                  } else if (propVal && typeof propVal === "object" && "value" in propVal && "type" in propVal) {
-                    let val = propVal.value;
-                    if (propVal.type === WEBIFC.IFCBOOLEAN && typeof val === "string") {
-                      val = val === "true" || val === "T";
-                    } else if (propVal.type === WEBIFC.IFCINTEGER && typeof val === "string") {
-                      val = parseInt(val, 10);
-                    } else if (propVal.type === WEBIFC.IFCREAL && typeof val === "string") {
-                      val = parseFloat(val);
-                    }
-                    entity[key] = ifcApi.CreateIfcType(ifcModelId, propVal.type, val);
-                  } else {
-                    entity[key] = propVal;
-                  }
-                }
-
-                // web-ifc serializes undefined optional properties as '*', but the IFC standard requires '$'.
-                // To solve this, we must explicitly set them to null before writing the line.
-                if (payload.category === "IFCPROPERTYSINGLEVALUE") {
-                  if (entity.Description === undefined) entity.Description = null;
-                  if (entity.Unit === undefined) entity.Unit = null;
-                }
-
-                ifcApi.WriteLine(ifcModelId, entity);
-              }
-            } else if (exists) {
-              try {
-                const line = ifcApi.GetLine(ifcModelId, originalId);
-                if (line) {
-                  for (const key in props) {
-                    const propVal = props[key];
-                    if (key === "HasProperties" && Array.isArray(propVal)) {
-                      line[key] = propVal.map(id => ({ value: id, type: WEBIFC.REF }));
-                    } else if (propVal && typeof propVal === "object" && "value" in propVal && "type" in propVal) {
-                      let val = propVal.value;
-                      if (propVal.type === WEBIFC.IFCBOOLEAN && typeof val === "string") {
-                        val = val === "true" || val === "T";
-                      } else if (propVal.type === WEBIFC.IFCINTEGER && typeof val === "string") {
-                        val = parseInt(val, 10);
-                      } else if (propVal.type === WEBIFC.IFCREAL && typeof val === "string") {
-                        val = parseFloat(val);
-                      }
-                      line[key] = ifcApi.CreateIfcType(ifcModelId, propVal.type, val);
-                    } else {
-                      line[key] = propVal;
-                    }
-                  }
-                  ifcApi.WriteLine(ifcModelId, line);
-                }
-              } catch (e) {
-                console.warn(`Error updating item ${originalId}`, e);
-              }
-            }
-          }
-        }
-
-        const modifiedBuffer = ifcApi.SaveModel(ifcModelId);
-
-        // Verify NominalValue wrapping
-        try {
-          const fileText = new TextDecoder().decode(modifiedBuffer);
-          const regex = /IFCPROPERTYSINGLEVALUE\((?:'[^']*'|[^,]+),(?:'[^']*'|[^,]+),([^,)]+)/g;
-          let match;
-          let invalidCount = 0;
-          while ((match = regex.exec(fileText)) !== null) {
-            const nominalValue = match[1].trim();
-            if (/^[-+]?[0-9]*\.?[0-9]+$/.test(nominalValue)) {
-              console.warn("Potential unwrapped NominalValue:", nominalValue, "in:", match[0]);
-              invalidCount++;
-            }
-          }
-          if (invalidCount > 0) alert(`경고: ${invalidCount}개의 속성 값이 타입 래퍼 없이 저장되었습니다. 콘솔을 확인하세요.`);
-        } catch (e) { console.warn("Verification failed", e); }
-
-        console.log("Model saved, creating blob...");
-        const blob = new Blob([modifiedBuffer as any], { type: "application/octet-stream" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${(model as any).name || "model"}_modified.ifc`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        console.log("Download triggered");
-      } catch (e) {
-        console.error("Error during IFC export:", e);
-        alert("IFC 파일 생성 중 오류가 발생했습니다.");
-      } finally {
-        if (ifcModelId !== null) {
-          ifcApi.CloseModel(ifcModelId);
-        }
-      }
+    if (!targetModel || !dbId) {
+      alert("선택된 객체의 원본 IFC 모델을 데이터베이스에서 찾을 수 없습니다.");
+      return;
     }
 
-    target.loading = false;
+    // 빈 데이터 필터링
+    const validPsets = initialPsets.map(pset => ({
+      name: pset.name.trim(),
+      props: pset.props.filter(p => p.name.trim() !== "").map(p => ({ name: p.name.trim(), value: p.value.trim() }))
+    })).filter(pset => pset.name !== "" && pset.props.length > 0);
+
+    if (validPsets.length === 0) {
+      alert("유효한 Property Set과 Property를 입력해주세요.");
+      return;
+    }
+
+    target.loading = true;
+    
+    try {
+      // 로컬 캐시된 수정 버퍼가 있는지 확인하고, 없으면 DB에서 원본 IFC 다운로드
+      let ifcBuffer = modifiedBufferCache.get(targetModelId);
+      if (!ifcBuffer) {
+        const ifcData = await sharedIFC.loadIFC(dbId);
+        if (ifcData && ifcData.content) ifcBuffer = ifcData.content as Uint8Array;
+      }
+      if (!ifcBuffer) throw new Error("원본 IFC 버퍼를 로드하지 못했습니다.");
+
+      const formData = new FormData();
+      const blob = new Blob([ifcBuffer as any], { type: "application/octet-stream" });
+      formData.append("file", blob, `${(targetModel as any).name}.ifc`);
+      formData.append("expressIds", JSON.stringify(expressIds));
+      formData.append("propertiesData", JSON.stringify(validPsets));
+
+      // 백엔드 엔드포인트 호출
+      const response = await fetch("/api/add-properties", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`API Error: ${errText}`);
+      }
+
+      // 수정된 파일 수신 및 리로드
+      const arrayBuffer = await response.arrayBuffer();
+      const modifiedBuffer = new Uint8Array(arrayBuffer);
+
+      // 뷰어 및 선택 초기화
+      await highlighter.clear("select");
+      highlighter.events.select.onClear.trigger();
+      
+      // 모델을 지우기 전에 선택 해제 상태를 워커에 확실히 동기화하여 참조 에러(Not found) 방지
+      await fragments.core.update(true);
+      
+      const modelName = (targetModel as any).name;
+      targetModel.dispose();
+      
+      // main.ts의 전역 onItemDeleted 비동기 이벤트가 워커를 정리할 시간을 충분히 확보 (데드락 방지)
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 새 IFC 로드 (IFC -> FRAG 변환 및 로딩)
+      console.log("Loading modified IFC into viewer...");
+      const reloadedModel = await ifcLoader.load(modifiedBuffer, false, modelName);
+      (reloadedModel as any).name = modelName;
+      (reloadedModel as any).dbId = dbId; // DB ID 유지
+      
+      // 새 모델 로드 후 최종 렌더러/워커 상태 동기화
+      await fragments.core.update(true);
+
+      // 새 모델의 정확한 ID를 찾아 로컬 캐시에 버퍼 저장 (Save to DB 연동을 위함)
+      let reloadedModelId = (reloadedModel as any).uuid;
+      if (!reloadedModelId) {
+        for (const [id, m] of fragments.list) {
+          if (m === reloadedModel) {
+            reloadedModelId = id;
+            break;
+          }
+        }
+      }
+      if (reloadedModelId) {
+        modifiedBufferCache.set(reloadedModelId, modifiedBuffer);
+      }
+
+      alert(`성공적으로 프로퍼티가 추가되고 모델이 리로드되었습니다.\n(적용된 객체 수: ${expressIds.length}개)`);
+
+    } catch (err) {
+      console.error("Error adding properties:", err);
+      alert("프로퍼티 추가 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
+    } finally {
+      target.loading = false;
+    }
+  };
+
+  const onSaveToDB = async ({ target }: { target: BUI.Button }) => {
+    const currentSelection = highlighter.selection.select;
+    const modelIds = Object.keys(currentSelection);
+
+    if (modelIds.length === 0) {
+      alert("3D 뷰어에서 저장할 모델의 객체를 선택해주세요.");
+      return;
+    }
+
+    const targetModelId = modelIds[0];
+    const targetModel = fragments.list.get(targetModelId);
+    
+    if (!targetModel) {
+      alert("선택된 객체의 모델을 찾을 수 없습니다.");
+      return;
+    }
+
+    const modifiedBuffer = modifiedBufferCache.get(targetModelId);
+    if (!modifiedBuffer) {
+      alert("적용된 프로퍼티 변경 사항이 없습니다. 먼저 'Apply Properties'를 실행해주세요.");
+      return;
+    }
+
+    target.loading = true;
+
+    try {
+      let baseName = (targetModel as any).name || "model";
+      if (baseName.toLowerCase().endsWith(".ifc")) baseName = baseName.substring(0, baseName.length - 4);
+      if (!baseName.endsWith("_prop")) {
+        baseName += "_prop";
+      }
+
+      const sharedFRAG = new SharedFRAG();
+      
+      const ifcFile = new File([modifiedBuffer as any], `${baseName}.ifc`, { type: "application/octet-stream" });
+      const fragData = await (targetModel as any).getBuffer(false);
+      const fragFile = new File([fragData as any], `${baseName}.frag`, { type: "application/octet-stream" });
+
+      const ifcid = await sharedIFC.saveIFC(ifcFile);
+      if (ifcid) {
+        const fragid = await sharedFRAG.saveFRAG(fragFile);
+        if (fragid) {
+          alert(`성공적으로 데이터베이스에 저장되었습니다!\n- 모델명: ${baseName}\n- IFC ID: ${ifcid}\n- FRAG ID: ${fragid}`);
+          (targetModel as any).dbId = ifcid; 
+          (targetModel as any).name = baseName;
+        } else alert("FRAG 파일 저장에 실패했습니다.");
+      } else alert("IFC 파일 저장에 실패했습니다.");
+    } catch (err) {
+      console.error("Error saving to DB:", err);
+      alert("저장 중 오류가 발생했습니다.");
+    } finally {
+      target.loading = false;
+    }
   };
 
   return BUI.html`
-    <bim-panel-section label="Properties Manager" icon=${appIcons.REF} >
-      ${propsList}
-      <div style="display: flex; gap: 0.25rem">
-        <bim-button label="Create" @click=${() => newProps.showModal()} icon=${appIcons.REF}></bim-button>
-        <bim-button label="Assign" @click=${onAdd} icon=${appIcons.ADD}></bim-button>
-        <bim-button label="Import" @click=${onImport} icon=${appIcons.IMPORT}></bim-button>
-        <bim-button label="Download" @click=${onDownload} icon=${appIcons.EXPORT}></bim-button>
+    <bim-panel-section label="Properties Manager" icon=${appIcons.EDIT} >
+      ${propsForm}
+      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+        <bim-button label="Apply Properties" @click=${onApply} icon=${appIcons.ADD} style="flex: 1; background-color: var(--bim-ui_main-base); color: var(--bim-ui_main-contrast);"></bim-button>
+        <bim-button label="Save to DB" @click=${onSaveToDB} icon=${appIcons.SAVE} style="flex: 1; background-color: var(--bim-ui_success-base, #00B050); color: white; border: none;"></bim-button>
       </div>
     </bim-panel-section>
   `;

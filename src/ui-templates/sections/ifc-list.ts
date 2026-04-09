@@ -3,7 +3,6 @@ import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
 import { SharedIFC } from '../../bim-components/SharedIFC';
 import { SharedFRAG } from '../../bim-components/SharedFRAG';
-import { PropertiesManager } from "../../bim-components/PropsManager";
 import { BCFTopics } from "../../bim-components/BCFTopics";
 
 export interface IFCListPanelState {
@@ -30,6 +29,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   // 현재 선택된 필터용 그룹 상태
   let activeGroupFilter: string | null = null;
   let sharedModelLabel: BUI.Label;
+  let loadedModelLabel: BUI.Label;
 
   // 그룹별 아이템 개수를 계산하는 함수
   const getGroupCounts = () => {
@@ -114,6 +114,9 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         model: model
       }
     }));
+    if (loadedModelLabel) {
+      loadedModelLabel.textContent = `Loaded Model (${models.length})`;
+    }
   };
 
   const onDisposeSelectedModels = () => {
@@ -218,7 +221,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     const model = await ifcLoader.load(bytes, false, file.name.replace(".ifc", "")); // 좌표 원점 조정 해제
     (model as any).name = file.name.replace(".ifc", "");
     updateLoadedModelsList();
-    const globalProps = components.get(PropertiesManager);
     let modelId = (model as any).uuid;
     if (!modelId) {
       for (const [id, m] of fragments.list) {
@@ -228,7 +230,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         }
       }
     }
-    if (modelId) globalProps.loadedFiles.set(modelId, bytes);
     console.log("Exporting FRAG...");
     const fragData = await (model as any).getBuffer(false);
     console.log("FRAG exported.");
@@ -272,8 +273,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     if (!response.ok) throw new Error("EDB Data processing failed");
     
     const blob = await response.blob();
-    // 처리된 파일을 원본 이름에 접두사를 붙여 File 객체로 생성 후 동일 로직 실행
-    const processedFile = new File([blob], `${file.name}_edb`, { type: file.type || "application/octet-stream" });
+    const processedFile = new File([blob], `${file.name}`, { type: file.type || "application/octet-stream" });
     await processAndSaveIfc(processedFile);
   });
 
@@ -324,7 +324,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
       (model as any).name = ifc.name;
       updateLoadedModelsList();
       (model as any).dbId = ifcid;
-      const globalProps = components.get(PropertiesManager);
       let modelId = (model as any).uuid;
       if (!modelId) {
         for (const [id, m] of fragments.list) {
@@ -335,7 +334,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         }
       }
       if (modelId) {
-        globalProps.loadedFiles.set(modelId, ifc.content);
         sharedIFC.addModelUUID(ifcid, modelId);
         fragments.list.set(modelId, model);
       }
@@ -756,7 +754,10 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         <bim-button style="flex: 0" icon=${appIcons.ADD} @click=${onProcessEdbData} tooltip-title="Fetch EDB and Import Model"></bim-button>
       </div>
       <div style="display: flex; align-items: center; justify-content: space-between;">
-        <bim-label>Loaded Model</bim-label>
+        <bim-label ${BUI.ref((e) => { 
+          loadedModelLabel = e as BUI.Label; 
+          loadedModelLabel.textContent = `Loaded Model (${fragments.list.size})`; 
+        })}>Loaded Model</bim-label>
         <div style="display: flex; gap: 0.25rem;">
           <bim-button @click=${onSelectAllLoadedModels} label="Select All" style="flex: 0;"></bim-button>
           <bim-button @click=${onDisposeSelectedModels} label="Dispose" style="flex: 0;"></bim-button>

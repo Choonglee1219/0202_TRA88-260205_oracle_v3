@@ -352,11 +352,13 @@ fragments.list.onItemSet.add(async ({ value: model }) => {
   }
 });
 
-fragments.list.onItemDeleted.add(() => {
+fragments.list.onItemDeleted.add(async () => {
   const finder = components.get(OBC.ItemsFinder);
   for (const [_, query] of finder.list) {
     query.clearCache();
   }
+  await highlighter.clear("select");
+  await fragments.core.update(true);
 });
 
 // 🔎Finder Setup - "src > setup > finders.ts"
