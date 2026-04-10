@@ -469,7 +469,6 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
   return BUI.html`
     <bim-panel-section fixed icon=${appIcons.TASK} label="IDS Check">
       <div style="display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 0.5rem;">
-        
         <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; flex-shrink: 0;">
           <div @click=${onToggleSection} style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
             <bim-label style="font-weight: bold; pointer-events: none;">Spec. List</bim-label>

@@ -117,12 +117,12 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
     { psets: initialPsets }
   );
 
-  const onApply = async ({ target }: { target: BUI.Button }) => {
+  const processProperties = async (target: BUI.Button, action: string, successMsg: string) => {
     const currentSelection = highlighter.selection.select;
     const modelIds = Object.keys(currentSelection);
 
     if (modelIds.length === 0) {
-      alert("3D 뷰어에서 프로퍼티를 추가할 객체를 먼저 선택해주세요.");
+      alert("3D 뷰어에서 프로퍼티를 처리할 객체를 먼저 선택해주세요.");
       return;
     }
 
@@ -162,11 +162,12 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       const formData = new FormData();
       const blob = new Blob([ifcBuffer as any], { type: "application/octet-stream" });
       formData.append("file", blob, `${(targetModel as any).name}.ifc`);
+      formData.append("action", action);
       formData.append("expressIds", JSON.stringify(expressIds));
       formData.append("propertiesData", JSON.stringify(validPsets));
 
-      // 백엔드 엔드포인트 호출
-      const response = await fetch("/api/add-properties", {
+      // 지정된 백엔드 엔드포인트 호출
+      const response = await fetch("/api/process-properties", {
         method: "POST",
         body: formData,
       });
@@ -203,7 +204,7 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       await fragments.core.update(true);
 
       // 새 모델의 정확한 ID를 찾아 로컬 캐시에 버퍼 저장 (Save to DB 연동을 위함)
-      let reloadedModelId = (reloadedModel as any).uuid;
+      let reloadedModelId = (reloadedModel as any).modelId;
       if (!reloadedModelId) {
         for (const [id, m] of fragments.list) {
           if (m === reloadedModel) {
@@ -214,16 +215,30 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       }
       if (reloadedModelId) {
         modifiedBufferCache.set(reloadedModelId, modifiedBuffer);
+
+        // 리로드된 모델에 이전 선택 요소 복원
+        const selectionMap: OBC.ModelIdMap = {};
+        selectionMap[reloadedModelId] = new Set(expressIds as number[]);
+        await highlighter.highlightByID("select", selectionMap);
       }
 
-      alert(`성공적으로 프로퍼티가 추가되고 모델이 리로드되었습니다.\n(적용된 객체 수: ${expressIds.length}개)`);
+      alert(`${successMsg}\n(적용된 객체 수: ${expressIds.length}개)`);
 
     } catch (err) {
-      console.error("Error adding properties:", err);
-      alert("프로퍼티 추가 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
+      console.error(`Error processing properties (${action}):`, err);
+      alert("프로퍼티 처리 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
     } finally {
       target.loading = false;
     }
+  };
+
+  const onApply = async ({ target }: { target: BUI.Button }) => {
+    await processProperties(target, "add", "성공적으로 프로퍼티가 추가되고 모델이 리로드되었습니다.");
+  };
+
+  const onDelete = async ({ target }: { target: BUI.Button }) => {
+    if (!confirm("선택한 객체에서 입력된 프로퍼티들을 삭제하시겠습니까?")) return;
+    await processProperties(target, "delete", "성공적으로 프로퍼티가 삭제되고 모델이 리로드되었습니다.");
   };
 
   const onSaveToDB = async ({ target }: { target: BUI.Button }) => {
@@ -249,15 +264,21 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       return;
     }
 
+    let defaultName = (targetModel as any).name || "model";
+    if (defaultName.toLowerCase().endsWith(".ifc")) defaultName = defaultName.substring(0, defaultName.length - 4);
+    if (!defaultName.endsWith("_prop")) {
+      defaultName += "_prop";
+    }
+
+    const userInput = prompt("저장할 파일 이름을 입력하세요 (확장자 제외):", defaultName);
+    if (userInput === null || userInput.trim() === "") {
+      return;
+    }
+    const baseName = userInput.trim();
+
     target.loading = true;
 
     try {
-      let baseName = (targetModel as any).name || "model";
-      if (baseName.toLowerCase().endsWith(".ifc")) baseName = baseName.substring(0, baseName.length - 4);
-      if (!baseName.endsWith("_prop")) {
-        baseName += "_prop";
-      }
-
       const sharedFRAG = new SharedFRAG();
       
       const ifcFile = new File([modifiedBuffer as any], `${baseName}.ifc`, { type: "application/octet-stream" });
@@ -285,8 +306,9 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
     <bim-panel-section label="Properties Manager" icon=${appIcons.EDIT} >
       ${propsForm}
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-        <bim-button label="Apply Properties" @click=${onApply} icon=${appIcons.ADD} style="flex: 1; background-color: var(--bim-ui_main-base); color: var(--bim-ui_main-contrast);"></bim-button>
-        <bim-button label="Save to DB" @click=${onSaveToDB} icon=${appIcons.SAVE} style="flex: 1; background-color: var(--bim-ui_success-base, #00B050); color: white; border: none;"></bim-button>
+        <bim-button label="Apply Properties" @click=${onApply} icon=${appIcons.ADD} style="flex: 1;"></bim-button>
+        <bim-button label="Delete Properties" @click=${onDelete} icon=${appIcons.DELETE} style="flex: 1;"></bim-button>
+        <bim-button label="Save to DB" @click=${onSaveToDB} icon=${appIcons.SAVE} style="flex: 1;"></bim-button>
       </div>
     </bim-panel-section>
   `;

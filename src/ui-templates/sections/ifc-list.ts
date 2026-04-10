@@ -31,6 +31,23 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   let sharedModelLabel: BUI.Label;
   let loadedModelLabel: BUI.Label;
 
+  const onToggleSection = (e: Event) => {
+    const header = e.currentTarget as HTMLElement;
+    const wrapper = header.parentElement as HTMLElement;
+    const content = header.nextElementSibling as HTMLElement;
+    const icon = header.querySelector(".toggle-icon") as any;
+    
+    if (content.style.display === "none") {
+      content.style.display = "flex";
+      icon.icon = appIcons.MINOR;
+      if (wrapper.dataset.flex === "true") wrapper.style.flex = "1";
+    } else {
+      content.style.display = "none";
+      icon.icon = appIcons.RIGHT;
+      if (wrapper.dataset.flex === "true") wrapper.style.flex = "none";
+    }
+  };
+
   // 그룹별 아이템 개수를 계산하는 함수
   const getGroupCounts = () => {
     const counts: Record<string, number> = {};
@@ -753,36 +770,49 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
         <bim-button style="flex: 0;" icon=${appIcons.ADD} @click=${onAddIfcModel} tooltip-title="Import Model"></bim-button>
         <bim-button style="flex: 0" icon=${appIcons.ADD} @click=${onProcessEdbData} tooltip-title="Fetch EDB and Import Model"></bim-button>
       </div>
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <bim-label ${BUI.ref((e) => { 
-          loadedModelLabel = e as BUI.Label; 
-          loadedModelLabel.textContent = `Loaded Model (${fragments.list.size})`; 
-        })}>Loaded Model</bim-label>
-        <div style="display: flex; gap: 0.25rem;">
-          <bim-button @click=${onSelectAllLoadedModels} label="Select All" style="flex: 0;"></bim-button>
-          <bim-button @click=${onDisposeSelectedModels} label="Dispose" style="flex: 0;"></bim-button>
+      <div data-flex="false" style="display: flex; flex-direction: column; gap: 0.25rem;">
+        <div @click=${onToggleSection} style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; pointer-events: none;">
+          <bim-label style="font-weight: bold;" ${BUI.ref((e) => { 
+            loadedModelLabel = e as BUI.Label; 
+            loadedModelLabel.textContent = `Loaded Model (${fragments.list.size})`; 
+          })}>Loaded Model</bim-label>
+          <bim-label class="toggle-icon" icon=${appIcons.MINOR} style="--bim-icon--fz: 1.25rem;"></bim-label>
+          </div>
+          <div style="display: flex; gap: 0.25rem;">
+            <bim-button @click=${(e: Event) => { e.stopPropagation(); onSelectAllLoadedModels(); }} label="Select All" style="flex: 0;"></bim-button>
+            <bim-button @click=${(e: Event) => { e.stopPropagation(); onDisposeSelectedModels(); }} label="Dispose" style="flex: 0;"></bim-button>
+          </div>
         </div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; height: 8rem; min-height: 8rem; flex-shrink: 0;">
-        ${loadedTable}
+        <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; height: 8rem; min-height: 8rem; flex-shrink: 0;">
+          ${loadedTable}
+        </div>
       </div>
       
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <bim-label ${BUI.ref((e) => { 
-          sharedModelLabel = e as BUI.Label; 
-          sharedModelLabel.textContent = `Shared Model (${sharedFRAG.list.length})`; 
-        })}>Shared Model</bim-label>
-        <div style="display: flex; gap: 0.25rem;">
-        <bim-button @click=${onSelectAllFragModels} label="Select All" style="flex: 0;"></bim-button>
-        <bim-button @click=${(e: Event) => {
-          const target = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
-          if (target) onLoadSelectedFragModels(target);
-        }} label="Load" icon=${appIcons.OPEN} style="flex: 0;"></bim-button>
+      <div data-flex="true" style="display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-height: 0; overflow: hidden;">
+        <div @click=${onToggleSection} style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; flex-shrink: 0;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; pointer-events: none;">
+          <bim-label style="font-weight: bold;" ${BUI.ref((e) => { 
+            sharedModelLabel = e as BUI.Label; 
+            sharedModelLabel.textContent = `Shared Model (${sharedFRAG.list.length})`; 
+          })}>Shared Model</bim-label>
+          <bim-label class="toggle-icon" icon=${appIcons.MINOR} style="--bim-icon--fz: 1.25rem;"></bim-label>
+          </div>
+          <div style="display: flex; gap: 0.25rem;">
+            <bim-button @click=${(e: Event) => { e.stopPropagation(); onSelectAllFragModels(); }} label="Select All" style="flex: 0;"></bim-button>
+            <bim-button @click=${(e: Event) => {
+              e.stopPropagation();
+              const target = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
+              if (target) onLoadSelectedFragModels(target);
+            }} label="Load" icon=${appIcons.OPEN} style="flex: 0;"></bim-button>
+          </div>
         </div>
-      </div>
-      ${groupBadges}
-      <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; max-height: 400px;">
-        ${fragTable}
+        <div style="display: flex; flex-direction: column; gap: 0.25rem; overflow-y: auto; flex: 1; min-height: 0;">
+          ${groupBadges}
+          <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; overflow-y: auto; flex: 1;">
+            ${fragTable}
+          </div>
+        </div>
       </div>
     </bim-panel-section> 
   `;
