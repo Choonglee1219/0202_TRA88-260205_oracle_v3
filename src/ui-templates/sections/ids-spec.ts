@@ -210,13 +210,18 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
           const rels = itemAny.IsDefinedBy || [];
           for (const rel of rels) {
             const pset = rel.RelatingPropertyDefinition || rel;
-            if (pset.Name?.value && psetRegex.test(String(pset.Name.value)) && Array.isArray(pset.HasProperties)) {
-              const targetProp = pset.HasProperties.find((p: any) => p.Name?.value && propRegex.test(String(p.Name.value)));
-              if (targetProp && targetProp.NominalValue !== null && targetProp.NominalValue !== undefined) {
-                val = typeof targetProp.NominalValue === "object" && targetProp.NominalValue.value !== undefined 
-                  ? targetProp.NominalValue.value 
-                  : targetProp.NominalValue;
-                break;
+            if (pset.Name?.value && psetRegex.test(String(pset.Name.value))) {
+              const targetArray = pset.HasProperties || pset.Quantities;
+              if (Array.isArray(targetArray)) {
+                const targetProp = targetArray.find((p: any) => p.Name?.value && propRegex.test(String(p.Name.value)));
+                if (targetProp) {
+                  const valueKey = Object.keys(targetProp).find(k => /Value/.test(k) || /Values/.test(k));
+                  if (valueKey && targetProp[valueKey] !== null && targetProp[valueKey] !== undefined) {
+                    const rawVal = targetProp[valueKey];
+                    val = typeof rawVal === "object" && rawVal.value !== undefined ? rawVal.value : rawVal;
+                    break;
+                  }
+                }
               }
             }
           }
@@ -284,7 +289,7 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
       descCond = `matches '${specDef.requirement.value}'`;
     }
 
-    const psetName = specDef.requirement.type === "property" ? ` in ${specDef.requirement.propertySet}` : "";
+    const psetName = (specDef.requirement.type === "property" || specDef.requirement.type === "quantity") ? ` in ${specDef.requirement.propertySet}` : "";
     spec.description = specDef.description || `Check if ${specDef.applicability.entity} has ${specDef.requirement.name}${psetName} and its value ${descCond}`;
 
     const entity = new OBC.IDSEntity(components, {
@@ -294,7 +299,7 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
     
     let reqFacet: OBC.IDSProperty | OBC.IDSAttribute;
 
-    if (specDef.requirement.type === "property") {
+    if (specDef.requirement.type === "property" || specDef.requirement.type === "quantity") {
       reqFacet = new OBC.IDSProperty(
         components,
         { type: "pattern", parameter: getPattern(specDef.requirement.propertySet || "") },
@@ -347,7 +352,7 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
   const onReviewModel = async ({ target }: { target: BUI.Button }) => {
     target.loading = true;
     try {
-      const type = (reqTypeDropdown?.value[0] || "property") as "property" | "attribute";
+      const type = (reqTypeDropdown?.value[0] || "property") as "property" | "attribute" | "quantity";
       const specDef: IDSSpecDefinition = {
         name: "Custom Spec",
         description: "Custom user-defined specification",
@@ -372,7 +377,7 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
   };
 
   const onSaveSpec = () => {
-    const type = (reqTypeDropdown?.value[0] || "property") as "property" | "attribute";
+    const type = (reqTypeDropdown?.value[0] || "property") as "property" | "attribute" | "quantity";
     const entityVal = entityInput?.value || "";
     const psetVal = psetInput?.value || "";
     const propVal = propInput?.value || "";
@@ -383,7 +388,7 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
     if (valStr && condVal === "pattern") {
       descCond = `matches '${valStr}'`;
     }
-    const psetName = type === "property" && psetVal ? ` in ${psetVal}` : "";
+    const psetName = (type === "property" || type === "quantity") && psetVal ? ` in ${psetVal}` : "";
     const desc = `Check if ${entityVal || "ANY"} has ${propVal}${psetName} and its value ${descCond}`;
 
     const specDef: IDSSpecDefinition = {
@@ -490,24 +495,46 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
               <bim-dropdown style="flex: 1;" ${BUI.ref((e) => { reqTypeDropdown = e as BUI.Dropdown; })} vertical
                 @change=${(e: Event) => {
                   const dropdown = e.target as BUI.Dropdown;
-                  if (psetInput) psetInput.disabled = dropdown.value[0] === "attribute";
+                  const val = dropdown.value[0];
+                  if (psetInput) {
+                  if (val === "property") {
+                    psetInput.disabled = false;
+                    psetInput.placeholder = "Pset (e.g. Pset_WallCommon)";
+                  } else if (val === "quantity") {
+                    psetInput.disabled = false;
+                    psetInput.placeholder = "Qto (e.g. Qto_WallBaseQuantities)";
+                  } else if (val === "attribute") {
+                    psetInput.disabled = true;
+                    psetInput.placeholder = "N.A.";
+                  }
+                  }
                 }}>
                 <bim-option label="Property" value="property" checked></bim-option>
+                <bim-option label="Quantity" value="quantity"></bim-option>
                 <bim-option label="Attribute" value="attribute"></bim-option>
               </bim-dropdown>
               <bim-text-input style="flex: 1;" ${BUI.ref((e) => { psetInput = e as BUI.TextInput; })} placeholder="Pset (e.g. Pset_WallCommon)" vertical></bim-text-input>
             </div>
-            <bim-text-input ${BUI.ref((e) => { propInput = e as BUI.TextInput; })} placeholder="Prop/Attr Name (e.g. FireRating)" vertical></bim-text-input>
+            <bim-text-input ${BUI.ref((e) => { propInput = e as BUI.TextInput; })} placeholder="Name" vertical></bim-text-input>
             <div style="display: flex; gap: 0.5rem;">
               <bim-dropdown style="flex: 1;" ${BUI.ref((e) => { conditionDropdown = e as BUI.Dropdown; })} vertical
                 @change=${(e: Event) => {
                   const dropdown = e.target as BUI.Dropdown;
-                  if (propValInput) propValInput.disabled = dropdown.value[0] === "exists";
+                  const val = dropdown.value[0];
+                  if (propValInput) {
+                    if (val === "exists") {
+                      propValInput.disabled = true;
+                      propValInput.placeholder = "N.A.";
+                    } else if (val === "pattern") {
+                      propValInput.disabled = false;
+                      propValInput.placeholder = "Value";
+                    }
+                  }
                 }}>
                 <bim-option label="Exists" value="exists" checked></bim-option>
                 <bim-option label="Contains" value="pattern"></bim-option>
               </bim-dropdown>
-              <bim-text-input style="flex: 1;" ${BUI.ref((e) => { propValInput = e as BUI.TextInput; })} placeholder="Property Value" disabled vertical></bim-text-input>
+              <bim-text-input style="flex: 1;" ${BUI.ref((e) => { propValInput = e as BUI.TextInput; })} placeholder="N.A." disabled vertical></bim-text-input>
             </div>
             <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
               <bim-button style="flex: 1;" label="Check" @click=${onReviewModel} icon=${appIcons.PLAY}></bim-button>

@@ -5,7 +5,7 @@ export interface IDSSpecDefinition {
     entity: string;
   };
   requirement: {
-    type: "property" | "attribute";
+    type: "property" | "attribute" | "quantity";
     propertySet?: string;
     name: string;
     condition: "exists" | "pattern";
@@ -31,5 +31,11 @@ export const predefinedSpecs: IDSSpecDefinition[] = [
     description: "Slabs must define IsExternal property.",
     applicability: { entity: "IFCSLAB" },
     requirement: { type: "property", propertySet: "Pset_SlabCommon", name: "IsExternal", condition: "exists" }
+  },
+  {
+    name: "Beam Length",
+    description: "All Beams must have Length specified in Qto_BeamBaseQuantities.",
+    applicability: { entity: "IFCBEAM" },
+    requirement: { type: "quantity", propertySet: "Qto_BeamBaseQuantities", name: "Length", condition: "exists" }
   }
 ];
