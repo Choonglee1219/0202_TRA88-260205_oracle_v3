@@ -22,7 +22,12 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   
   // --- Grouping 1단계: 사용자 정의 그룹 상태 관리 ---
   const paletteColors = [
-    "#C00000", "#FFC000", "#00B050", "#00B0F0", "#0070C0", "#7030A0"
+    "hsl(0, 65%, 40%)",
+    "hsl(45, 65%, 40%)",
+    "hsl(147, 65%, 40%)",
+    "hsl(196, 65%, 40%)",
+    "hsl(205, 65%, 40%)",
+    "hsl(274, 65%, 40%)"
   ];
   const customGroups = ["None", ...paletteColors];
 

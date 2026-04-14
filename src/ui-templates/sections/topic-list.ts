@@ -13,16 +13,18 @@ export const topicListTemplate: BUI.StatefullComponent<
 > = (state) => {
   const { components } = state;
   const bcfTopics = components.get(BCFTopics);
-  const [table] = topicsList({ components });
+  const [topicListTable] = topicsList({ components });
   
   const [matrixPanel] = clashMatrix({ components });
-  matrixPanel.label = "Clash Matrix";
-  matrixPanel.icon = appIcons.CLASH;
+  matrixPanel.label = ""; // 커스텀 토글 UI를 사용하기 위해 기존 속성 제거
+  matrixPanel.style.minWidth = "0"; // 부모 영역을 벗어나지 않도록 설정
+  matrixPanel.style.width = "100%";
+  matrixPanel.style.boxSizing = "border-box";
 
   const newTopicModal = newTopic(components);
   const updateTopicModal = updateTopic(bcfTopics);
 
-  bcfTopics.setupTable(table);
+  bcfTopics.setupTable(topicListTable);
 
   // 테이블에서 토픽 제목(Title) 클릭 시 Viewpoint가 복원되는 기존 동작에 추가로, 해당 테이블 행이 자동으로 선택되도록 동작 확장
   let lastClickedTopicId: string | null = null;
@@ -30,10 +32,10 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   const originalRestoreViewpoint = bcfTopics.restoreViewpoint.bind(bcfTopics);
   bcfTopics.restoreViewpoint = async (topic: OBC.Topic, options?: { updateSnapshot?: boolean }): Promise<boolean> => {
-    const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === topic.guid);
+    const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === topic.guid);
     if (targetGroup) {
-      table.selection.clear();
-      table.selection.add(targetGroup.data);
+      topicListTable.selection.clear();
+      topicListTable.selection.add(targetGroup.data);
     }
 
     const now = Date.now();
@@ -61,10 +63,10 @@ export const topicListTemplate: BUI.StatefullComponent<
         const topicsArray = Array.from(bcfTopics.list.values());
         if (topicsArray.length > 0) {
           const newTopic = topicsArray[topicsArray.length - 1];
-          const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === newTopic.guid);
+          const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === newTopic.guid);
           if (targetGroup) {
-            table.selection.clear();
-            table.selection.add(targetGroup.data);
+            topicListTable.selection.clear();
+            topicListTable.selection.add(targetGroup.data);
           }
         }
       }, 150);
@@ -73,24 +75,24 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   const onUpdateTopicModalOpen = () => {
     // 모달을 열기 전, 현재 선택되어 있는 토픽들의 고유 ID(Guid)를 배열에 저장합니다.
-    const selectedGuids = Array.from(table.selection).map((data: any) => data.Guid);
+    const selectedGuids = Array.from(topicListTable.selection).map((data: any) => data.Guid);
 
-    updateTopicModal.showModal(table.selection);
+    updateTopicModal.showModal(topicListTable.selection);
 
     // 모달이 닫히면 테이블 데이터가 갱신되면서 선택이 해제되므로, 딜레이를 조금 준 후 이전 선택 상태를 복원합니다.
     updateTopicModal.modal.addEventListener("close", () => {
       setTimeout(() => {
         for (const guid of selectedGuids) {
-          const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === guid);
+          const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === guid);
           if (targetGroup) {
-            table.selection.add(targetGroup.data);
+            topicListTable.selection.add(targetGroup.data);
           }
         }
       }, 150);
     }, { once: true });
   };
   const onDeleteTopic = () => {
-    bcfTopics.delete(table.selection);
+    bcfTopics.delete(topicListTable.selection);
   };
   const onClearTopicsList = () => {
     bcfTopics.deleteAll();
@@ -103,7 +105,7 @@ export const topicListTemplate: BUI.StatefullComponent<
   };
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
-    table.queryString = input.value;
+    topicListTable.queryString = input.value;
   };
 
   const onUpdateAllSnapshots = async (e: Event) => {
@@ -172,17 +174,23 @@ export const topicListTemplate: BUI.StatefullComponent<
     panelSection.label = `Topic List ( Total(${total}) = Open(${open}) + Assigned(${assigned}) + Closed(${closed}) + Resolved(${resolved}) )`;
   };
 
-  bcfTopics.onRefresh.add(() => setTimeout(updateTopicCount, 100));
-  bcfTopics.list.onItemSet.add(() => setTimeout(updateTopicCount, 100));
-  bcfTopics.list.onItemUpdated.add(() => setTimeout(updateTopicCount, 100));
-  bcfTopics.list.onItemDeleted.add(() => setTimeout(updateTopicCount, 100));
+  let updateTopicCountTimeout: ReturnType<typeof setTimeout>;
+  const debouncedUpdateTopicCount = () => {
+    if (updateTopicCountTimeout) clearTimeout(updateTopicCountTimeout);
+    updateTopicCountTimeout = setTimeout(updateTopicCount, 500);
+  };
+
+  bcfTopics.onRefresh.add(debouncedUpdateTopicCount);
+  bcfTopics.list.onItemSet.add(debouncedUpdateTopicCount);
+  bcfTopics.list.onItemUpdated.add(debouncedUpdateTopicCount);
+  bcfTopics.list.onItemDeleted.add(debouncedUpdateTopicCount);
 
   // 3D 화면에서 간섭 구(Sphere) 클릭 시, Topic List 테이블 행 자동 선택 및 줌인
   bcfTopics.onClashSphereClicked.add((guid) => {
-    const targetGroup = table.value.find((row: any) => row.data && row.data.Guid === guid);
+    const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === guid);
     if (targetGroup) {
-      table.selection.clear();
-      table.selection.add(targetGroup.data); // 테이블 체크박스 활성화
+      topicListTable.selection.clear();
+      topicListTable.selection.add(targetGroup.data); // 테이블 체크박스 활성화
 
       const topic = bcfTopics.list.get(guid);
       if (topic) {
@@ -191,6 +199,23 @@ export const topicListTemplate: BUI.StatefullComponent<
     }
   });
 
+  const onToggleSection = (e: Event) => {
+    const header = e.currentTarget as HTMLElement;
+    const wrapper = header.parentElement as HTMLElement;
+    const content = header.nextElementSibling as HTMLElement;
+    const icon = header.querySelector(".toggle-icon") as any;
+    
+    if (content.style.display === "none") {
+      content.style.display = "flex";
+      icon.icon = appIcons.MINOR;
+      if (wrapper.dataset.flex === "true") wrapper.style.flex = "1";
+    } else {
+      content.style.display = "none";
+      icon.icon = appIcons.RIGHT;
+      if (wrapper.dataset.flex === "true") wrapper.style.flex = "none";
+    }
+  };
+
   return BUI.html`
     <bim-panel-section
       ${BUI.ref((e) => {
@@ -198,20 +223,37 @@ export const topicListTemplate: BUI.StatefullComponent<
         updateTopicCount();
       })}
       fixed icon=${appIcons.TASK} label="Topic List">
-      <div style="display: flex; gap: 0.5rem;">
-        <div style="display: flex; gap: 0.25rem; flex: 1;">
-          <bim-button style="flex: 1;" @click=${onNewTopicModalOpen} label="Create Topic" icon=${appIcons.ADD}></bim-button>
-          <bim-button style="flex: 1;" @click=${onUpdateTopicModalOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
-          <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
-          <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
-          <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Auto Snapshots" icon=${appIcons.CAMERA}></bim-button>
-          <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
-          <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
+      
+      <div style="display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem; overflow-y: auto; overflow-x: hidden; padding-right: 0.25rem;">
+        
+        <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+          <div style="display: flex; gap: 0.25rem; flex: 1;">
+            <bim-button style="flex: 1;" @click=${onNewTopicModalOpen} label="Create Topic" icon=${appIcons.ADD}></bim-button>
+            <bim-button style="flex: 1;" @click=${onUpdateTopicModalOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
+            <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
+            <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
+            <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Auto Snapshots" icon=${appIcons.CAMERA}></bim-button>
+            <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
+            <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
+          </div>
+          <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
         </div>
-        <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
+
+        <div style="flex: 1; display: flex; flex-direction: column; min-height: 15rem; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden; min-width: 0;">
+          ${topicListTable}
+        </div>
+
+        <div data-flex="false" style="display: flex; flex-direction: column; flex-shrink: 0; min-width: 0; max-width: 100%; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden;">
+          <div @click=${onToggleSection} style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 0.5rem; background-color: var(--bim-ui_bg-contrast-10);">
+            <bim-label style="font-weight: bold; pointer-events: none;">Clash Matrix</bim-label>
+            <bim-label class="toggle-icon" icon=${appIcons.RIGHT} style="pointer-events: none; --bim-icon--fz: 1.25rem;"></bim-label>
+          </div>
+          <div style="display: none; flex-direction: column; width: 100%; min-width: 0; box-sizing: border-box;">
+            ${matrixPanel}
+          </div>
+        </div>
+
       </div>
-      ${table}
-      ${matrixPanel}
     </bim-panel-section>
   `;
 };

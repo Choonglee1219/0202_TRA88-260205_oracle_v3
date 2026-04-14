@@ -218,7 +218,7 @@ const highlighter = new Highlighter(components);
 highlighter.setup({
   world,
   selectMaterialDefinition: {
-    color: new THREE.Color("#bcf124"),
+    color: new THREE.Color("#8fbc0c"),
     renderedFaces: 1,
     opacity: 0.3,
     transparent: true,
@@ -244,7 +244,7 @@ highlighter.updateColors = async () => {
 // hoverer.world = world;
 // hoverer.enabled = true;
 // hoverer.material = new THREE.MeshBasicMaterial({
-//   color: new THREE.Color("#bcf124"),
+//   color: new THREE.Color("#8fbc0c"),
 //   polygonOffset: true,
 //   polygonOffsetUnits: 4,
 //   polygonOffsetFactor: 2,

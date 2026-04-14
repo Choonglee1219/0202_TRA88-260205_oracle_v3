@@ -65,9 +65,9 @@ export class Highlighter
     selectEnabled: true,
     autoUpdateFragments: true,
     selectMaterialDefinition: {
-      color: new THREE.Color("#BCF124"),
+      color: new THREE.Color("#8fbc0c"),
       renderedFaces: FRAGS.RenderedFaces.ONE,
-      opacity: 0.5,
+      opacity: 0.3,
       transparent: true,
     },
   };

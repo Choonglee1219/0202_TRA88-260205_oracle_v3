@@ -51,7 +51,13 @@ export const topicsList = (state: TopicsListState, autoUpdate = true) => {
   if (autoUpdate) {
     const { components, topics } = state;
     const bcfTopics = components.get(OBC.BCFTopics);
-    const updateCallback = () => updateTable();
+    
+    let updateTimeout: ReturnType<typeof setTimeout>;
+    const updateCallback = () => {
+      if (updateTimeout) clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(() => updateTable(), 50);
+    };
+
     bcfTopics.list.onItemUpdated.add(updateCallback);
     bcfTopics.list.onItemDeleted.add(updateCallback);
     if (topics) {

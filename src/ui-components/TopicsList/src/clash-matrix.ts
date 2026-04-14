@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { BCFTopics } from "../../../bim-components/BCFTopics";
-import { appIcons } from "../../../globals";
+import { Highlighter } from "../../../bim-components/Highlighter";
 
 export interface ClashMatrixState {
   components: OBC.Components;
@@ -13,6 +13,7 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
   const fragments = components.get(OBC.FragmentsManager);
   const classifier = components.get(OBC.Classifier);
   const viewpoints = components.get(OBC.Viewpoints);
+  const highlighter = components.get(Highlighter);
 
   let isComputing = false;
 
@@ -22,7 +23,7 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
   table.style.display = "none"; // 처음엔 숨김
 
   const statusLabel = document.createElement("bim-label");
-  statusLabel.textContent = "Click 'Compute Clash Matrix' to generate clash matrix.";
+  statusLabel.textContent = "Waiting for clash data...";
   statusLabel.style.cssText = "text-align: center; padding: 1rem; color: var(--bim-ui_gray-5); display: block;";
 
   const updateUI = (message: string | null) => {
@@ -36,11 +37,14 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
     }
   };
 
-  const computeMatrix = async (e: Event) => {
-    const btn = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
-    if (isComputing) return;
+  let needsRecompute = false;
+  const computeMatrix = async () => {
+    if (isComputing) {
+      needsRecompute = true;
+      return;
+    }
     isComputing = true;
-    if (btn) btn.loading = true;
+    needsRecompute = false;
 
     console.log("🚀 [Clash Matrix] Computation started...");
     updateUI("Computing matrix... Please wait.");
@@ -77,19 +81,39 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
       }
       console.log(`✅ [Clash Matrix] Reverse map built for ${reverseMap.size} models.`);
 
-      // GUID를 받아 Category 문자열을 반환하는 헬퍼 함수
-      const getCategoryFromGuid = async (guid: string): Promise<string> => {
-        if (!guid) return "Unknown";
+      // GUID를 받아 Category 문자열과 해당 모델의 ModelIdMap을 함께 반환하는 헬퍼 함수
+      const getCategoryInfoFromGuid = async (guid: string): Promise<{ category: string, modelIdMap: OBC.ModelIdMap }> => {
+        if (!guid) return { category: "Unknown", modelIdMap: {} };
         const idMap = await fragments.guidsToModelIdMap([guid]);
+        let category = "Unknown";
         if (idMap && Object.keys(idMap).length > 0) {
           for (const [modelId, expressIds] of Object.entries(idMap)) {
             if (expressIds.size > 0) {
               const expId = Array.from(expressIds)[0];
-              return reverseMap.get(modelId)?.get(expId) || "Unknown";
+              category = reverseMap.get(modelId)?.get(expId) || "Unknown";
+              break;
             }
           }
         }
-        return "Unknown";
+        return { category, modelIdMap: idMap || {} };
+      };
+
+      // 각 카테고리 셀(쌍)에 포함된 객체들의 ModelIdMap을 누적하기 위한 맵
+      const clashItemsMap: Record<string, Record<string, OBC.ModelIdMap>> = {};
+
+      // 셀 클릭 시 해당 간섭 객체들을 선택(Highlight)하고 카메라를 FitToZoom 하는 함수
+      const onCellClick = async (c1: string, c2: string) => {
+        const items = clashItemsMap[c1]?.[c2];
+        if (!items || OBC.ModelIdMapUtils.isEmpty(items)) return;
+
+        await highlighter.clear("select");
+        await highlighter.highlightByID("select", items);
+
+        const worlds = components.get(OBC.Worlds);
+        const world = worlds.list.values().next().value;
+        if (world && world.camera instanceof OBC.SimpleCamera) {
+          await world.camera.fitToItems(items);
+        }
       };
 
       // 3. 토픽 순회 및 Clash Matrix 집계
@@ -118,8 +142,10 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
 
         if (guid1 && guid2) {
           validClashCount++;
-          let cat1 = await getCategoryFromGuid(guid1);
-          let cat2 = await getCategoryFromGuid(guid2);
+          let info1 = await getCategoryInfoFromGuid(guid1);
+          let info2 = await getCategoryInfoFromGuid(guid2);
+          let cat1 = info1.category;
+          let cat2 = info2.category;
 
           // 대칭성 및 중복 방지를 위해 알파벳 순 정렬 (A vs B 나 B vs A 나 같음)
           if (cat1 > cat2) [cat1, cat2] = [cat2, cat1];
@@ -129,6 +155,11 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
 
           if (!clashMatrix[cat1]) clashMatrix[cat1] = {};
           clashMatrix[cat1][cat2] = (clashMatrix[cat1][cat2] || 0) + 1;
+          
+          if (!clashItemsMap[cat1]) clashItemsMap[cat1] = {};
+          if (!clashItemsMap[cat1][cat2]) clashItemsMap[cat1][cat2] = {};
+          if (info1.modelIdMap) OBC.ModelIdMapUtils.add(clashItemsMap[cat1][cat2], info1.modelIdMap);
+          if (info2.modelIdMap) OBC.ModelIdMapUtils.add(clashItemsMap[cat1][cat2], info2.modelIdMap);
         }
       }
 
@@ -154,14 +185,25 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
       };
 
       for (const colCat of sortedCats) {
-        dataTransform[colCat] = (value: any) => {
+        dataTransform[colCat] = (value: any, row: any) => {
+          const rowCat = row.Category;
+          const c1 = rowCat < colCat ? rowCat : colCat;
+          const c2 = rowCat < colCat ? colCat : rowCat;
+          
           const count = value as number;
-          const intensity = count > 0 ? Math.min(count * 0.1, 0.8) : 0;
-          const bgColor = count > 0 ? `rgba(255, 60, 60, ${intensity})` : 'transparent';
-          const color = count > 0 ? 'var(--bim-ui_main-contrast)' : 'var(--bim-ui_gray-5)';
+          
+          // 12구간 스케일: 0 (step 0), 1~10 (step 1), 11~20 (step 2), ... 101 이상 (step 11)
+          const step = count === 0 ? 0 : Math.min(Math.floor((count - 1) / 10) + 1, 11);
+          const hue = 120 - Math.floor((step * 120) / 11); 
+          const bgColor = `hsl(${hue}, 65%, 45%)`;
+          const color = '#ffffff';
+          const cursor = count > 0 ? 'pointer' : 'default';
           
           return BUI.html`
-            <div style="display: flex; width: 100%; height: 100%; min-height: 1.5rem; align-items: center; justify-content: center; background-color: ${bgColor}; color: ${color}; font-size: 0.75rem; font-weight: normal; border-radius: 4px;">
+            <div 
+              @click=${() => { if (count > 0) onCellClick(c1, c2); }}
+              style="display: flex; width: 100%; height: 100%; min-height: 1.5rem; align-items: center; justify-content: center; background-color: ${bgColor}; color: ${color}; font-size: 0.75rem; font-weight: bold; border-radius: 2px; cursor: ${cursor}; transition: filter 0.2s;"
+              onmouseover="this.style.filter='brightness(1.2)'" onmouseout="this.style.filter='brightness(1)'">
               ${count > 0 ? count : '-'}
             </div>
           `;
@@ -189,20 +231,33 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
       updateUI("Error computing matrix. Check console.");
     } finally {
       isComputing = false;
-      if (btn) btn.loading = false;
       console.log("🏁 [Clash Matrix] Computation finished.");
+      if (needsRecompute) {
+        debouncedComputeMatrix();
+      }
     }
   };
 
+  let computeTimeout: ReturnType<typeof setTimeout>;
+  const debouncedComputeMatrix = () => {
+    if (computeTimeout) clearTimeout(computeTimeout);
+    computeTimeout = setTimeout(() => {
+      computeMatrix();
+    }, 500);
+  };
+
+  bcfTopics.onRefresh.add(debouncedComputeMatrix);
+  bcfTopics.list.onItemSet.add(debouncedComputeMatrix);
+  bcfTopics.list.onItemUpdated.add(debouncedComputeMatrix);
+  bcfTopics.list.onItemDeleted.add(debouncedComputeMatrix);
+
+  // 컴포넌트 렌더링 시 초기 1회 실행
+  debouncedComputeMatrix();
+
   return BUI.html`
-    <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <bim-button label="Compute Clash Matrix" @click=${computeMatrix} icon=${appIcons.PLAY}></bim-button>
-      </div>
-      <div style="width: 100%; overflow-x: auto; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0.5rem;">
-        ${statusLabel}
-        ${table}
-      </div>
+    <div style="width: 100%; overflow-x: auto; padding: 0.5rem; box-sizing: border-box;">
+      ${statusLabel}
+      ${table}
     </div>
   `;
 };

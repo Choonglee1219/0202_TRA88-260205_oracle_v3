@@ -131,7 +131,15 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
                       style="flex: 0;" icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${file.models.join(", ")}>
                     </bim-button>
                     <bim-button 
-                      style="flex: 0;" @click=${() => loadBCF(file.id)} icon=${appIcons.IMPORT} tooltip-title="Load Topics">
+                      style="flex: 0;" @click=${async (e: Event) => {
+                        const btn = e.target as BUI.Button;
+                        btn.loading = true;
+                        try {
+                          await loadBCF(file.id);
+                        } finally {
+                          btn.loading = false;
+                        }
+                      }} icon=${appIcons.IMPORT} tooltip-title="Load Topics">
                     </bim-button>
                     <bim-button 
                       style="flex: 0;" @click=${(e: Event) => toggleClashMap(file.id, e.target as BUI.Button)} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map">
