@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { BCFTopics, newTopic, updateTopic } from "../../bim-components/BCFTopics";
-import { topicsList } from "../../ui-components/TopicsList";
+import { topicsList, clashMatrix } from "../../ui-components/TopicsList";
 import { appIcons } from "../../globals";
 
 export interface TopicListState {
@@ -14,6 +14,11 @@ export const topicListTemplate: BUI.StatefullComponent<
   const { components } = state;
   const bcfTopics = components.get(BCFTopics);
   const [table] = topicsList({ components });
+  
+  const [matrixPanel] = clashMatrix({ components });
+  matrixPanel.label = "Clash Matrix";
+  matrixPanel.icon = appIcons.CLASH;
+
   const newTopicModal = newTopic(components);
   const updateTopicModal = updateTopic(bcfTopics);
 
@@ -206,6 +211,7 @@ export const topicListTemplate: BUI.StatefullComponent<
         <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
       </div>
       ${table}
+      ${matrixPanel}
     </bim-panel-section>
   `;
 };

@@ -3,3 +3,4 @@ export * from "./types";
 export * from "./styles";
 export * from "./form-template";
 export * from "./author-tag";
+export * from "./clash-matrix";

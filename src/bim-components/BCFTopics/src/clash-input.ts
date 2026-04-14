@@ -415,6 +415,8 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
               const topic = bcfTopicsComponent.list.get(clash.clash_guid);
               if (topic) {
                 (topic as any).clashPoint = clash.clash_point;
+                (topic as any).guid1 = clash.guid1; 
+                (topic as any).guid2 = clash.guid2;
               }
             }
           }
