@@ -241,13 +241,13 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
     await processProperties(target, "delete", "성공적으로 프로퍼티가 삭제되고 모델이 리로드되었습니다.");
   };
 
-  const onSaveToDB = async ({ target }: { target: BUI.Button }) => {
+  const getTargetAndFileName = (actionName: string) => {
     const currentSelection = highlighter.selection.select;
     const modelIds = Object.keys(currentSelection);
 
     if (modelIds.length === 0) {
-      alert("3D 뷰어에서 저장할 모델의 객체를 선택해주세요.");
-      return;
+      alert(`3D 뷰어에서 ${actionName}할 모델의 객체를 선택해주세요.`);
+      return null;
     }
 
     const targetModelId = modelIds[0];
@@ -255,13 +255,13 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
     
     if (!targetModel) {
       alert("선택된 객체의 모델을 찾을 수 없습니다.");
-      return;
+      return null;
     }
 
     const modifiedBuffer = modifiedBufferCache.get(targetModelId);
     if (!modifiedBuffer) {
       alert("적용된 프로퍼티 변경 사항이 없습니다. 먼저 'Apply Properties'를 실행해주세요.");
-      return;
+      return null;
     }
 
     let defaultName = (targetModel as any).name || "model";
@@ -270,11 +270,55 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       defaultName += "_prop";
     }
 
-    const userInput = prompt("저장할 파일 이름을 입력하세요 (확장자 제외):", defaultName);
+    const userInput = prompt(`${actionName}할 파일 이름을 입력하세요 (확장자 제외):`, defaultName);
     if (userInput === null || userInput.trim() === "") {
-      return;
+      return null;
     }
     const baseName = userInput.trim();
+
+    return { targetModel, modifiedBuffer, baseName };
+  };
+
+  const onDownload = async ({ target }: { target: BUI.Button }) => {
+    const data = getTargetAndFileName("다운로드");
+    if (!data) return;
+    const { targetModel, modifiedBuffer, baseName } = data;
+
+    target.loading = true;
+
+    try {
+      const ifcBlob = new Blob([modifiedBuffer as any], { type: "application/octet-stream" });
+      const ifcUrl = URL.createObjectURL(ifcBlob);
+      const ifcA = document.createElement("a");
+      ifcA.href = ifcUrl;
+      ifcA.download = `${baseName}.ifc`;
+      document.body.appendChild(ifcA);
+      ifcA.click();
+      document.body.removeChild(ifcA);
+      URL.revokeObjectURL(ifcUrl);
+
+      const fragData = await (targetModel as any).getBuffer(false);
+      const fragBlob = new Blob([fragData as any], { type: "application/octet-stream" });
+      const fragUrl = URL.createObjectURL(fragBlob);
+      const fragA = document.createElement("a");
+      fragA.href = fragUrl;
+      fragA.download = `${baseName}.frag`;
+      document.body.appendChild(fragA);
+      fragA.click();
+      document.body.removeChild(fragA);
+      URL.revokeObjectURL(fragUrl);
+    } catch (err) {
+      console.error("Error downloading files:", err);
+      alert("다운로드 중 오류가 발생했습니다.");
+    } finally {
+      target.loading = false;
+    }
+  };
+
+  const onSaveToDB = async ({ target }: { target: BUI.Button }) => {
+    const data = getTargetAndFileName("저장");
+    if (!data) return;
+    const { targetModel, modifiedBuffer, baseName } = data;
 
     target.loading = true;
 
@@ -308,6 +352,7 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
         <bim-button label="Apply Properties" @click=${onApply} icon=${appIcons.ADD} style="flex: 1;"></bim-button>
         <bim-button label="Delete Properties" @click=${onDelete} icon=${appIcons.DELETE} style="flex: 1;"></bim-button>
+        <bim-button label="Download" @click=${onDownload} icon=${appIcons.DOWNLOAD} style="flex: 1;"></bim-button>
         <bim-button label="Save to DB" @click=${onSaveToDB} icon=${appIcons.SAVE} style="flex: 1;"></bim-button>
       </div>
     </bim-panel-section>
