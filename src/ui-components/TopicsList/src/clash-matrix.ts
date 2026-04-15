@@ -5,6 +5,7 @@ import { Highlighter } from "../../../bim-components/Highlighter";
 
 export interface ClashMatrixState {
   components: OBC.Components;
+  onCellClicked?: (topicGuids: Set<string> | null) => void;
 }
 
 export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (state) => {
@@ -37,6 +38,41 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
     }
   };
 
+  let clashItemsMap: Record<string, Record<string, OBC.ModelIdMap>> = {};
+  let clashTopicsMap: Record<string, Record<string, Set<string>>> = {};
+  let tableData: any[] = [];
+  let selectedCell: { c1: string, c2: string } | null = null;
+
+  const onCellClick = async (c1: string, c2: string) => {
+    // 같은 셀을 다시 클릭하면 선택 해제
+    if (selectedCell && selectedCell.c1 === c1 && selectedCell.c2 === c2) {
+      selectedCell = null;
+      table.data = [...tableData];
+      await highlighter.clear("select");
+      if (state.onCellClicked) state.onCellClicked(null);
+      return;
+    }
+
+    selectedCell = { c1, c2 };
+    table.data = [...tableData];
+
+    const items = clashItemsMap[c1]?.[c2];
+    if (items && !OBC.ModelIdMapUtils.isEmpty(items)) {
+      await highlighter.clear("select");
+      await highlighter.highlightByID("select", items);
+
+      const worlds = components.get(OBC.Worlds);
+      const world = worlds.list.values().next().value;
+      if (world && world.camera instanceof OBC.SimpleCamera) {
+        await world.camera.fitToItems(items);
+      }
+    }
+
+    if (state.onCellClicked) {
+      state.onCellClicked(clashTopicsMap[c1]?.[c2] || null);
+    }
+  };
+
   let needsRecompute = false;
   const computeMatrix = async () => {
     if (isComputing) {
@@ -45,6 +81,8 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
     }
     isComputing = true;
     needsRecompute = false;
+
+    const previousSelectedCell = selectedCell;
 
     console.log("🚀 [Clash Matrix] Computation started...");
     updateUI("Computing matrix... Please wait.");
@@ -98,23 +136,8 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
         return { category, modelIdMap: idMap || {} };
       };
 
-      // 각 카테고리 셀(쌍)에 포함된 객체들의 ModelIdMap을 누적하기 위한 맵
-      const clashItemsMap: Record<string, Record<string, OBC.ModelIdMap>> = {};
-
-      // 셀 클릭 시 해당 간섭 객체들을 선택(Highlight)하고 카메라를 FitToZoom 하는 함수
-      const onCellClick = async (c1: string, c2: string) => {
-        const items = clashItemsMap[c1]?.[c2];
-        if (!items || OBC.ModelIdMapUtils.isEmpty(items)) return;
-
-        await highlighter.clear("select");
-        await highlighter.highlightByID("select", items);
-
-        const worlds = components.get(OBC.Worlds);
-        const world = worlds.list.values().next().value;
-        if (world && world.camera instanceof OBC.SimpleCamera) {
-          await world.camera.fitToItems(items);
-        }
-      };
+      clashItemsMap = {};
+      clashTopicsMap = {};
 
       // 3. 토픽 순회 및 Clash Matrix 집계
       console.log(`⏳ [Clash Matrix] Iterating over ${bcfTopics.list.size} topics...`);
@@ -160,6 +183,10 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
           if (!clashItemsMap[cat1][cat2]) clashItemsMap[cat1][cat2] = {};
           if (info1.modelIdMap) OBC.ModelIdMapUtils.add(clashItemsMap[cat1][cat2], info1.modelIdMap);
           if (info2.modelIdMap) OBC.ModelIdMapUtils.add(clashItemsMap[cat1][cat2], info2.modelIdMap);
+          
+          if (!clashTopicsMap[cat1]) clashTopicsMap[cat1] = {};
+          if (!clashTopicsMap[cat1][cat2]) clashTopicsMap[cat1][cat2] = new Set();
+          clashTopicsMap[cat1][cat2].add(topic.guid);
         }
       }
 
@@ -194,16 +221,19 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
           
           // 12구간 스케일: 0 (step 0), 1~10 (step 1), 11~20 (step 2), ... 101 이상 (step 11)
           const step = count === 0 ? 0 : Math.min(Math.floor((count - 1) / 10) + 1, 11);
-          const hue = 120 - Math.floor((step * 120) / 11); 
-          const bgColor = `hsl(${hue}, 65%, 45%)`;
-          const color = '#ffffff';
+          const lightness = 80 - (step * 5);
+          const bgColor = `hsl(6, 65%, ${lightness}%)`;
+          const color = lightness > 60 ? '#333333' : '#ffffff';
           const cursor = count > 0 ? 'pointer' : 'default';
+          
+          const isSelected = selectedCell?.c1 === c1 && selectedCell?.c2 === c2;
+          const border = isSelected ? `3px solid #ffffff` : "3px solid transparent";
           
           return BUI.html`
             <div 
               @click=${() => { if (count > 0) onCellClick(c1, c2); }}
-              style="display: flex; width: 100%; height: 100%; min-height: 1.5rem; align-items: center; justify-content: center; background-color: ${bgColor}; color: ${color}; font-size: 0.75rem; font-weight: bold; border-radius: 2px; cursor: ${cursor}; transition: filter 0.2s;"
-              onmouseover="this.style.filter='brightness(1.2)'" onmouseout="this.style.filter='brightness(1)'">
+              style="display: flex; width: 100%; height: 100%; min-height: 1.5rem; align-items: center; justify-content: center; background-color: ${bgColor}; color: ${color}; font-size: 0.75rem; font-weight: bold; border-radius: 2px; cursor: ${cursor}; border: ${border}; transition: filter 0.2s, border 0.2s; box-sizing: border-box;"
+              onmouseover="this.style.filter='brightness(1.2)'" onmouseout="this.style.filter='none'">
               ${count > 0 ? count : '-'}
             </div>
           `;
@@ -213,7 +243,7 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
       table.dataTransform = dataTransform;
 
       // 6. 데이터 채우기
-      const tableData = sortedCats.map(rowCat => {
+      tableData = sortedCats.map(rowCat => {
         const row: any = { Category: rowCat };
         for (const colCat of sortedCats) {
           const c1 = rowCat < colCat ? rowCat : colCat;
@@ -224,6 +254,25 @@ export const clashMatrixTemplate: BUI.StatefullComponent<ClashMatrixState> = (st
       });
 
       table.data = tableData;
+
+      // 자동 재계산(Re-compute) 발생 시 기존 선택 상태 복원 지원
+      if (previousSelectedCell) {
+        const guids = clashTopicsMap[previousSelectedCell.c1]?.[previousSelectedCell.c2];
+        if (guids && guids.size > 0) {
+          selectedCell = previousSelectedCell;
+          if (state.onCellClicked) state.onCellClicked(guids);
+          const items = clashItemsMap[selectedCell.c1]?.[selectedCell.c2];
+          if (items && !OBC.ModelIdMapUtils.isEmpty(items)) {
+            await highlighter.clear("select");
+            await highlighter.highlightByID("select", items);
+          }
+        } else {
+          selectedCell = null;
+          if (state.onCellClicked) state.onCellClicked(null);
+          await highlighter.clear("select");
+        }
+      }
+
       updateUI(null); // 상태 숨기고 테이블 표시
 
     } catch (error) {

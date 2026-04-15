@@ -13,9 +13,19 @@ export const topicListTemplate: BUI.StatefullComponent<
 > = (state) => {
   const { components } = state;
   const bcfTopics = components.get(BCFTopics);
-  const [topicListTable] = topicsList({ components });
+  const [topicListTable, updateTopicListTable] = topicsList({ components });
   
-  const [matrixPanel] = clashMatrix({ components });
+  const [matrixPanel] = clashMatrix({ 
+    components,
+    onCellClicked: (topicGuids) => {
+      if (topicGuids) {
+        const filteredTopics = Array.from(bcfTopics.list.values()).filter(t => topicGuids.has(t.guid));
+        updateTopicListTable({ topics: filteredTopics });
+      } else {
+        updateTopicListTable({ topics: undefined }); // 필터 해제 시 전체 토픽으로 복구
+      }
+    }
+  });
   matrixPanel.label = ""; // 커스텀 토글 UI를 사용하기 위해 기존 속성 제거
   matrixPanel.style.minWidth = "0"; // 부모 영역을 벗어나지 않도록 설정
   matrixPanel.style.width = "100%";
@@ -224,7 +234,7 @@ export const topicListTemplate: BUI.StatefullComponent<
       })}
       fixed icon=${appIcons.TASK} label="Topic List">
       
-      <div style="display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem; overflow-y: auto; overflow-x: hidden; padding-right: 0.25rem;">
+      <div style="display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem; overflow: hidden;">
         
         <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
           <div style="display: flex; gap: 0.25rem; flex: 1;">
@@ -239,7 +249,7 @@ export const topicListTemplate: BUI.StatefullComponent<
           <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
         </div>
 
-        <div style="flex: 1; display: flex; flex-direction: column; min-height: 15rem; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden; min-width: 0;">
+        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden; min-width: 0;">
           ${topicListTable}
         </div>
 
