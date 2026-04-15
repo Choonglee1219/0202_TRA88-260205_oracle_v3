@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { appIcons } from "../../globals";
+import { appIcons, onToggleSection } from "../../globals";
 import { SharedIFC } from '../../bim-components/SharedIFC';
 import { SharedFRAG } from '../../bim-components/SharedFRAG';
 import { BCFTopics } from "../../bim-components/BCFTopics";
@@ -35,23 +35,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   let activeGroupFilter: string | null = null;
   let sharedModelLabel: BUI.Label;
   let loadedModelLabel: BUI.Label;
-
-  const onToggleSection = (e: Event) => {
-    const header = e.currentTarget as HTMLElement;
-    const wrapper = header.parentElement as HTMLElement;
-    const content = header.nextElementSibling as HTMLElement;
-    const icon = header.querySelector(".toggle-icon") as any;
-    
-    if (content.style.display === "none") {
-      content.style.display = "flex";
-      icon.icon = appIcons.MINOR;
-      if (wrapper.dataset.flex === "true") wrapper.style.flex = "1";
-    } else {
-      content.style.display = "none";
-      icon.icon = appIcons.RIGHT;
-      if (wrapper.dataset.flex === "true") wrapper.style.flex = "none";
-    }
-  };
 
   // 그룹별 아이템 개수를 계산하는 함수
   const getGroupCounts = () => {

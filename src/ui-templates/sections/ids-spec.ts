@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
-import { appIcons } from "../../globals";
+import { appIcons, onToggleSection } from "../../globals";
 import { setModelTransparent, restoreModelMaterials } from "../toolbars/viewer-toolbar";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { IDSSpecDefinition, predefinedSpecs } from "../../setup/specs";
@@ -452,23 +452,6 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
     a.download = "ids_check_results.csv";
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const onToggleSection = (e: Event) => {
-    const header = e.currentTarget as HTMLElement;
-    const wrapper = header.parentElement as HTMLElement;
-    const content = header.nextElementSibling as HTMLElement;
-    const icon = header.querySelector(".toggle-icon") as any;
-    
-    if (content.style.display === "none") {
-      content.style.display = "flex";
-      icon.icon = appIcons.MINOR;
-      if (wrapper.dataset.flex === "true") wrapper.style.flex = "1";
-    } else {
-      content.style.display = "none";
-      icon.icon = appIcons.RIGHT;
-      if (wrapper.dataset.flex === "true") wrapper.style.flex = "none";
-    }
   };
 
   return BUI.html`

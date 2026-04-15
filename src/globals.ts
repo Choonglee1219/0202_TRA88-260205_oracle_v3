@@ -55,6 +55,23 @@ export const appIcons = {
   IDS_CHECK: "/icons/mdi--check-bold.svg",
 };
 
+export const onToggleSection = (e: Event) => {
+  const header = e.currentTarget as HTMLElement;
+  const wrapper = header.parentElement as HTMLElement;
+  const content = header.nextElementSibling as HTMLElement;
+  const icon = header.querySelector(".toggle-icon") as any;
+  
+  if (content.style.display === "none") {
+    content.style.display = "flex";
+    icon.icon = appIcons.MINOR;
+    if (wrapper.dataset.flex === "true") wrapper.style.flex = "1";
+  } else {
+    content.style.display = "none";
+    icon.icon = appIcons.RIGHT;
+    if (wrapper.dataset.flex === "true") wrapper.style.flex = "none";
+  }
+};
+
 export const tooltips = {
   FOCUS: {
     TITLE: "Items Focusing",

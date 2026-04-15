@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { BCFTopics, newTopic, updateTopic } from "../../bim-components/BCFTopics";
 import { topicsList, clashMatrix } from "../../ui-components/TopicsList";
-import { appIcons } from "../../globals";
+import { appIcons, onToggleSection } from "../../globals";
 
 export interface TopicListState {
   components: OBC.Components;
@@ -208,23 +208,6 @@ export const topicListTemplate: BUI.StatefullComponent<
       }
     }
   });
-
-  const onToggleSection = (e: Event) => {
-    const header = e.currentTarget as HTMLElement;
-    const wrapper = header.parentElement as HTMLElement;
-    const content = header.nextElementSibling as HTMLElement;
-    const icon = header.querySelector(".toggle-icon") as any;
-    
-    if (content.style.display === "none") {
-      content.style.display = "flex";
-      icon.icon = appIcons.MINOR;
-      if (wrapper.dataset.flex === "true") wrapper.style.flex = "1";
-    } else {
-      content.style.display = "none";
-      icon.icon = appIcons.RIGHT;
-      if (wrapper.dataset.flex === "true") wrapper.style.flex = "none";
-    }
-  };
 
   return BUI.html`
     <bim-panel-section
