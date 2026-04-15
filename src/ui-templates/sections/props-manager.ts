@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { appIcons } from "../../globals";
+import { appIcons, onToggleSection } from "../../globals";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { SharedIFC } from "../../bim-components/SharedIFC";
 import { SharedFRAG } from "../../bim-components/SharedFRAG";
@@ -24,7 +24,55 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
   const fragments = components.get(OBC.FragmentsManager);
   const highlighter = components.get(Highlighter);
   const sharedIFC = new SharedIFC();
+  const finder = components.get(OBC.ItemsFinder);
   const ifcLoader = components.get(OBC.IfcLoader);
+
+  // --- HELPER FUNCTIONS ---
+  const getActiveModel = () => {
+    const currentSelection = highlighter.selection.select;
+    const modelIds = Object.keys(currentSelection);
+    if (modelIds.length > 0) {
+      const model = fragments.list.get(modelIds[0]);
+      if (model) return { id: modelIds[0], model };
+    }
+    const firstKey = fragments.list.keys().next().value;
+    if (firstKey) {
+      const model = fragments.list.get(firstKey);
+      if (model) return { id: firstKey, model };
+    }
+    return null;
+  };
+
+  const executeCategoryQuery = async (queryPrefix: string, category: string) => {
+    const queryName = `${queryPrefix}_${category}`;
+    finder.create(queryName, [{ categories: [new RegExp(`^${category}$`, "i")] }]);
+    const fQuery = finder.list.get(queryName);
+    let results: OBC.ModelIdMap = {};
+    if (fQuery) {
+        results = await fQuery.test({ modelIds: [/.*/] });
+    }
+    finder.list.delete(queryName);
+    return results;
+  };
+
+  const extractValue = (attr: any): any => {
+    if (attr === null || attr === undefined) return null;
+    if (Array.isArray(attr)) return attr.length > 0 ? extractValue(attr[0]) : null;
+    if (typeof attr === "object" && "value" in attr) return attr.value;
+    return attr;
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+  // ------------------------
 
   // 모델 Dispose 시 로컬 캐시 메모리 청소 및 동기화 (앱 멈춤 및 메모리 누수 방지)
   if (!isCacheSyncRegistered) {
@@ -41,6 +89,88 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
   // 다중 Pset & Property 폼 상태
   const initialPsets: PsetDef[] = [{ name: "Custom_Pset", props: [{ name: "", value: "" }] }];
   
+  // Express ID 수동 입력을 위한 참조
+  let manualInput: BUI.TextInput;
+
+  // --- NEW ID FINDER LOGIC ---
+  let categoryDropdown: BUI.Dropdown;
+  let objectDropdown: BUI.Dropdown;
+
+  const targetCategories = ["IFCSITE", "IFCBUILDING", "IFCBUILDINGSTOREY", "IFCSPACE", "IFCSPATIALZONE", "IFCZONE", "IFCGROUP", "IFCELEMENTASSEMBLY"];
+
+  const onObjectSelectionChange = ({ target }: { target: BUI.Dropdown }) => {
+    const selectedIds = target.value;
+    if (manualInput) {
+        manualInput.value = selectedIds.join(", ");
+    }
+  };
+
+  const onCategoryChange = async ({ target }: { target: BUI.Dropdown }) => {
+    const selectedCategory = target.value[0];
+    if (objectDropdown) {
+        objectDropdown.value = [];
+        if ((objectDropdown as any).elements) (objectDropdown as any).elements.clear();
+        objectDropdown.replaceChildren();
+    }
+    if (manualInput) manualInput.value = "";
+
+    if (!selectedCategory) {
+        return;
+    }
+
+    const modelIdMap = await executeCategoryQuery("get", selectedCategory);
+    const options: HTMLElement[] = [];
+
+    for (const modelId in modelIdMap) {
+        const model = fragments.list.get(modelId);
+        if (!model) continue;
+        const ids = Array.from(modelIdMap[modelId]);
+        const itemsData = await model.getItemsData(ids, { 
+            attributesDefault: true,
+            relationsDefault: { attributes: false, relations: false }
+        });
+        
+        for (let i = 0; i < itemsData.length; i++) {
+            const item = itemsData[i];
+            const expressId = extractValue((item as any).expressID ?? (item as any).id ?? (item as any)._localId) ?? ids[i];
+            const nameVal = extractValue((item as any).Name);
+            const name = nameVal ? String(nameVal) : "Unnamed";
+            const option = document.createElement("bim-option") as BUI.Option;
+            option.value = String(expressId);
+            option.label = `${expressId}: ${name}`;
+            options.push(option);
+        }
+    }
+    if (objectDropdown) objectDropdown.replaceChildren(...options);
+  };
+
+  const updateCategories = async () => {
+    const availableCategories = new Set<string>();
+
+    for (const cat of targetCategories) {
+        const results = await executeCategoryQuery("check", cat);
+        for (const modelId in results) {
+            if (results[modelId].size > 0) {
+                availableCategories.add(cat);
+                break;
+            }
+        }
+    }
+
+    if (!categoryDropdown) return;
+
+    if ((categoryDropdown as any).elements) (categoryDropdown as any).elements.clear();
+    const options: HTMLElement[] = [];
+    const sortedCategories = Array.from(availableCategories).sort();
+    for (const category of sortedCategories) {
+        const option = document.createElement("bim-option") as BUI.Option;
+        option.value = category;
+        option.label = category.replace(/^IFC/i, "");
+        options.push(option);
+    }
+    categoryDropdown.replaceChildren(...options);
+  };
+
   // 내부 UI 상태 관리를 위한 커스텀 컴포넌트 생성
   const [propsForm, updatePropsForm] = BUI.Component.create<BUI.PanelSection, { psets: PsetDef[] }>(
     (formState) => {
@@ -117,19 +247,38 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
     { psets: initialPsets }
   );
 
-  const processProperties = async (target: BUI.Button, action: string, successMsg: string) => {
-    const currentSelection = highlighter.selection.select;
-    const modelIds = Object.keys(currentSelection);
+  // 모델 로드/언로드 시 카테고리 목록 갱신
+  setTimeout(updateCategories, 500);
+  fragments.list.onItemSet.add(updateCategories);
+  fragments.list.onItemDeleted.add(updateCategories);
 
-    if (modelIds.length === 0) {
-      alert("3D 뷰어에서 프로퍼티를 처리할 객체를 먼저 선택해주세요.");
+  const processProperties = async (target: BUI.Button, action: string, successMsg: string) => {
+    const activeModel = getActiveModel();
+    if (!activeModel) {
+      alert("현재 로드된 모델이 없습니다.");
       return;
     }
 
-    // 단순화를 위해 첫 번째 선택된 모델만 타겟으로 함 (다중 모델 지원 시 로직 확장 필요)
-    const targetModelId = modelIds[0];
-    const targetModel = fragments.list.get(targetModelId);
-    const expressIds = Array.from(currentSelection[targetModelId]);
+    const targetModelId = activeModel.id;
+    const targetModel = activeModel.model;
+    let expressIds: number[] = [];
+
+    const manualIdsStr = manualInput?.value.trim();
+    if (manualIdsStr) {
+      expressIds = manualIdsStr.split(",").map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+      if (expressIds.length === 0) {
+        alert("유효한 Express ID를 입력해주세요 (숫자와 쉼표만 허용).");
+        return;
+      }
+    } else {
+      const currentSelection = highlighter.selection.select;
+      if (Object.keys(currentSelection).length === 0 || !currentSelection[targetModelId]) {
+        alert("3D 뷰어에서 객체를 선택하거나 적용할 Express ID를 직접 입력해주세요.");
+        return;
+      }
+      expressIds = Array.from(currentSelection[targetModelId]) as number[];
+    }
+
     const dbId = (targetModel as any)?.dbId;
 
     if (!targetModel || !dbId) {
@@ -242,16 +391,14 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
   };
 
   const getTargetAndFileName = (actionName: string) => {
-    const currentSelection = highlighter.selection.select;
-    const modelIds = Object.keys(currentSelection);
+    const activeModel = getActiveModel();
 
-    if (modelIds.length === 0) {
-      alert(`3D 뷰어에서 ${actionName}할 모델의 객체를 선택해주세요.`);
+    if (!activeModel) {
+      alert(`3D 뷰어에서 ${actionName}할 모델의 객체를 선택하거나 로드해주세요.`);
       return null;
     }
 
-    const targetModelId = modelIds[0];
-    const targetModel = fragments.list.get(targetModelId);
+    const { id: targetModelId, model: targetModel } = activeModel;
     
     if (!targetModel) {
       alert("선택된 객체의 모델을 찾을 수 없습니다.");
@@ -288,25 +435,11 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
 
     try {
       const ifcBlob = new Blob([modifiedBuffer as any], { type: "application/octet-stream" });
-      const ifcUrl = URL.createObjectURL(ifcBlob);
-      const ifcA = document.createElement("a");
-      ifcA.href = ifcUrl;
-      ifcA.download = `${baseName}.ifc`;
-      document.body.appendChild(ifcA);
-      ifcA.click();
-      document.body.removeChild(ifcA);
-      URL.revokeObjectURL(ifcUrl);
+      downloadBlob(ifcBlob, `${baseName}.ifc`);
 
       const fragData = await (targetModel as any).getBuffer(false);
       const fragBlob = new Blob([fragData as any], { type: "application/octet-stream" });
-      const fragUrl = URL.createObjectURL(fragBlob);
-      const fragA = document.createElement("a");
-      fragA.href = fragUrl;
-      fragA.download = `${baseName}.frag`;
-      document.body.appendChild(fragA);
-      fragA.click();
-      document.body.removeChild(fragA);
-      URL.revokeObjectURL(fragUrl);
+      downloadBlob(fragBlob, `${baseName}.frag`);
     } catch (err) {
       console.error("Error downloading files:", err);
       alert("다운로드 중 오류가 발생했습니다.");
@@ -347,13 +480,49 @@ export const globalPropsPanelTemplate: BUI.StatefullComponent<
   };
 
   return BUI.html`
-    <bim-panel-section label="Properties Manager" icon=${appIcons.EDIT} >
+    <bim-panel-section label="Properties Manager" icon=${appIcons.EDIT} style="gap: 1rem;">
+      
+      <!-- Property Sets Block -->
       ${propsForm}
-      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-        <bim-button label="Apply Properties" @click=${onApply} icon=${appIcons.ADD} style="flex: 1;"></bim-button>
-        <bim-button label="Delete Properties" @click=${onDelete} icon=${appIcons.DELETE} style="flex: 1;"></bim-button>
-        <bim-button label="Download" @click=${onDownload} icon=${appIcons.DOWNLOAD} style="flex: 1;"></bim-button>
-        <bim-button label="Save to DB" @click=${onSaveToDB} icon=${appIcons.SAVE} style="flex: 1;"></bim-button>
+      
+      <!-- Buttons Block -->
+      <div style="display: flex; gap: 0.5rem;">
+      <bim-button label="Apply Properties" @click=${onApply} icon=${appIcons.ADD} style="flex: 1;"></bim-button>
+      <bim-button label="Delete Properties" @click=${onDelete} icon=${appIcons.DELETE} style="flex: 1;"></bim-button>
+      <bim-button label="Download" @click=${onDownload} icon=${appIcons.DOWNLOAD} style="flex: 1;"></bim-button>
+      <bim-button label="Save to DB" @click=${onSaveToDB} icon=${appIcons.SAVE} style="flex: 1;"></bim-button>
+      </div>
+      
+      <!-- Invisible Category Finder Block -->
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0;">
+        <div @click=${onToggleSection} style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+          <bim-label style="font-weight: bold; pointer-events: none;">Invisible Category Finder</bim-label>
+          <bim-label class="toggle-icon" icon=${appIcons.RIGHT} style="pointer-events: none; --bim-icon--fz: 1.25rem;"></bim-label>
+        </div>
+        <div style="display: none; flex-direction: column; gap: 0.5rem;">
+          <div style="display: flex; gap: 0.5rem;">
+            <bim-dropdown
+              ${BUI.ref(el => categoryDropdown = el as BUI.Dropdown)}
+              @change=${onCategoryChange}
+              label="Select Invisible Category"
+              vertical
+              style="flex: 1;"
+            ></bim-dropdown>
+            <bim-dropdown
+              ${BUI.ref(el => objectDropdown = el as BUI.Dropdown)}
+              @change=${onObjectSelectionChange}
+              label="Select Objects"
+              multiple
+              vertical
+              style="flex: 1;"
+            ></bim-dropdown>
+          </div>
+          <bim-text-input 
+            ${BUI.ref((e) => { manualInput = e as BUI.TextInput; })}
+            placeholder="Selected IDs appear here. Or enter manually. (e.g. 123, 456)" 
+            vertical>
+          </bim-text-input>
+        </div>
       </div>
     </bim-panel-section>
   `;
