@@ -225,6 +225,8 @@ export const itemsDataTemplate = (_state: ItemsDataState) => {
     detail,
   }: CustomEvent<BUI.CellCreatedEventDetail>) => {
     const { cell } = detail;
+    cell.style.border = `1px solid var(--bim-ui_bg-contrast-20)`;
+    cell.style.padding = "4px 8px";
     const { Name, Value } = cell.rowData
     if (Name && Value === undefined) {
       setTimeout(() => {
@@ -238,7 +240,9 @@ export const itemsDataTemplate = (_state: ItemsDataState) => {
   ) => {
     e.stopImmediatePropagation();
     const { row } = e.detail;
-    
+    row.style.minHeight = "28px";
+    row.style.margin = "0";
+
     row.onclick = async () => {
       const { modelId, localId } = row.data;
       if (!modelId || localId === undefined) return;

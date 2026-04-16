@@ -79,6 +79,8 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
     detail,
   }: CustomEvent<BUI.CellCreatedEventDetail<SpatialTreeData>>) => {
     const { cell } = detail;
+    cell.style.border = `1px solid var(--bim-ui_bg-contrast-20)`;
+    cell.style.padding = "4px 8px";
     if (cell.column === "Name" && !cell.rowData.Name) {
       cell.style.gridColumn = "1 / -1";
     }
@@ -89,6 +91,9 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
   ) => {
     e.stopImmediatePropagation();
     const { row } = e.detail;
+    row.style.minHeight = "28px";
+    row.style.margin = "0";
+
     const highlighter = components.get(Highlighter);
     const fragments = components.get(OBC.FragmentsManager);
     row.onclick = async () => {
@@ -146,7 +151,7 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
   };
 
   return BUI.html`
-    <bim-table @rowcreated=${onRowCreated} @cellcreated=${onCellCreated} ${BUI.ref(onTableCreated)} headers-hidden>
+    <bim-table @rowcreated=${onRowCreated} @cellcreated=${onCellCreated} ${BUI.ref(onTableCreated)} headers-hidden style="gap: 0;">
       <bim-label slot="missing-data" style="--bim-icon--c: gold">
         ⚠️ No models available to display the spatial structure!
       </bim-label>

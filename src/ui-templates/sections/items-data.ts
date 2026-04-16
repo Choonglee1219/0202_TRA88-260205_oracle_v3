@@ -47,7 +47,7 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
 
   let searchInput: BUI.TextInput | undefined;
 
-  const search = (e: Event) => {
+  const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
     propsTable.queryString = input.value;
   };
@@ -83,7 +83,7 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
       }
     })} fixed id=${sectionId} icon=${appIcons.TASK} label="Selection Data (0)">
       <div style="display: flex; gap: 0.375rem;">
-        <bim-text-input ${BUI.ref((e) => { searchInput = e as BUI.TextInput; })} @input=${search} vertical placeholder="Search..." debounce="200"></bim-text-input>
+        <bim-text-input ${BUI.ref((e) => { searchInput = e as BUI.TextInput; })} @input=${onSearch} vertical placeholder="Search..." debounce="200"></bim-text-input>
         <bim-button style="flex: 0;" @click=${onClearSearch} icon=${appIcons.CLEAR} tooltip-title="Clear Search"></bim-button>
         <bim-button style="flex: 0;" @click=${toggleExpanded} icon=${appIcons.EXPAND} tooltip-title="Toggle Expanded"></bim-button>
         <bim-button style="flex: 0;" @click=${() => propsTable.downloadData("ElementData", "json")} icon=${appIcons.EXPORT} tooltip-title="Export Data" tooltip-text="Export the shown properties."></bim-button>
