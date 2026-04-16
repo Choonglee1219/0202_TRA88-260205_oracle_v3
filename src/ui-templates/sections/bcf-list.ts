@@ -16,10 +16,6 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
   const fragments = components.get(OBC.FragmentsManager);
   const bcfTopics = components.get(BCFTopics);
 
-  type BcfFileState = {
-    files: { id: number; name: string; models: string[] }[];
-  };
-
   const loadBCF = async (bcfId: number) => {
     const bcf = await sharedBCF.loadBCF(bcfId);
     if (bcf && bcf.content) {
@@ -114,61 +110,64 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
     }
   };
 
-  const creator: BUI.StatefullComponent<BcfFileState> = (state) => {
-    const { files } = state;
-    return BUI.html`
-      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-        ${files.length > 0
-          ? files.map(
-              (file) => BUI.html`
-                <div style="display: flex; gap: 0.375rem; align-items: center; width: 100%;">
-                  <bim-label 
-                    style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title=${file.name}>
-                    ${file.name}
-                  </bim-label>
-                  <div style="display: flex; gap: 0.25rem; flex-shrink: 0;">
-                    <bim-button
-                      style="flex: 0;" icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${file.models.join(", ")}>
-                    </bim-button>
-                    <bim-button 
-                      style="flex: 0;" @click=${async (e: Event) => {
-                        const btn = e.target as BUI.Button;
-                        btn.loading = true;
-                        try {
-                          await loadBCF(file.id);
-                        } finally {
-                          btn.loading = false;
-                        }
-                      }} icon=${appIcons.IMPORT} tooltip-title="Load Topics">
-                    </bim-button>
-                    <bim-button 
-                      style="flex: 0;" @click=${(e: Event) => toggleClashMap(file.id, e.target as BUI.Button)} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map">
-                    </bim-button>
-                    <bim-button 
-                      style="flex: 0;" @click=${() => downloadBCF(file.id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF">
-                    </bim-button>
-                    <bim-button 
-                      style="flex: 0;" @click=${() => deleteBCF(file.id)} icon=${appIcons.DELETE} tooltip-title="Delete BCF">
-                    </bim-button>
-                  </div>
-                </div>
-              `,
-            )
-          : BUI.html`<div style="color: var(--bim-ui_gray-6); font-size: 0.75rem;">⚠️ No related BCF files found</div>`}
-      </div>
-    `;
+  type BCFTableData = {
+    id: number;
+    Name: string;
+    models: string[];
+    [key: string]: any;
   };
 
-  const [bcfList, updateBcfList] = BUI.Component.create(creator, { files: [] });
+  const bcfTable = document.createElement("bim-table") as BUI.Table<BCFTableData>;
+  bcfTable.hiddenColumns = ["id", "models"];
+  bcfTable.headersHidden = true;
+  bcfTable.noIndentation = true;
+  bcfTable.noCarets = true;
+
+  bcfTable.dataTransform = {
+    Name: (value, rowData) => {
+      const name = value as string;
+      const { id, models } = rowData as BCFTableData;
+      return BUI.html`
+        <div style="display: flex; align-items: center; width: 100%; gap: 0.375rem; overflow: hidden; height: 1.5rem;">
+          <bim-label style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title=${name}>
+            ${name}
+          </bim-label>
+          <div style="display: flex; gap: 0.25rem; flex-shrink: 0;">
+            <bim-button style="flex: 0; margin: 0; padding: 0;" icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${models.join(", ")}></bim-button>
+            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${async (e: Event) => {
+              const btn = e.target as BUI.Button;
+              btn.loading = true;
+              try { await loadBCF(id); } finally { btn.loading = false; }
+            }} icon=${appIcons.IMPORT} tooltip-title="Load Topics"></bim-button>
+            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${(e: Event) => toggleClashMap(id, e.target as BUI.Button)} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map"></bim-button>
+            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${() => downloadBCF(id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF"></bim-button>
+            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${() => deleteBCF(id)} icon=${appIcons.DELETE} tooltip-title="Delete BCF"></bim-button>
+          </div>
+        </div>
+      `;
+    }
+  };
+
+  const missingDataLabel = document.createElement("bim-label");
+  missingDataLabel.textContent = "⚠️ No related BCF files found";
+  missingDataLabel.setAttribute("slot", "missing-data");
+  bcfTable.append(missingDataLabel);
 
   let allRelevantBCFs: { id: number; name: string; models: string[] }[] = [];
-  let currentFiles: { id: number; name: string; models: string[] }[] = [];
 
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
-    const value = input.value.toLowerCase();
-    currentFiles = allRelevantBCFs.filter(bcf => bcf.name.toLowerCase().includes(value));
-    updateBcfList({ files: currentFiles });
+    bcfTable.queryString = input.value;
+  };
+
+  const updateBCFTableData = () => {
+    bcfTable.data = allRelevantBCFs.map(file => ({
+      data: {
+        id: file.id,
+        Name: file.name,
+        models: file.models,
+      }
+    }));
   };
 
   const refreshSharedBCFList = async () => {
@@ -208,8 +207,7 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
     }
 
     allRelevantBCFs.sort((a, b) => a.name.localeCompare(b.name));
-    currentFiles = [...allRelevantBCFs];
-    updateBcfList({ files: currentFiles });
+    updateBCFTableData();
   };
 
   // 모델이 로드되거나 삭제될 때 목록 갱신
@@ -226,7 +224,9 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
         <bim-button style="flex: 0;" @click=${() => bcfTopics.openClashDetectionModal()} icon=${appIcons.CLASH} tooltip-title="Clash Detection"></bim-button>
         <bim-button style="flex: 0;" @click=${refreshSharedBCFList} icon=${appIcons.REFRESH} tooltip-title="Refresh"></bim-button>
       </div>
-      ${bcfList}
+      <div style="flex: 1; min-height: 0; overflow-y: auto;">
+        ${bcfTable}
+      </div>
     </bim-panel-section>
   `;
 };
