@@ -5,45 +5,37 @@ import { SpatialTreeItem } from "@thatopen/fragments";
 import { SpatialTreeState, SpatialTreeData } from "./types";
 import { Highlighter } from "../../../bim-components/Highlighter";
 
-const getModelTree = async (
+// 성능 최적화: 트리 생성 시 무거운 비동기 속성 조회(getAttributes)를 생략하고 즉시 뼈대만 구축합니다.
+const getModelTree = (
   model: FRAGS.FragmentsModel,
   structure: SpatialTreeItem,
   categoryPrefix: string = "",
-): Promise<BUI.TableGroupData<SpatialTreeData>[]> => {
+): BUI.TableGroupData<SpatialTreeData>[] => {
   const { localId, category, children } = structure;
 
   if (category && children) {
     const rows: BUI.TableGroupData<SpatialTreeData>[] = [];
     for (const child of children) {
-      const childRows = await getModelTree(model, child, category);
+      const childRows = getModelTree(model, child, category);
       rows.push(...childRows);
     }
     return rows;
   }
 
   if (localId !== undefined && localId !== null) {
-    const item = model.getItem(localId);
-    const attrs = await item.getAttributes();
-    let name = "Untitled";
-    if (attrs) {
-      const nameVal = attrs.getValue("Name");
-      if (nameVal) name = String(nameVal);
-    }
-
-    const content = categoryPrefix ? `${categoryPrefix}  ||  ${name}` : name;
-
     const row: BUI.TableGroupData<SpatialTreeData> = {
       data: {
-        Name: content,
+        Name: "Loading...", // 플레이스홀더 설정
         modelId: model.modelId,
         localId,
+        categoryPrefix, // 나중에 이름 조회 후 조합하기 위해 저장
       },
     };
 
     if (children && children.length > 0) {
       row.children = [];
       for (const child of children) {
-        const childRows = await getModelTree(model, child);
+        const childRows = getModelTree(model, child);
         row.children.push(...childRows);
       }
     }
@@ -56,7 +48,7 @@ const computeRowData = async (models: Iterable<FRAGS.FragmentsModel>) => {
   const rows: BUI.TableGroupData[] = [];
   for (const model of models) {
     const structure = await model.getSpatialStructure();
-    const tree = await getModelTree(model, structure);
+    const tree = getModelTree(model, structure);
     if (tree.length === 0) continue;
     const modelData: BUI.TableGroupData<SpatialTreeData> = {
       data: {
@@ -79,10 +71,51 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
     detail,
   }: CustomEvent<BUI.CellCreatedEventDetail<SpatialTreeData>>) => {
     const { cell } = detail;
+    const rowData = cell.rowData;
     cell.style.border = `1px solid var(--bim-ui_bg-contrast-20)`;
     cell.style.padding = "4px 8px";
     if (cell.column === "Name" && !cell.rowData.Name) {
       cell.style.gridColumn = "1 / -1";
+    }
+
+    // --- Lazy Loading (지연 로딩) 로직 ---
+    // 테이블 가상화(Virtualization) 기능에 의해 이 이벤트는 화면에 셀이 렌더링될 때만 실행됩니다.
+    if (cell.column === "Name" && rowData.localId !== undefined && rowData.Name === "Loading...") {
+      const fragments = components.get(OBC.FragmentsManager);
+      const model = fragments.list.get(rowData.modelId as string);
+      if (model) {
+        rowData.Name = "Fetching..."; // 중복 요청 방지
+        cell.style.color = "var(--bim-ui_gray-10)";
+        cell.style.fontStyle = "italic";
+
+        (async () => {
+          try {
+            const item = model.getItem(rowData.localId!);
+            const attrs = await item.getAttributes();
+            let name = "Untitled";
+            if (attrs) {
+              const nameVal = attrs.getValue("Name");
+              if (nameVal) name = String(nameVal);
+            }
+
+            const content = rowData.categoryPrefix ? `${rowData.categoryPrefix}  ||  ${name}` : name;
+            rowData.Name = content; // 검색 및 정렬을 위해 원본 데이터 업데이트
+
+            // 가상 스크롤에 의해 셀이 재사용되지 않았는지 확인 후 렌더링
+            if (cell.rowData === rowData) {
+              cell.textContent = content;
+              cell.style.color = "";
+              cell.style.fontStyle = "";
+            }
+          } catch (e) {}
+        })();
+      }
+    } else if (cell.column === "Name") {
+      // 스크롤 시 재사용된 셀의 스타일 원복
+      if (rowData.Name !== "Fetching...") {
+        cell.style.color = "";
+        cell.style.fontStyle = "";
+      }
     }
   };
 

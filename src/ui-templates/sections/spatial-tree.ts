@@ -32,8 +32,13 @@ export const spatialTreePanelTemplate: BUI.StatefullComponent<
     spatialTreeTable.queryString = null;
   };
 
-  const toggleExpanded = () => {
+  const toggleExpanded = async (e: Event) => {
+    const btn = e.currentTarget as BUI.Button;
+    btn.loading = true;
+    
+    await new Promise((resolve) => setTimeout(resolve, 50));
     spatialTreeTable.expanded = !spatialTreeTable.expanded;
+    btn.loading = false;
   };
 
   const onSearchSelection = async (e: Event) => {
