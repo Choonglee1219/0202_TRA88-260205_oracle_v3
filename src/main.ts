@@ -428,7 +428,8 @@ const contentGridIcons: Record<TEMPLATES.ContentGridLayouts[number], string> = {
   Properties: appIcons.EDIT,
   FullScreen: appIcons.FULL_SCREEN,
   ViewPoints: appIcons.CAMERA,
-  "IDS Check": appIcons.IDS_CHECK,
+  IDSCheck: appIcons.IDS_CHECK,
+  QuantityTable: appIcons.TABLE,
 };
 
 // 🏁App Grid Setup

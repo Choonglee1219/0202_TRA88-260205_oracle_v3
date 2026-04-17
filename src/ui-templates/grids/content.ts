@@ -65,6 +65,11 @@ type Dashboard = {
   state: TEMPLATES.DashboardPanelState;
 };
 
+type QuantityTable = {
+  name: "quantityTable";
+  state: TEMPLATES.QuantityTablePanelState;
+};
+
 export type ContentGridElements = [
   Viewer,
   IFCList,
@@ -78,9 +83,10 @@ export type ContentGridElements = [
   Dashboard,
   ViewPoints,
   IDSSpecs,
+  QuantityTable,
 ];
 
-export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "ViewPoints", "IDS Check", "FullScreen"];
+export type ContentGridLayouts = ["Viewer", "BCFManager", "Queries", "Properties", "ViewPoints", "IDSCheck", "FullScreen", "QuantityTable"];
 
 export interface ContentGridState {
   components: OBC.Components;
@@ -147,6 +153,10 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.dashboardPanelTemplate,
         initialState: { components },
       },
+      quantityTable: {
+        template: TEMPLATES.quantityTablePanelTemplate,
+        initialState: { components },
+      },
       viewer: state.viewportTemplate,
     };
 
@@ -173,7 +183,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
           / var(--left-col-width) 1fr var(--right-col-width)
         `,
       },
-      "IDS Check": {
+      IDSCheck: {
         template: `
           "idsSpecs viewer elementData" 1fr
           / var(--left-col-width) 1fr var(--right-col-width)
@@ -191,6 +201,14 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
           "viewPoints viewer" var(--top-row-height, auto)
           "viewPoints viewer" 1fr
           / var(--half-col-width, 1fr) 1fr
+        `,
+      },
+      QuantityTable: {
+        template: `
+          "viewer quantityTable quantityTable" var(--top-row-height, 1fr)
+          "elementData quantityTable quantityTable" 1fr
+          "elementData quantityTable quantityTable" var(--bottom-row-height, auto)
+          / var(--left-col-width) 1fr var(--right-col-width)
         `,
       },
       FullScreen: {

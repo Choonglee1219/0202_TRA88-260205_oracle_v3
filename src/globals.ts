@@ -53,6 +53,7 @@ export const appIcons = {
   MAP: "/icons/mdi--map-marker-radius.svg",
   PLAY: "/icons/mdi--play.svg",
   IDS_CHECK: "/icons/mdi--check-bold.svg",
+  TABLE: "/icons/mdi--table-filter.svg",
 };
 
 export const onToggleSection = (e: Event) => {

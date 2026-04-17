@@ -2,7 +2,6 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
 import { itemsData } from "../../ui-components/ItemsData";
-import { quantityChartModal } from "../../bim-components/QuantityChart";
 import { Highlighter } from "../../bim-components/Highlighter";
 
 export interface ItemsDataPanelState {
@@ -13,8 +12,6 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
   ItemsDataPanelState
 > = (state) => {
   const { components } = state;
-
-  const chartModal = quantityChartModal();
 
   const highlighter = components.get(Highlighter);
 
@@ -64,11 +61,6 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
 
   const sectionId = BUI.Manager.newRandomId();
 
-  const showQuantitiesChart = () => {
-    const data = propsTable.value;
-    (chartModal as any).show(data);
-  };
-
   return BUI.html`
     <bim-panel-section ${BUI.ref((e) => {
       section = e as BUI.PanelSection;
@@ -87,7 +79,6 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
         <bim-button style="flex: 0;" @click=${onClearSearch} icon=${appIcons.CLEAR} tooltip-title="Clear Search"></bim-button>
         <bim-button style="flex: 0;" @click=${toggleExpanded} icon=${appIcons.EXPAND} tooltip-title="Toggle Expanded"></bim-button>
         <bim-button style="flex: 0;" @click=${() => propsTable.downloadData("ElementData", "json")} icon=${appIcons.EXPORT} tooltip-title="Export Data" tooltip-text="Export the shown properties."></bim-button>
-        <bim-button style="flex: 0;" @click=${showQuantitiesChart} icon=${appIcons.CHART} tooltip-title="Show Quantities of Selected Elements as Chart"></bim-button>
       </div>
       ${propsTable}
     </bim-panel-section> 

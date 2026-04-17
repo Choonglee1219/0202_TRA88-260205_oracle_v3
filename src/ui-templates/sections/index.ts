@@ -9,3 +9,4 @@ export * from "./bcf-list";
 export * from "./dashboard";
 export * from "./viewpoints";
 export * from "./ids-spec";
+export * from "./quantity-table";
