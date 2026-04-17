@@ -15,15 +15,86 @@ export const topicListTemplate: BUI.StatefullComponent<
   const bcfTopics = components.get(BCFTopics);
   const [topicListTable, updateTopicListTable] = topicsList({ components });
   
+  // --- Pagination State ---
+  let currentPage = 0;
+  const pageSize = 50;
+  let totalItems = 0;
+  let totalPages = 0;
+  let currentTopicsCache: any[] = [];
+  let activeFilterGuids: Set<string> | null = null;
+  let searchQuery = "";
+
+  // --- Pagination UI Refs ---
+  let paginationContainer: HTMLDivElement;
+  let pageInfoLabel: BUI.Label;
+  let prevButton: BUI.Button;
+  let nextButton: BUI.Button;
+
+  const updatePage = () => {
+    const start = currentPage * pageSize;
+    const end = start + pageSize;
+    const slicedTopics = currentTopicsCache.slice(start, end);
+
+    updateTopicListTable({ topics: slicedTopics });
+
+    if (paginationContainer) {
+      paginationContainer.style.display = totalPages > 1 ? "flex" : "none";
+    }
+    if (pageInfoLabel) {
+      pageInfoLabel.textContent = `Page ${currentPage + 1} / ${totalPages}`;
+    }
+    if (prevButton) {
+      prevButton.disabled = currentPage === 0;
+    }
+    if (nextButton) {
+      nextButton.disabled = currentPage >= totalPages - 1;
+    }
+  };
+
+  const refreshTopicsCache = () => {
+    let allTopics = Array.from(bcfTopics.list.values());
+
+    if (activeFilterGuids) {
+      allTopics = allTopics.filter(t => activeFilterGuids!.has(t.guid));
+    }
+
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      allTopics = allTopics.filter(t => {
+        const title = (t as any).title || "";
+        const description = (t as any).description || "";
+        return title.toLowerCase().includes(lowerQuery) || description.toLowerCase().includes(lowerQuery);
+      });
+    }
+
+    currentTopicsCache = allTopics;
+    totalItems = currentTopicsCache.length;
+    totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
+
+    updatePage();
+  };
+
+  const onPrevPage = () => {
+    if (currentPage > 0) {
+      currentPage--;
+      updatePage();
+    }
+  };
+
+  const onNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      currentPage++;
+      updatePage();
+    }
+  };
+
   const [matrixPanel] = clashMatrix({ 
     components,
     onCellClicked: (topicGuids) => {
-      if (topicGuids) {
-        const filteredTopics = Array.from(bcfTopics.list.values()).filter(t => topicGuids.has(t.guid));
-        updateTopicListTable({ topics: filteredTopics });
-      } else {
-        updateTopicListTable({ topics: undefined }); // 필터 해제 시 전체 토픽으로 복구
-      }
+      activeFilterGuids = topicGuids || null;
+      currentPage = 0;
+      refreshTopicsCache();
     }
   });
   matrixPanel.label = ""; // 커스텀 토글 UI를 사용하기 위해 기존 속성 제거
@@ -73,6 +144,15 @@ export const topicListTemplate: BUI.StatefullComponent<
         const topicsArray = Array.from(bcfTopics.list.values());
         if (topicsArray.length > 0) {
           const newTopic = topicsArray[topicsArray.length - 1];
+          
+          refreshTopicsCache(); // 캐시 즉시 동기화
+          
+          const newTopicIndex = currentTopicsCache.findIndex(t => t.guid === newTopic.guid);
+          if (newTopicIndex !== -1) {
+            currentPage = Math.floor(newTopicIndex / pageSize);
+            updatePage();
+          }
+          
           const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === newTopic.guid);
           if (targetGroup) {
             topicListTable.selection.clear();
@@ -92,6 +172,7 @@ export const topicListTemplate: BUI.StatefullComponent<
     // 모달이 닫히면 테이블 데이터가 갱신되면서 선택이 해제되므로, 딜레이를 조금 준 후 이전 선택 상태를 복원합니다.
     updateTopicModal.modal.addEventListener("close", () => {
       setTimeout(() => {
+        refreshTopicsCache(); // 속성 변경(Resolved 등)으로 인한 캐시 업데이트 및 필터 재적용
         for (const guid of selectedGuids) {
           const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === guid);
           if (targetGroup) {
@@ -115,7 +196,10 @@ export const topicListTemplate: BUI.StatefullComponent<
   };
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
-    topicListTable.queryString = input.value;
+    searchQuery = input.value;
+    currentPage = 0;
+    refreshTopicsCache();
+    topicListTable.queryString = input.value; // 로컬 필터링 보조 유지
   };
 
   const onUpdateAllSnapshots = async (e: Event) => {
@@ -187,7 +271,10 @@ export const topicListTemplate: BUI.StatefullComponent<
   let updateTopicCountTimeout: ReturnType<typeof setTimeout>;
   const debouncedUpdateTopicCount = () => {
     if (updateTopicCountTimeout) clearTimeout(updateTopicCountTimeout);
-    updateTopicCountTimeout = setTimeout(updateTopicCount, 500);
+    updateTopicCountTimeout = setTimeout(() => {
+      updateTopicCount();
+      refreshTopicsCache();
+    }, 500);
   };
 
   bcfTopics.onRefresh.add(debouncedUpdateTopicCount);
@@ -197,6 +284,15 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   // 3D 화면에서 간섭 구(Sphere) 클릭 시, Topic List 테이블 행 자동 선택 및 줌인
   bcfTopics.onClashSphereClicked.add((guid) => {
+    const targetIndex = currentTopicsCache.findIndex(t => t.guid === guid);
+    if (targetIndex !== -1) {
+      const targetPage = Math.floor(targetIndex / pageSize);
+      if (currentPage !== targetPage) {
+        currentPage = targetPage;
+        updatePage();
+      }
+    }
+
     const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === guid);
     if (targetGroup) {
       topicListTable.selection.clear();
@@ -208,6 +304,9 @@ export const topicListTemplate: BUI.StatefullComponent<
       }
     }
   });
+
+  // 최초 로드시 전체 목록 캐싱 및 렌더링
+  refreshTopicsCache();
 
   return BUI.html`
     <bim-panel-section
@@ -229,7 +328,14 @@ export const topicListTemplate: BUI.StatefullComponent<
             <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
             <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
           </div>
-          <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
+          <div style="display: flex; gap: 0.5rem; flex: 1;">
+            <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
+            <div ${BUI.ref(e => paginationContainer = e as HTMLDivElement)} style="display: none; gap: 0.25rem; align-items: center; justify-content: center; background: var(--bim-ui_bg-contrast-10); border-radius: 4px; padding: 0.125rem 0.25rem; flex-shrink: 0;">
+              <bim-button ${BUI.ref(e => prevButton = e as BUI.Button)} @click=${onPrevPage} icon="eva:arrow-ios-back-outline" tooltip-title="Previous Page" style="flex: 0; margin: 0;"></bim-button>
+              <bim-label ${BUI.ref(e => pageInfoLabel = e as BUI.Label)} style="font-weight: bold; white-space: nowrap; margin: 0 0.25rem; font-size: 0.875rem;"></bim-label>
+              <bim-button ${BUI.ref(e => nextButton = e as BUI.Button)} @click=${onNextPage} icon="eva:arrow-ios-forward-outline" tooltip-title="Next Page" style="flex: 0; margin: 0;"></bim-button>
+            </div>
+          </div>
         </div>
 
         <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden; min-width: 0;">
