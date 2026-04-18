@@ -11,6 +11,5 @@ export type SpatialTreeData = {
   modelId: string;
   localId?: number;
   Name: string;
-  categoryPrefix?: string;
   children?: string;
 };
