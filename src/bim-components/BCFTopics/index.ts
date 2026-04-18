@@ -157,10 +157,9 @@ export class BCFTopics extends OBC.Component {
   }
 
   openClashDetectionModal() {
-    this.clashMapDisplay.openClashDetectionModal(async (buffer, clashData) => {
-      await this.loadBCFContent(buffer);
+    this.clashMapDisplay.openClashDetectionModal(async () => {
+      // 간섭 체크 완료 후 무거운 자동 로드(프리징 원인)를 생략하고 목록 갱신 이벤트만 발생시켜 BCF List에 새 항목 표시
       this.onRefresh.trigger();
-      this.drawClashMap(clashData);
     });
   }
 }

@@ -395,41 +395,9 @@ export const clashInput = (components: OBC.Components, onComplete: (buffer: Arra
       if (successCount > 0) {
         alert(`간섭 체크 완료: 총 ${successCount}개의 조합에서 ${totalClashes}개의 간섭이 발견되어 저장되었습니다.`);
         
-        // 컴포넌트 목록에서 BCFTopics를 동적으로 찾아서 순환 참조 없이 모든 토픽 로드
-        let bcfTopicsComponent: any = null;
-        for (const [, comp] of components.list) {
-          if (comp && comp.constructor.name === "BCFTopics") {
-            bcfTopicsComponent = comp;
-            break;
-          }
-        }
-
-        if (bcfTopicsComponent) {
-          for (const buf of allBuffers) {
-            await bcfTopicsComponent.loadBCFContent(buf);
-          }
-
-          // Attach clash points to the newly loaded topics
-          for (const clash of allClashData) {
-            if (clash.clash_guid && clash.clash_point) {
-              const topic = bcfTopicsComponent.list.get(clash.clash_guid);
-              if (topic) {
-                (topic as any).clashPoint = clash.clash_point;
-                (topic as any).guid1 = clash.guid1; 
-                (topic as any).guid2 = clash.guid2;
-              }
-            }
-          }
-          if (bcfTopicsComponent.onRefresh) {
-            bcfTopicsComponent.onRefresh.trigger();
-          }
-          if (bcfTopicsComponent.drawClashMap && allClashData.length > 0) {
-            bcfTopicsComponent.drawClashMap(allClashData);
-          }
-        }
-
-        if (onComplete && allBuffers.length > 0) {
-          await onComplete(allBuffers[allBuffers.length - 1], allClashData);
+        if (onComplete) {
+          // 자동 로드 기능 제거: 완료 후 BCF List 갱신만 수행할 수 있도록 빈 데이터 전달
+          await onComplete(new ArrayBuffer(0), []);
         }
       } else {
         alert("간섭체크를 완료하였으나 조건에 해당하는 간섭이 없습니다.");
