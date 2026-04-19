@@ -17,7 +17,7 @@ export const topicListTemplate: BUI.StatefullComponent<
   
   // --- Pagination State ---
   let currentPage = 0;
-  const pageSize = 50;
+  const pageSize = 30;
   let totalItems = 0;
   let totalPages = 0;
   let currentTopicsCache: any[] = [];

@@ -149,6 +149,7 @@ export class BCFTopics extends OBC.Component {
       await this.bcfFileOperations.loadBCFContent(buffer);
     } finally {
       this._loading = false;
+      this.onRefresh.trigger();
     }
   }
 

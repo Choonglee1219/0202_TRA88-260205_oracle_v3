@@ -57,7 +57,6 @@ export class BCFFileOperations {
         if (snapshotFile) {
           const base64 = await snapshotFile.async("base64");
           (topic as any).snapshot = `data:image/png;base64,${base64}`;
-          this._bcf.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
         }
       }
 
