@@ -89,7 +89,7 @@ export class TopicViewpointManager {
             highlighter.styles.set(styleName, {
               color: new THREE.Color(styleName),
               renderedFaces: FRAGS.RenderedFaces.ONE,
-              opacity: 0.1,
+              opacity: 0.8,
               transparent: true,
               depthTest: false,
             });

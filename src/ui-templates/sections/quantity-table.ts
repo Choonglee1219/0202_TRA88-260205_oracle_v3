@@ -27,6 +27,13 @@ let activeUpdateSummary: (() => void) | null = null;
 let activeApplyFilters: (() => void) | null = null;
 let activeSection: BUI.PanelSection | null = null;
 
+// --- Pagination State ---
+let currentPage = 0;
+const pageSize = 30;
+let totalItems = 0;
+let totalPages = 0;
+let filteredDataCache: any[] = [];
+
 // 속성값을 재귀적으로 안전하게 추출하는 유틸리티 (메모리 절약을 위해 루프 외부로 분리)
 const extractValue = (attr: any): any => {
   if (attr === null || attr === undefined) return null;
@@ -188,8 +195,77 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
   quantityTable.hiddenColumns = ["id"];
   quantityTable.headersHidden = false;
 
+  quantityTable.addEventListener("rowcreated", (e: Event) => {
+    const customEvent = e as CustomEvent<BUI.RowCreatedEventDetail<any>>;
+    customEvent.stopImmediatePropagation();
+    const { row } = customEvent.detail;
+    row.style.cursor = "pointer";
+
+    row.onclick = async () => {
+      const rowId = row.data.id;
+      if (!rowId || typeof rowId !== "string") return;
+
+      const lastDashIndex = rowId.lastIndexOf("-");
+      if (lastDashIndex === -1) return;
+      
+      const modelId = rowId.substring(0, lastDashIndex);
+      const localId = parseInt(rowId.substring(lastDashIndex + 1), 10);
+      
+      if (!modelId || isNaN(localId)) return;
+
+      const worlds = components.get(OBC.Worlds);
+      const world = worlds.list.values().next().value;
+      
+      if (world && world.camera && "fitToItems" in world.camera) {
+        const modelIdMap = { [modelId]: new Set([localId]) };
+        await (world.camera as any).fitToItems(modelIdMap);
+      }
+    };
+  });
+
   const summaryTable = document.createElement("bim-table") as BUI.Table<any>;
   summaryTable.headersHidden = false;
+
+  // --- Pagination UI Refs ---
+  let paginationContainer: HTMLDivElement;
+  let pageInfoLabel: BUI.Label;
+  let prevButton: BUI.Button;
+  let nextButton: BUI.Button;
+
+  const updatePage = () => {
+    const start = currentPage * pageSize;
+    const end = start + pageSize;
+    const slicedData = filteredDataCache.slice(start, end);
+
+    quantityTable.data = slicedData.map(d => ({ data: d }));
+
+    if (paginationContainer) {
+      paginationContainer.style.display = totalPages > 1 ? "flex" : "none";
+    }
+    if (pageInfoLabel) {
+      pageInfoLabel.textContent = `Page ${currentPage + 1} / ${totalPages}`;
+    }
+    if (prevButton) {
+      prevButton.disabled = currentPage === 0;
+    }
+    if (nextButton) {
+      nextButton.disabled = currentPage >= totalPages - 1;
+    }
+  };
+
+  const onPrevPage = () => {
+    if (currentPage > 0) {
+      currentPage--;
+      updatePage();
+    }
+  };
+
+  const onNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      currentPage++;
+      updatePage();
+    }
+  };
 
   // 히스토그램(막대) 차트 컴포넌트 초기화
   const [chartPanel, updateChartPanel] = quantityChart({
@@ -206,11 +282,13 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
       currentFilters.range[selectedNumKey].min = Number(min.toFixed(2));
       currentFilters.range[selectedNumKey].max = Number(max.toFixed(2));
       
+      currentPage = 0;
       if (activeUpdateFilters) activeUpdateFilters();
       if (activeApplyFilters) activeApplyFilters();
     },
     onQuantityTypeChange: (numericKey: string) => {
       selectedNumKey = numericKey;
+      currentPage = 0;
       if (activeUpdateFilters) activeUpdateFilters();
       if (activeApplyFilters) activeApplyFilters();
     }
@@ -267,7 +345,12 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
       return true;
     });
 
-    quantityTable.data = filtered.map(d => ({ data: d }));
+    filteredDataCache = filtered;
+    totalItems = filteredDataCache.length;
+    totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
+
+    updatePage();
 
     // 요약 데이터 업데이트 (총합계, 평균, 최대, 최소)
     const summaryData = [];
@@ -343,6 +426,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
               e.stopPropagation();
               currentFilters.text = {};
               currentFilters.range = {};
+              currentPage = 0;
               applyFilters();
               if (activeUpdateFilters) activeUpdateFilters();
             }} icon=${appIcons.CLEAR} tooltip-title="Clear All Filters" style="flex: 0; margin: 0; padding: 0.25rem;"></bim-button>
@@ -367,6 +451,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
                 dropdown.visible = false;
                 const val = dropdown.value[0];
                 if (typeof val === "string") selectedCatKey = val;
+                currentPage = 0;
                 if (activeUpdateFilters) activeUpdateFilters();
             }}>
               ${categoricalKeys.map(key => BUI.html`<bim-option label=${key} value=${key} ?checked=${selectedCatKey === key}></bim-option>`)}
@@ -378,6 +463,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
               debounce="200"
               @input=${(e: Event) => {
                 currentFilters.text[selectedCatKey] = (e.target as BUI.TextInput).value;
+                currentPage = 0;
                 applyFilters();
               }}
             ></bim-text-input>
@@ -401,6 +487,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
                 dropdown.visible = false;
                 const val = dropdown.value[0];
                 if (typeof val === "string") selectedNumKey = val;
+                currentPage = 0;
                 if (activeUpdateFilters) activeUpdateFilters();
                 if (activeApplyFilters) activeApplyFilters();
             }}>
@@ -421,6 +508,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
                   const val = (e.target as BUI.TextInput).value;
                   if (!currentFilters.range[selectedNumKey]) currentFilters.range[selectedNumKey] = { min: null, max: null };
                   currentFilters.range[selectedNumKey].min = val !== "" ? Number(val) : null;
+                  currentPage = 0;
                   applyFilters();
                 }}
               ></bim-text-input>
@@ -437,6 +525,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
                   const val = (e.target as BUI.TextInput).value;
                   if (!currentFilters.range[selectedNumKey]) currentFilters.range[selectedNumKey] = { min: null, max: null };
                   currentFilters.range[selectedNumKey].max = val !== "" ? Number(val) : null;
+                  currentPage = 0;
                   applyFilters();
                 }}
               ></bim-text-input>
@@ -457,6 +546,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
       await extractSelectionData(components, modelIdMap);
       
       selectedSummaryKeys.clear();
+      currentPage = 0;
 
       currentItemCount = 0;
       for (const ids of Object.values(modelIdMap)) currentItemCount += ids.size;
@@ -473,6 +563,10 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
       numericKeys.clear();
       currentFilters.text = {};
       currentFilters.range = {};
+      filteredDataCache = [];
+      currentPage = 0;
+      totalItems = 0;
+      totalPages = 0;
       currentItemCount = 0;
       selectedNumKey = "";
       selectedSummaryKeys.clear();
@@ -511,8 +605,13 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
 
         <div data-flex="true" style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; flex: 1; min-height: 0; overflow: hidden;">
           <div @click=${onToggleSection} style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; flex-shrink: 0;">
-            <bim-label style="font-weight: bold; pointer-events: none;">Items Data</bim-label>
+            <bim-label style="font-weight: bold; pointer-events: none;">Quantity Data</bim-label>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div ${BUI.ref(e => paginationContainer = e as HTMLDivElement)} style="display: none; gap: 0.25rem; align-items: center; justify-content: center; background: var(--bim-ui_bg-contrast-10); border-radius: 4px; padding: 0.125rem 0.25rem; flex-shrink: 0;">
+                <bim-button ${BUI.ref(e => prevButton = e as BUI.Button)} @click=${onPrevPage} icon="eva:arrow-ios-back-outline" tooltip-title="Previous Page" style="flex: 0; margin: 0;"></bim-button>
+                <bim-label ${BUI.ref(e => pageInfoLabel = e as BUI.Label)} style="font-weight: bold; white-space: nowrap; margin: 0 0.25rem; font-size: 0.875rem;"></bim-label>
+                <bim-button ${BUI.ref(e => nextButton = e as BUI.Button)} @click=${onNextPage} icon="eva:arrow-ios-forward-outline" tooltip-title="Next Page" style="flex: 0; margin: 0;"></bim-button>
+              </div>
               <bim-button @click=${(e: Event) => {
                 e.stopPropagation();
                 quantityTable.downloadData("Quantity_Data", "csv");
