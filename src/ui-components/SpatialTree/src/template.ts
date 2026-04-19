@@ -5,30 +5,25 @@ import { SpatialTreeItem } from "@thatopen/fragments";
 import { SpatialTreeState, SpatialTreeData } from "./types";
 import { Highlighter } from "../../../bim-components/Highlighter";
 
-const getModelTree = async (
+const getModelTree = (
   model: FRAGS.FragmentsModel,
   structure: SpatialTreeItem,
+  nameMap: Map<number, string>,
   categoryPrefix: string = "",
-): Promise<BUI.TableGroupData<SpatialTreeData>[]> => {
+): BUI.TableGroupData<SpatialTreeData>[] => {
   const { localId, category, children } = structure;
 
   if (category && children) {
     const rows: BUI.TableGroupData<SpatialTreeData>[] = [];
     for (const child of children) {
-      const childRows = await getModelTree(model, child, category);
+      const childRows = getModelTree(model, child, nameMap, category);
       rows.push(...childRows);
     }
     return rows;
   }
 
   if (localId !== undefined && localId !== null) {
-    const item = model.getItem(localId);
-    const attrs = await item.getAttributes();
-    let name = "Untitled";
-    if (attrs) {
-      const nameVal = attrs.getValue("Name");
-      if (nameVal) name = String(nameVal);
-    }
+    const name = nameMap.get(localId) || "Untitled";
 
     const content = categoryPrefix ? `${categoryPrefix}  ||  ${name}` : name;
 
@@ -43,7 +38,7 @@ const getModelTree = async (
     if (children && children.length > 0) {
       row.children = [];
       for (const child of children) {
-        const childRows = await getModelTree(model, child);
+        const childRows = getModelTree(model, child, nameMap);
         row.children.push(...childRows);
       }
     }
@@ -56,12 +51,41 @@ const computeRowData = async (models: Iterable<FRAGS.FragmentsModel>) => {
   const rows: BUI.TableGroupData[] = [];
   for (const model of models) {
     const structure = await model.getSpatialStructure();
-    const tree = await getModelTree(model, structure);
+    
+    // 1. 트리 내의 모든 localId를 먼저 수집
+    const allLocalIds = new Set<number>();
+    const traverse = (node: SpatialTreeItem) => {
+      if (node.localId !== undefined && node.localId !== null) allLocalIds.add(node.localId);
+      if (node.children) node.children.forEach(traverse);
+    };
+    traverse(structure);
+
+    // 2. 수집된 ID들의 속성 데이터를 한 번에 조회 (Bulk Fetch)
+    const nameMap = new Map<number, string>();
+    if (allLocalIds.size > 0) {
+      const itemsData = await model.getItemsData(Array.from(allLocalIds), {
+        attributesDefault: true,
+        relationsDefault: { attributes: false, relations: false },
+      });
+      for (const item of itemsData) {
+        const id = (item.expressID ?? item.id ?? (item as any)._localId?.value ?? (item as any)._localId) as unknown as number;
+        const nameVal = (item as any).Name;
+        let name = "Untitled";
+        if (nameVal) {
+          name = typeof nameVal === "object" && nameVal.value !== undefined ? String(nameVal.value) : String(nameVal);
+        }
+        if (id !== undefined) nameMap.set(id, name);
+      }
+    }
+
+    // 3. Map 데이터를 참조하여 동기식으로 빠르게 트리 구성
+    const tree = getModelTree(model, structure, nameMap);
     if (tree.length === 0) continue;
     const modelData: BUI.TableGroupData<SpatialTreeData> = {
       data: {
         Name: model.modelId,
         modelId: model.modelId,
+        children: JSON.stringify(Array.from(allLocalIds)), // 전체 객체 선택 기능을 위한 하위 ID 문자열화
       },
       children: tree,
     };
