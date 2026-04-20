@@ -4,6 +4,7 @@ import * as BUI from "@thatopen/ui";
 import { SpatialTreeItem } from "@thatopen/fragments";
 import { SpatialTreeState, SpatialTreeData } from "./types";
 import { Highlighter } from "../../../bim-components/Highlighter";
+import { tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated } from "../../../globals";
 
 const getModelTree = (
   model: FRAGS.FragmentsModel,
@@ -102,9 +103,9 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
   const onCellCreated = ({
     detail,
   }: CustomEvent<BUI.CellCreatedEventDetail<SpatialTreeData>>) => {
+    onTableCellCreated(new CustomEvent("cellcreated", { detail })); // 전역 이벤트 주입
     const { cell } = detail;
-    cell.style.border = `1px solid var(--bim-ui_bg-contrast-20)`;
-    cell.style.padding = "4px 8px";
+
     if (cell.column === "Name" && !cell.rowData.Name) {
       cell.style.gridColumn = "1 / -1";
     }
@@ -113,10 +114,8 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
   const onRowCreated = (
     e: CustomEvent<BUI.RowCreatedEventDetail<SpatialTreeData>>,
   ) => {
-    e.stopImmediatePropagation();
+    onTableRowCreated(e); // 전역 이벤트 주입
     const { row } = e.detail;
-    row.style.minHeight = "28px";
-    row.style.margin = "0";
 
     const highlighter = components.get(Highlighter);
     const fragments = components.get(OBC.FragmentsManager);
@@ -162,6 +161,12 @@ export const spatialTreeTemplate = (state: SpatialTreeState) => {
   const onTableCreated = async (element?: Element) => {
     if (!element) return;
     const table = element as BUI.Table<SpatialTreeData>;
+
+    // 열 너비를 제한하여 텍스트 오버플로우 시 말줄임표(...)가 적용되도록 설정
+    table.columns = [{ name: "Name", width: "minmax(0, 1fr)" }];
+    table.hiddenColumns = ["modelId", "localId", "children", "categoryPrefix"];
+
+    table.defaultContentTemplate = tableDefaultContentTemplate;
 
     table.loadFunction = async () => {
       return new Promise((resolve) => {

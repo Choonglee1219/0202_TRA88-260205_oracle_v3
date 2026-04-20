@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
-import { appIcons, onToggleSection } from "../../globals";
+import { appIcons, onToggleSection, setupBIMTable } from "../../globals";
 import { setModelTransparent, restoreModelMaterials } from "../toolbars/viewer-toolbar";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { IDSSpecDefinition, predefinedSpecs } from "../../setup/specs";
@@ -53,6 +53,8 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
   specsTable.hiddenColumns = ["id", "spec"];
   specsTable.headersHidden = false;
 
+  setupBIMTable(specsTable);
+
   specsTable.data = predefinedSpecs.map((spec, i) => ({
     data: {
       id: `spec-${i}`,
@@ -67,8 +69,8 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
     Check: (_val, row) => {
       const spec = (row as any).spec as IDSSpecDefinition;
       return BUI.html`
-        <div style="display: flex; justify-content: center; align-items: center; width: 3rem;">
-          <bim-button style="flex: 0; margin: 0; padding: 0;" tooltip-title="Check" icon=${appIcons.PLAY} @click=${async (e: Event) => {
+        <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 1.5rem;">
+          <bim-button style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Check" icon=${appIcons.PLAY} @click=${async (e: Event) => {
             const btn = e.target as BUI.Button;
             btn.loading = true;
             try { await testSpec(spec); } catch(err) { console.error(err); alert("테스트 중 오류가 발생했습니다."); } finally { btn.loading = false; }
@@ -81,6 +83,8 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
   // Results Table Setup
   const resultsTable = document.createElement("bim-table") as BUI.Table<IDSTableData>;
   resultsTable.hiddenColumns = ["id", "ModelID", "ExpressID"];
+
+  setupBIMTable(resultsTable);
 
   const onTableSelectionChange = async () => {
     if (isUpdatingSelection) return;
@@ -139,9 +143,9 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
       };
 
       return BUI.html`
-        <div @click=${onClick} style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; cursor: pointer;">
-          <bim-checkbox style="pointer-events: none;" .checked=${isChecked}></bim-checkbox>
-          <bim-label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title=${String(value)}>
+        <div @click=${onClick} style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; cursor: pointer; height: 1.5rem;">
+          <bim-checkbox style="pointer-events: none; flex: 0 0 auto; margin: 0;" .checked=${isChecked}></bim-checkbox>
+          <bim-label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; margin: 0;" title=${String(value)}>
             ${String(value)}
           </bim-label>
         </div>

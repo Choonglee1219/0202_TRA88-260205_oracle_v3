@@ -16,7 +16,7 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
   const finder = components.get(OBC.ItemsFinder);
   const highlighter = components.get(Highlighter);
 
-  const [element, updateList] = queriesList({ components });
+  const [queriesTable, updateList] = queriesList({ components });
 
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
@@ -218,7 +218,7 @@ export const queriesPanelTemplate: BUI.StatefullComponent<QueriesPanelState> = (
       <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 0.5rem;">
         <bim-label>Saved Queries</bim-label>
         <bim-text-input @input=${onSearch} placeholder="Search..." vertical></bim-text-input>
-        ${element}
+        ${queriesTable}
       </div>
     </bim-panel-section>
   `;

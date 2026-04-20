@@ -2,6 +2,7 @@ import * as FRAGS from "@thatopen/fragments";
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { ItemsDataState, ItemsDataTableData, ModelIdMap } from "./types";
+import { tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated } from "../../../globals";
 
 let itemsRowsCache: { [modelID: string]: Map<number, BUI.TableGroupData> } = {};
 
@@ -213,6 +214,9 @@ export const itemsDataTemplate = (_state: ItemsDataState) => {
   const onTableCreated = async (e?: Element) => {
     if (!e) return;
     const table = e as BUI.Table<ItemsDataTableData>;
+
+    table.defaultContentTemplate = tableDefaultContentTemplate;
+
     table.loadFunction = async () => {
       return computeTableData(components, filteredModelIdMap, state);
     };
@@ -224,9 +228,9 @@ export const itemsDataTemplate = (_state: ItemsDataState) => {
   const onCellCreated = ({
     detail,
   }: CustomEvent<BUI.CellCreatedEventDetail>) => {
+    onTableCellCreated(new CustomEvent("cellcreated", { detail })); // 전역 이벤트 주입
     const { cell } = detail;
-    cell.style.border = `1px solid var(--bim-ui_bg-contrast-20)`;
-    cell.style.padding = "4px 8px";
+
     const { Name, Value } = cell.rowData
     if (Name && Value === undefined) {
       setTimeout(() => {
@@ -238,10 +242,8 @@ export const itemsDataTemplate = (_state: ItemsDataState) => {
   const onRowCreated = (
     e: CustomEvent<BUI.RowCreatedEventDetail<ItemsDataTableData>>,
   ) => {
-    e.stopImmediatePropagation();
+    onTableRowCreated(e); // 전역 이벤트 주입
     const { row } = e.detail;
-    row.style.minHeight = "28px";
-    row.style.margin = "0";
 
     row.onclick = async () => {
       const { modelId, localId } = row.data;

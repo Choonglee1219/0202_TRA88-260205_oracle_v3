@@ -69,9 +69,11 @@ export const setDefaults = (
         const formattedValue = `${(value as number).toFixed(2)} ${unitSymbols[modelUnit.Name.value] ?? modelUnit.Name.value}`
         
         e.textContent = formattedValue
+        e.setAttribute("title", formattedValue)
       }
 
-      return BUI.html`<bim-label ${BUI.ref(onCreated)}></bim-label>`
+      const text = value !== null && value !== undefined ? String(value) : "";
+      return BUI.html`<bim-label style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; width: 100%;" title=${text} ${BUI.ref(onCreated)}>${text}</bim-label>`
     }
   }
 };

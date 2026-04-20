@@ -3,6 +3,7 @@ import { TopicsListState, TopicsListTableData } from "./types";
 import { baseTopicTagStyle, defaultTopicStyles } from "./styles";
 import { createAuthorTag } from "./author-tag";
 import { appIcons } from "../../../globals";
+import { tableDefaultContentTemplate } from "../../../globals";
 
 export const setDefaults = (
   state: TopicsListState,
@@ -24,6 +25,8 @@ export const setDefaults = (
     { name: "DueDate", width: "minmax(0, 1fr)" },
     { name: "Description", width: "minmax(0, 2fr)" },
   ];
+
+  table.defaultContentTemplate = tableDefaultContentTemplate;
 
   table.dataTransform = {
     Snapshot: (value) => {
@@ -111,14 +114,6 @@ export const setDefaults = (
     Assignee: (value) => {
       if (typeof value !== "string") return value;
       return createAuthorTag(value, styles?.users ?? defaultTopicStyles.users);
-    },
-    Description: (value) => {
-      if (typeof value !== "string") return value;
-      return BUI.html`
-        <bim-label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">
-          ${value}
-        </bim-label>
-      `;
     },
   };
 };

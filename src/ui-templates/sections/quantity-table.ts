@@ -3,6 +3,7 @@ import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { quantityChart } from "../../ui-components/QuantityChart";
+import { setupBIMTable, tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated } from "../../globals";
 
 export interface QuantityTablePanelState {
   components: OBC.Components;
@@ -195,9 +196,14 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
   quantityTable.hiddenColumns = ["id"];
   quantityTable.headersHidden = false;
 
+  // 공통 테이블 템플릿 및 셀 스타일 적용
+  quantityTable.defaultContentTemplate = tableDefaultContentTemplate;
+  quantityTable.addEventListener("cellcreated", onTableCellCreated);
+
+  // Quantity Table만의 개별 이벤트 (행 클릭 시 이동)
   quantityTable.addEventListener("rowcreated", (e: Event) => {
+    onTableRowCreated(e); // 공통 행 스타일 적용 (stopImmediatePropagation 포함)
     const customEvent = e as CustomEvent<BUI.RowCreatedEventDetail<any>>;
-    customEvent.stopImmediatePropagation();
     const { row } = customEvent.detail;
     row.style.cursor = "pointer";
 
@@ -225,6 +231,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
 
   const summaryTable = document.createElement("bim-table") as BUI.Table<any>;
   summaryTable.headersHidden = false;
+  setupBIMTable(summaryTable);
 
   // --- Pagination UI Refs ---
   let paginationContainer: HTMLDivElement;
@@ -389,20 +396,43 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
   const [summaryDropdownContainer, updateSummaryDropdown] = BUI.Component.create<HTMLElement, { updateKey: number }>((_state) => {
     const numKeysArr = Array.from(numericKeys);
     return BUI.html`
-      <bim-dropdown multiple @change=${(e: Event) => {
-        const target = e.target as BUI.Dropdown;
-        selectedSummaryKeys.clear();
-        if (Array.isArray(target.value)) {
-          target.value.forEach((v: any) => {
-            if (typeof v === "string") selectedSummaryKeys.add(v);
-          });
-        }
-        if (activeApplyFilters) activeApplyFilters();
-      }}>
-        ${numKeysArr.length === 0 
-          ? BUI.html`<bim-option label="No Data" value="" checked></bim-option>` 
-          : numKeysArr.map(key => BUI.html`<bim-option label=${key} value=${key} ?checked=${selectedSummaryKeys.has(key)}></bim-option>`)
-        }
+      <bim-dropdown multiple 
+        ${BUI.ref(e => {
+          const dropdown = e as BUI.Dropdown;
+          if (!dropdown) return;
+          
+          // 내부 옵션 캐시 및 DOM 완전 초기화
+          if ((dropdown as any).elements) (dropdown as any).elements.clear();
+          dropdown.replaceChildren();
+
+          if (numKeysArr.length === 0) {
+            const opt = document.createElement("bim-option") as BUI.Option;
+            opt.label = "No Data";
+            opt.value = "";
+            opt.checked = true;
+            dropdown.append(opt);
+            dropdown.value = [];
+          } else {
+            numKeysArr.forEach(key => {
+              const opt = document.createElement("bim-option") as BUI.Option;
+              opt.label = key;
+              opt.value = key;
+              opt.checked = selectedSummaryKeys.has(key);
+              dropdown.append(opt);
+            });
+            dropdown.value = Array.from(selectedSummaryKeys);
+          }
+        })}
+        @change=${(e: Event) => {
+          const target = e.target as BUI.Dropdown;
+          selectedSummaryKeys.clear();
+          if (Array.isArray(target.value)) {
+            target.value.forEach((v: any) => {
+              if (typeof v === "string" && v !== "") selectedSummaryKeys.add(v);
+            });
+          }
+          if (activeApplyFilters) activeApplyFilters();
+        }}>
       </bim-dropdown>
     `;
   }, { updateKey: 0 });
@@ -476,24 +506,40 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
             <bim-dropdown style="flex: 1;" required 
               ${BUI.ref(e => {
                 const dropdown = e as BUI.Dropdown;
-                if (dropdown && selectedNumKey && dropdown.value[0] !== selectedNumKey) {
-                  setTimeout(() => {
-                    dropdown.value = [selectedNumKey];
-                  }, 0);
+                if (!dropdown) return;
+                
+                // 내부 옵션 캐시 및 DOM 완전 초기화
+                if ((dropdown as any).elements) (dropdown as any).elements.clear();
+                dropdown.replaceChildren();
+
+                if (numKeysArr.length === 0) {
+                  const opt = document.createElement("bim-option") as BUI.Option;
+                  opt.label = "No Data";
+                  opt.value = "";
+                  opt.checked = true;
+                  dropdown.append(opt);
+                  dropdown.value = [""];
+                } else {
+                  numKeysArr.forEach(key => {
+                    const opt = document.createElement("bim-option") as BUI.Option;
+                    opt.label = key;
+                    opt.value = key;
+                    opt.checked = selectedNumKey === key;
+                    dropdown.append(opt);
+                  });
+                  if (selectedNumKey) dropdown.value = [selectedNumKey];
                 }
               })}
               @change=${(e: Event) => {
                 const dropdown = e.target as BUI.Dropdown;
                 dropdown.visible = false;
                 const val = dropdown.value[0];
-                if (typeof val === "string") selectedNumKey = val;
+                if (typeof val === "string" && val !== "") selectedNumKey = val;
+                else selectedNumKey = "";
                 currentPage = 0;
                 if (activeUpdateFilters) activeUpdateFilters();
                 if (activeApplyFilters) activeApplyFilters();
             }}>
-              ${numKeysArr.length === 0 ? BUI.html`<bim-option label="No Data" value="" checked></bim-option>` : 
-                numKeysArr.map(key => BUI.html`<bim-option label=${key} value=${key} ?checked=${selectedNumKey === key}></bim-option>`)
-              }
             </bim-dropdown>
             <div style="flex: 1; display: flex; align-items: center; gap: 0.25rem;">
               <bim-text-input 

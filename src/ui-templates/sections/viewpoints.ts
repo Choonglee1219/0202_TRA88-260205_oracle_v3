@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { appIcons } from "../../globals";
+import { appIcons, setupBIMTable } from "../../globals";
 
 export interface ViewpointsPanelState {
   components: OBC.Components;
@@ -25,6 +25,9 @@ export const viewpointsPanelTemplate: BUI.StatefullComponent<ViewpointsPanelStat
   
   const table = document.createElement("bim-table") as BUI.Table<ViewpointTableData>;
   table.hiddenColumns = ["id"];
+
+  // 공통 테이블 스타일 및 이벤트 적용
+  setupBIMTable(table);
   
   const updateTableData = () => {
     const data: { data: ViewpointTableData }[] = [];
@@ -67,8 +70,8 @@ export const viewpointsPanelTemplate: BUI.StatefullComponent<ViewpointsPanelStat
     Name: (value, rowData) => {
       const isChecked = rowData.id === selectedViewpointId;
       return BUI.html`
-        <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
-          <bim-checkbox .checked=${isChecked} @change=${(e: Event) => {
+        <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; height: 1.5rem;">
+          <bim-checkbox style="flex: 0 0 auto; margin: 0;" .checked=${isChecked} @change=${(e: Event) => {
             const cb = e.target as BUI.Checkbox;
             if (cb.checked) {
               selectedViewpointId = rowData.id as string;
@@ -80,7 +83,7 @@ export const viewpointsPanelTemplate: BUI.StatefullComponent<ViewpointsPanelStat
             }
             updateTableData(); // UI 상태 즉시 갱신
           }}></bim-checkbox>
-          <bim-label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title=${value}>${value}</bim-label>
+          <bim-label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;" title=${value}>${value}</bim-label>
         </div>
       `;
     }

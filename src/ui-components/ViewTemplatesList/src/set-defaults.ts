@@ -2,6 +2,7 @@ import * as BUI from "@thatopen/ui";
 import { ViewTemplatesListState, ViewTemplatesListTableData } from "./types";
 import { ViewTemplater } from "../../../bim-components";
 import { appIcons } from "../../../globals";
+import { tableDefaultContentTemplate } from "../../../globals";
 
 export const setDefaults = (
   state: ViewTemplatesListState,
@@ -12,7 +13,9 @@ export const setDefaults = (
   table.noIndentation = true;
   table.expanded = true;
   table.headersHidden = true;
-  table.columns = ["Name", { name: "Actions", width: "auto" }];
+  table.columns = [{ name: "Name", width: "minmax(0, 1fr)" }, { name: "Actions", width: "auto" }];
+
+  table.defaultContentTemplate = tableDefaultContentTemplate;
 
   table.dataTransform = {
     Actions: (_, rowData) => {
@@ -34,9 +37,11 @@ export const setDefaults = (
       };
 
       return BUI.html`
-        <bim-button icon=${appIcons.COLORIZE} @click=${onApply}></bim-button>
-        <bim-button icon=${appIcons.SHOW} @click=${onReset}></bim-button>
-        `;
+        <div style="display: flex; gap: 0.25rem; align-items: center; justify-content: center; height: 1.5rem;">
+          <bim-button style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" icon=${appIcons.COLORIZE} @click=${onApply}></bim-button>
+          <bim-button style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" icon=${appIcons.SHOW} @click=${onReset}></bim-button>
+        </div>
+      `;
     },
   };
 };

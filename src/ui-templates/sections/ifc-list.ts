@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { appIcons, onToggleSection } from "../../globals";
+import { appIcons, onToggleSection, setupBIMTable } from "../../globals";
 import { SharedIFC } from '../../bim-components/SharedIFC';
 import { SharedFRAG } from '../../bim-components/SharedFRAG';
 import { BCFTopics } from "../../bim-components/BCFTopics";
@@ -104,6 +104,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   loadedTable.noIndentation = true;
   loadedTable.noCarets = true;
 
+  setupBIMTable(loadedTable);
+
   // 일괄 Dispose를 위해 선택된 모델들을 추적
   const selectedLoadedModels = new Set<any>();
   
@@ -170,12 +172,12 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
             <bim-button @click=${() => {
               model.object.visible = !model.object.visible;
               updateLoadedModelsList();
-            }} icon=${model.object.visible ? appIcons.SHOW : appIcons.HIDE} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Visibility"></bim-button>
+            }} icon=${model.object.visible ? appIcons.SHOW : appIcons.HIDE} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Visibility"></bim-button>
             <bim-button @click=${() => {
               selectedLoadedModels.delete(model);
               model.dispose();
               updateLoadedModelsList();
-            }} icon=${appIcons.CLEAR} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Dispose"></bim-button>
+            }} icon=${appIcons.CLEAR} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Dispose"></bim-button>
           </div>
         </div>
       `;
@@ -490,6 +492,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   fragTable.noIndentation = true;
   fragTable.noCarets = true;
 
+  setupBIMTable(fragTable);
+
   const updateFRAGTableData = () => {
     const filteredList = activeGroupFilter 
       ? sharedFRAG.list.filter(file => {
@@ -577,14 +581,14 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
               saveFragGroupsToStorage();
               updateFRAGTableData();
               if (refreshBadges) refreshBadges();
-            }} style="padding: 0 0.25rem; margin: 0; border-radius: 4px; background: ${currentGroup === 'None' ? 'var(--bim-ui_bg-contrast-20)' : currentGroup}; border: none; outline: none; cursor: pointer; width: 2rem; height: 1.25rem;" title="${currentGroup}">
+            }} style="padding: 0 0.25rem; margin: 0; border-radius: 4px; background: ${currentGroup === 'None' ? 'var(--bim-ui_bg-contrast-20)' : currentGroup}; border: none; outline: none; cursor: pointer; width: 2.5rem; height: 1.5rem;" title="${currentGroup}">
               ${customGroups.map(g => BUI.html`<option value="${g}" style="background: ${g === 'None' ? 'var(--bim-ui_bg-base)' : g};" title="${g}" ?selected=${g === currentGroup}>&nbsp;&nbsp;&nbsp;&nbsp;</option>`)}
             </select>
           </div>
           <div style="flex: 0 0 auto; display: flex; gap: 0.25rem; margin: 0; padding: 0;">
-            <bim-button @click=${() => loadFRAGModel(id)} icon=${appIcons.OPEN} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Load Model"></bim-button>
-            <bim-button @click=${() => downloadFRAGModel(id)} icon=${appIcons.DOWNLOAD} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Download Model"></bim-button>
-            <bim-button @click=${() => deleteFRAGModel(id)} icon=${appIcons.DELETE} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Delete Model"></bim-button>
+            <bim-button @click=${() => loadFRAGModel(id)} icon=${appIcons.OPEN} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Load Model"></bim-button>
+            <bim-button @click=${() => downloadFRAGModel(id)} icon=${appIcons.DOWNLOAD} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Download Model"></bim-button>
+            <bim-button @click=${() => deleteFRAGModel(id)} icon=${appIcons.DELETE} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Delete Model"></bim-button>
           </div>
         </div>
       `;
@@ -624,6 +628,8 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
   ifcTable.expanded = true;
   ifcTable.noIndentation = true;
   ifcTable.noCarets = true;
+
+  setupBIMTable(ifcTable);
 
   // 일괄 Load를 위해 선택된 IFC 모델 ID 추적
   const selectedIfcModels = new Set<number>();
@@ -710,14 +716,14 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
               saveIfcGroupsToStorage();
               updateIFCTableData();
               if (refreshBadges) refreshBadges();
-            }} style="padding: 0 0.25rem; margin: 0; border-radius: 4px; background: ${currentGroup === 'None' ? 'var(--bim-ui_bg-contrast-20)' : currentGroup}; border: none; outline: none; cursor: pointer; width: 2rem; height: 1.25rem;" title="${currentGroup}">
+            }} style="padding: 0 0.25rem; margin: 0; border-radius: 4px; background: ${currentGroup === 'None' ? 'var(--bim-ui_bg-contrast-20)' : currentGroup}; border: none; outline: none; cursor: pointer; width: 2.5rem; height: 1.5rem;" title="${currentGroup}">
               ${customGroups.map(g => BUI.html`<option value="${g}" style="background: ${g === 'None' ? 'var(--bim-ui_bg-base)' : g};" title="${g}" ?selected=${g === currentGroup}>&nbsp;&nbsp;&nbsp;&nbsp;</option>`)}
             </select>
           </div>
           <div style="flex: 0 0 auto; display: flex; gap: 0.25rem; margin: 0; padding: 0;">
-            <bim-button @click=${() => loadIFCModel(id)} icon=${appIcons.OPEN} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Load Model"></bim-button>
-            <bim-button @click=${() => downloadIFCModel(id)} icon=${appIcons.DOWNLOAD} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Download Model"></bim-button>
-            <bim-button @click=${() => deleteIFCModel(id)} icon=${appIcons.DELETE} style="flex: 0; margin: 0; padding: 0;" tooltip-title="Delete Model"></bim-button>
+            <bim-button @click=${() => loadIFCModel(id)} icon=${appIcons.OPEN} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Load Model"></bim-button>
+            <bim-button @click=${() => downloadIFCModel(id)} icon=${appIcons.DOWNLOAD} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Download Model"></bim-button>
+            <bim-button @click=${() => deleteIFCModel(id)} icon=${appIcons.DELETE} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Delete Model"></bim-button>
           </div>
         </div>
       `;
