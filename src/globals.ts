@@ -54,6 +54,8 @@ export const appIcons = {
   PLAY: "/icons/mdi--play.svg",
   IDS_CHECK: "/icons/mdi--check-bold.svg",
   TABLE: "/icons/mdi--table-filter.svg",
+  BACK: "/icons/eva--arrow-ios-back-outline.svg",
+  FORWARD: "/icons/eva--arrow-ios-forward-outline.svg",
 };
 
 export const onToggleSection = (e: Event) => {

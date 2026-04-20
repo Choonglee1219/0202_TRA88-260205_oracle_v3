@@ -149,9 +149,9 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
       <div style="display: flex; gap: 0.375rem; align-items: center;">
         <bim-text-input ${BUI.ref((e) => { searchInput = e as BUI.TextInput; })} @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
         <div ${BUI.ref(e => paginationContainer = e as HTMLDivElement)} style="display: none; gap: 0.25rem; align-items: center; justify-content: center; background: var(--bim-ui_bg-contrast-10); border-radius: 4px; padding: 0.125rem 0.25rem; flex-shrink: 0;">
-          <bim-button ${BUI.ref(e => prevButton = e as BUI.Button)} @click=${onPrevPage} icon="eva:arrow-ios-back-outline" tooltip-title="Previous Page" style="flex: 0; margin: 0;"></bim-button>
+          <bim-button ${BUI.ref(e => prevButton = e as BUI.Button)} @click=${onPrevPage} icon=${appIcons.BACK} tooltip-title="Previous Page" style="flex: 0; margin: 0;"></bim-button>
           <bim-label ${BUI.ref(e => pageInfoLabel = e as BUI.Label)} style="font-weight: bold; white-space: nowrap; margin: 0 0.25rem; font-size: 0.875rem;"></bim-label>
-          <bim-button ${BUI.ref(e => nextButton = e as BUI.Button)} @click=${onNextPage} icon="eva:arrow-ios-forward-outline" tooltip-title="Next Page" style="flex: 0; margin: 0;"></bim-button>
+          <bim-button ${BUI.ref(e => nextButton = e as BUI.Button)} @click=${onNextPage} icon=${appIcons.FORWARD} tooltip-title="Next Page" style="flex: 0; margin: 0;"></bim-button>
         </div>
         <bim-button style="flex: 0;" @click=${onClearSearch} icon=${appIcons.CLEAR} tooltip-title="Clear Search"></bim-button>
         <bim-button style="flex: 0;" @click=${toggleExpanded} icon=${appIcons.EXPAND} tooltip-title="Toggle Expanded"></bim-button>
