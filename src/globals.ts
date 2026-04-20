@@ -1,4 +1,5 @@
 import * as CUI from "@thatopen/ui-obc";
+import * as BUI from "@thatopen/ui";
 
 export const CONTENT_GRID_ID = "app-content";
 export const CONTENT_GRID_GAP = "1rem";
@@ -115,4 +116,59 @@ export const users: CUI.TopicUserStyles = {
     name: "User B",
     picture: "/profiles/user_b.jpg",
   },
+};
+
+export const tableDefaultContentTemplate = (value: any) => {
+  const text = value !== null && value !== undefined ? String(value) : "";
+  return BUI.html`<bim-label style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; width: 100%;" title=${text}>${text}</bim-label>`;
+};
+
+export const onTableCellCreated = (e: Event) => {
+  const { detail } = e as CustomEvent<BUI.CellCreatedEventDetail<any>>;
+  if (!detail) return;
+  const { cell } = detail;
+  cell.style.border = `1px solid var(--bim-ui_bg-contrast-20)`;
+  cell.style.padding = "4px 8px";
+
+  cell.style.whiteSpace = "nowrap";
+  cell.style.overflow = "hidden";
+  cell.style.textOverflow = "ellipsis";
+  cell.style.userSelect = "text";
+  cell.style.cursor = "copy";
+  cell.style.minWidth = "0";
+
+  // 우클릭 시 텍스트를 클립보드에 바로 복사
+  cell.addEventListener("contextmenu", async (evt) => {
+    evt.preventDefault();
+    let textToCopy = cell.shadowRoot?.textContent?.trim() || cell.textContent?.trim();
+    if (!textToCopy) {
+      const col = (cell as any).column;
+      if (col && cell.rowData && (cell.rowData as any)[col] !== undefined) {
+        textToCopy = String((cell.rowData as any)[col]);
+      }
+    }
+    if (textToCopy) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        const originalBg = cell.style.backgroundColor;
+        cell.style.backgroundColor = "var(--bim-ui_bg-contrast-20)";
+        setTimeout(() => { cell.style.backgroundColor = originalBg; }, 150);
+      } catch (err) {}
+    }
+  });
+};
+
+export const onTableRowCreated = (e: Event) => {
+  const customEvent = e as CustomEvent<BUI.RowCreatedEventDetail<any>>;
+  customEvent.stopImmediatePropagation();
+  if (!customEvent.detail) return;
+  const { row } = customEvent.detail;
+  row.style.minHeight = "28px";
+  row.style.margin = "0";
+};
+
+export const setupBIMTable = (table: BUI.Table<any>) => {
+  table.defaultContentTemplate = tableDefaultContentTemplate;
+  table.addEventListener("cellcreated", onTableCellCreated);
+  table.addEventListener("rowcreated", onTableRowCreated);
 };

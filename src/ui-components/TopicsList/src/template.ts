@@ -2,6 +2,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { TopicsListState, TopicsListTableData } from "./types";
+import { onTableCellCreated, onTableRowCreated } from "../../../globals";
 
 export const topicsListTemplate: BUI.StatefullComponent<TopicsListState> = (
   state,
@@ -36,7 +37,7 @@ export const topicsListTemplate: BUI.StatefullComponent<TopicsListState> = (
   };
 
   return BUI.html`
-    <bim-table no-indentation ${BUI.ref(onTableCreated)}>
+    <bim-table no-indentation @rowcreated=${onTableRowCreated} @cellcreated=${onTableCellCreated} ${BUI.ref(onTableCreated)}>
       <bim-label slot="missing-data" icon="ph:warning-fill" style="--bim-icon--c: gold;">${missingDataMessage}</bim-label>
     </bim-table>
   `;

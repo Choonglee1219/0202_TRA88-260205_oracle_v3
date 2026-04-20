@@ -2,6 +2,7 @@ import * as BUI from "@thatopen/ui";
 import { ViewTemplatesListState, ViewTemplatesListTableData } from "./types";
 import { ViewTemplater } from "../../../bim-components";
 import { appIcons } from "../../../globals";
+import { onTableCellCreated, onTableRowCreated } from "../../../globals";
 
 export const viewTemplatesListTemplate = (state: ViewTemplatesListState) => {
   const { components } = state;
@@ -32,7 +33,7 @@ export const viewTemplatesListTemplate = (state: ViewTemplatesListState) => {
   };
 
   return BUI.html`
-   <bim-table ${BUI.ref(onCreated)}>
+   <bim-table @rowcreated=${onTableRowCreated} @cellcreated=${onTableCellCreated} ${BUI.ref(onCreated)}>
       <bim-label slot="missing-data" style="--bim-icon--c: gold" icon=${appIcons.TASK}>
         ${missingDataMessage}
       </bim-label>

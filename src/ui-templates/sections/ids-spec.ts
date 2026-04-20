@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
-import { appIcons, onToggleSection } from "../../globals";
+import { appIcons, onToggleSection, setupBIMTable } from "../../globals";
 import { setModelTransparent, restoreModelMaterials } from "../toolbars/viewer-toolbar";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { IDSSpecDefinition, predefinedSpecs } from "../../setup/specs";
@@ -53,6 +53,8 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
   specsTable.hiddenColumns = ["id", "spec"];
   specsTable.headersHidden = false;
 
+  setupBIMTable(specsTable);
+
   specsTable.data = predefinedSpecs.map((spec, i) => ({
     data: {
       id: `spec-${i}`,
@@ -81,6 +83,8 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
   // Results Table Setup
   const resultsTable = document.createElement("bim-table") as BUI.Table<IDSTableData>;
   resultsTable.hiddenColumns = ["id", "ModelID", "ExpressID"];
+
+  setupBIMTable(resultsTable);
 
   const onTableSelectionChange = async () => {
     if (isUpdatingSelection) return;

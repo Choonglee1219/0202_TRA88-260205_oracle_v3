@@ -3,6 +3,7 @@ import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { quantityChart } from "../../ui-components/QuantityChart";
+import { setupBIMTable } from "../../globals";
 
 export interface QuantityTablePanelState {
   components: OBC.Components;
@@ -195,9 +196,12 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
   quantityTable.hiddenColumns = ["id"];
   quantityTable.headersHidden = false;
 
+  // 공통 테이블 스타일 및 이벤트 적용
+  setupBIMTable(quantityTable);
+
+  // Quantity Table만의 개별 이벤트 (행 클릭 시 이동)
   quantityTable.addEventListener("rowcreated", (e: Event) => {
     const customEvent = e as CustomEvent<BUI.RowCreatedEventDetail<any>>;
-    customEvent.stopImmediatePropagation();
     const { row } = customEvent.detail;
     row.style.cursor = "pointer";
 
@@ -225,6 +229,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
 
   const summaryTable = document.createElement("bim-table") as BUI.Table<any>;
   summaryTable.headersHidden = false;
+  setupBIMTable(summaryTable);
 
   // --- Pagination UI Refs ---
   let paginationContainer: HTMLDivElement;

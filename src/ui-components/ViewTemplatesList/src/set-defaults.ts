@@ -2,6 +2,7 @@ import * as BUI from "@thatopen/ui";
 import { ViewTemplatesListState, ViewTemplatesListTableData } from "./types";
 import { ViewTemplater } from "../../../bim-components";
 import { appIcons } from "../../../globals";
+import { tableDefaultContentTemplate } from "../../../globals";
 
 export const setDefaults = (
   state: ViewTemplatesListState,
@@ -12,7 +13,9 @@ export const setDefaults = (
   table.noIndentation = true;
   table.expanded = true;
   table.headersHidden = true;
-  table.columns = ["Name", { name: "Actions", width: "auto" }];
+  table.columns = [{ name: "Name", width: "minmax(0, 1fr)" }, { name: "Actions", width: "auto" }];
+
+  table.defaultContentTemplate = tableDefaultContentTemplate;
 
   table.dataTransform = {
     Actions: (_, rowData) => {

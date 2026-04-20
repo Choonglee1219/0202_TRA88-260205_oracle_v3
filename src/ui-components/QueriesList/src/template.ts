@@ -4,6 +4,7 @@ import * as BUI from "@thatopen/ui";
 import { QueriesListState } from "./types";
 import { appIcons } from "../../../globals";
 import { Highlighter } from "../../../bim-components/Highlighter";
+import { tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated } from "../../../globals";
 
 const markdownFiles = import.meta.glob("../../../markdown/*.md", {
   query: "raw",
@@ -42,9 +43,11 @@ export const queriesListTemplate: BUI.StatefullComponent<QueriesListState> = (
   const onCreated = (e?: Element) => {
     if (!e) return;
     const table = e as BUI.Table;
-    table.columns = ["Name", { name: "Actions", width: "auto" }];
+    table.columns = [{ name: "Name", width: "minmax(0, 1fr)" }, { name: "Actions", width: "auto" }];
     table.headersHidden = true;
     table.noIndentation = true;
+
+    table.defaultContentTemplate = tableDefaultContentTemplate;
 
     table.dataTransform = {
       Actions: (_, rowData) => {
@@ -116,6 +119,6 @@ export const queriesListTemplate: BUI.StatefullComponent<QueriesListState> = (
   };
 
   return BUI.html`
-    <bim-table .data=${tableData} ${BUI.ref(onCreated)}></bim-table>
+    <bim-table @rowcreated=${onTableRowCreated} @cellcreated=${onTableCellCreated} .data=${tableData} ${BUI.ref(onCreated)}></bim-table>
   `;
 };

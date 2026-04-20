@@ -1,6 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { appIcons } from "../../globals";
+import { setupBIMTable } from "../../globals";
 
 export interface ViewpointsPanelState {
   components: OBC.Components;
@@ -25,6 +26,9 @@ export const viewpointsPanelTemplate: BUI.StatefullComponent<ViewpointsPanelStat
   
   const table = document.createElement("bim-table") as BUI.Table<ViewpointTableData>;
   table.hiddenColumns = ["id"];
+
+  // 공통 테이블 스타일 및 이벤트 적용
+  setupBIMTable(table);
   
   const updateTableData = () => {
     const data: { data: ViewpointTableData }[] = [];
