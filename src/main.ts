@@ -9,6 +9,7 @@ import { setupFinders } from "./setup/finders";
 import { setupViewTemplates } from "./setup/templaters";
 import { ViewCube } from "./ui-components/ViewCube";
 import { Highlighter } from "./bim-components/Highlighter";
+import { setupContextMenu } from "./ui-components/ContextMenu";
 
 // 🎨Override the bim-label template to use a local SVG icon and apply custom colors
 // @ts-ignore
@@ -72,7 +73,19 @@ world.camera.controls.restThreshold = 0.05;
 
 world.camera.controls.mouseButtons.left = 0;
 world.camera.controls.mouseButtons.middle = 2;
-world.camera.controls.mouseButtons.right = 1;
+world.camera.controls.mouseButtons.right = 0;
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Shift") {
+    world.camera.controls.mouseButtons.middle = 1; // Shift + Middle = ROTATE
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  if (event.key === "Shift") {
+    world.camera.controls.mouseButtons.middle = 2; // Middle = TRUCK(Pan)
+  }
+});
 
 // ---------------------------------
 
@@ -232,6 +245,14 @@ highlighter.setup({
     opacity: 0.3,
     transparent: true,
   },
+});
+
+// 🎨 Custom highlighter style for Spatial Entities
+highlighter.styles.set("transparentCyan", {
+  color: new THREE.Color("#00ffff"),
+  renderedFaces: 1,
+  opacity: 0.02,
+  transparent: true,
 });
 
 const originalUpdateColors = highlighter.updateColors.bind(highlighter);
@@ -434,6 +455,9 @@ const onPointerUp = async (event: PointerEvent) => {
 
 viewport.addEventListener("pointerdown", onPointerDown);
 
+// 📌 Context Menu Setup
+setupContextMenu(components, world, viewport);
+
 // 🚚Model Load EventHandler
 fragments.list.onItemSet.add(async ({ value: model }) => {
   const finder = components.get(OBC.ItemsFinder);
@@ -456,6 +480,8 @@ fragments.list.onItemSet.add(async ({ value: model }) => {
   const localIds = Object.values(items).flat();
   const modelIdMap = { [model.modelId]: new Set(localIds) };
   classifier.addGroupItems("PermanentHidden", "HiddenItems", modelIdMap);
+  
+  await highlighter.highlightByID("transparentCyan", modelIdMap, false, false);
   await hider.set(false, modelIdMap);
 
   const boxer = components.get(OBC.BoundingBoxer);

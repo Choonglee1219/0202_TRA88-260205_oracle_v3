@@ -12,13 +12,15 @@ export interface ViewerToolbarState {
   world: OBC.World;
 }
 
-const originalColors = new Map<
+const originalColors = new WeakMap<
   FRAGS.BIMMaterial,
-  { color: number; transparent: boolean; opacity: number; depthWrite: boolean }
+  { color: number; transparent: boolean; opacity: number; depthWrite: boolean; isColor: boolean }
 >();
+let isGhostModeActive = false;
 
 export const setModelTransparent = (components: OBC.Components) => {
-  if (originalColors.size > 0) return;
+  if (isGhostModeActive) return;
+  isGhostModeActive = true;
   const worlds = components.get(OBC.Worlds);
   for (const world of worlds.list.values()) {
     if (world.renderer instanceof OBF.PostproductionRenderer) {
@@ -27,13 +29,14 @@ export const setModelTransparent = (components: OBC.Components) => {
   }
 
   const fragments = components.get(OBC.FragmentsManager);
-  const materials = [...fragments.core.models.materials.list.values()];
-  for (const material of materials) {
+  for (const material of fragments.core.models.materials.list.values()) {
     if (material.userData.customId) continue;
     // save colors
     let color: number | undefined;
+    let isColor = false;
     if ("color" in material) {
       color = material.color.getHex();
+      isColor = true;
     } else {
       color = material.lodColor.getHex();
     }
@@ -43,18 +46,19 @@ export const setModelTransparent = (components: OBC.Components) => {
       transparent: material.transparent,
       opacity: material.opacity,
       depthWrite: material.depthWrite,
+      isColor,
     });
 
     // set color
     material.transparent = true;
     material.needsUpdate = true;
     material.depthWrite = false;
-    if ("color" in material) {
+    if (isColor && "color" in material) {
       material.opacity = 0.01;
-      material.color.setColorName("cyan");
-    } else {
+      material.color.set("#2FA4D7");
+    } else if ("lodColor" in material) {
       material.opacity = 0.001;
-      material.lodColor.setColorName("black");
+      material.lodColor.set("#1c5e7a");
     }
   }
 };
@@ -66,19 +70,100 @@ export const restoreModelMaterials = (components: OBC.Components) => {
       world.renderer.postproduction.edgesPass.enabled = true;
     }
   }
-  for (const [material, data] of originalColors) {
-    const { color, transparent, opacity, depthWrite } = data;
-    material.transparent = transparent;
-    material.opacity = opacity;
-    material.depthWrite = depthWrite;
-    if ("color" in material) {
-      material.color.setHex(color);
-    } else {
-      material.lodColor.setHex(color);
+  
+  const fragments = components.get(OBC.FragmentsManager);
+  for (const material of fragments.core.models.materials.list.values()) {
+    const data = originalColors.get(material);
+    if (data) {
+      material.transparent = data.transparent;
+      material.opacity = data.opacity;
+      material.depthWrite = data.depthWrite;
+      if (data.isColor && "color" in material) {
+        material.color.setHex(data.color);
+      } else if (!data.isColor && "lodColor" in material) {
+        material.lodColor.setHex(data.color);
+      }
+      material.needsUpdate = true;
+      originalColors.delete(material);
     }
-    material.needsUpdate = true;
   }
-  originalColors.clear();
+  isGhostModeActive = false;
+};
+
+// Context Menu 및 다른 곳에서 재사용할 수 있도록 핸들러 로직들을 분리
+let lastHiddenSelection: OBC.ModelIdMap | null = null;
+let isCurrentlyHidden = false;
+
+const areModelIdMapsEqual = (a: OBC.ModelIdMap, b: OBC.ModelIdMap | null) => {
+  if (!b) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    const setA = a[key];
+    const setB = b[key];
+    if (!setB || setA.size !== setB.size) return false;
+    for (const val of setA) {
+      if (!setB.has(val)) return false;
+    }
+  }
+  return true;
+};
+
+const cloneModelIdMap = (map: OBC.ModelIdMap) => {
+  const clone: OBC.ModelIdMap = {};
+  for (const key in map) {
+    clone[key] = new Set(map[key]);
+  }
+  return clone;
+};
+
+export const showAllItems = async (components: OBC.Components) => {
+  const hider = components.get(OBC.Hider);
+  await hider.set(true);
+  const classifier = components.get(OBC.Classifier);
+  const hiddenItemsGroup = classifier.list.get("PermanentHidden")?.get("HiddenItems");
+  if (hiddenItemsGroup) {
+    const hiddenItems = await hiddenItemsGroup.get();
+    if (!OBC.ModelIdMapUtils.isEmpty(hiddenItems)) {
+      await hider.set(false, hiddenItems);
+    }
+  }
+};
+
+export const toggleGhostMode = (components: OBC.Components) => {
+  if (isGhostModeActive) {
+    restoreModelMaterials(components);
+  } else {
+    setModelTransparent(components);
+  }
+  lastHiddenSelection = null;
+  isCurrentlyHidden = false;
+};
+
+export const hideSelection = async (components: OBC.Components) => {
+  const highlighter = components.get(Highlighter);
+  const hider = components.get(OBC.Hider);
+  const selection = highlighter.selection.select;
+  if (OBC.ModelIdMapUtils.isEmpty(selection)) return;
+
+  if (areModelIdMapsEqual(selection, lastHiddenSelection) && isCurrentlyHidden) {
+    await hider.set(true, selection); // 이미 숨긴 상태에서 또 누르면 다시 표시
+    isCurrentlyHidden = false;
+    lastHiddenSelection = null;
+  } else {
+    await hider.set(false, selection); // 처음 숨기는 경우
+    isCurrentlyHidden = true;
+    lastHiddenSelection = cloneModelIdMap(selection);
+  }
+};
+
+export const isolateSelection = async (components: OBC.Components) => {
+  const highlighter = components.get(Highlighter);
+  const hider = components.get(OBC.Hider);
+  const selection = highlighter.selection.select;
+  if (OBC.ModelIdMapUtils.isEmpty(selection)) return;
+  await hider.isolate(selection);
 };
 
 export const viewerToolbarTemplate: BUI.StatefullComponent<
@@ -93,25 +178,13 @@ ViewerToolbarState
 
   const onShowAll = async ({ target }: { target: BUI.Button }) => {
     target.loading = true;
-    await hider.set(true);
-    const classifier = components.get(OBC.Classifier);
-    const hiddenItemsGroup = classifier.list.get("PermanentHidden")?.get("HiddenItems");
-    if (hiddenItemsGroup) {
-      const hiddenItems = await hiddenItemsGroup.get();
-      if (!OBC.ModelIdMapUtils.isEmpty(hiddenItems)) {
-        await hider.set(false, hiddenItems);
-      }
-    }
+    await showAllItems(components);
     if (hiddenItemsBtn) hiddenItemsBtn.active = false;
     target.loading = false;
   };
 
   const onToggleGhost = () => {
-    if (originalColors.size) {
-      restoreModelMaterials(components);
-    } else {
-      setModelTransparent(components);
-    }
+    toggleGhostMode(components);
   };
 
   const onToggleHidden = async ({ target }: { target: BUI.Button }) => {
@@ -144,18 +217,14 @@ ViewerToolbarState
   }
 
   const onHide = async ({ target }: { target: BUI.Button }) => {
-    const selection = highlighter.selection.select;
-    if (OBC.ModelIdMapUtils.isEmpty(selection)) return;
     target.loading = true;
-    await hider.set(false, selection);
+    await hideSelection(components);
     target.loading = false;
   };
 
   const onIsolate = async ({ target }: { target: BUI.Button }) => {
-    const selection = highlighter.selection.select;
-    if (OBC.ModelIdMapUtils.isEmpty(selection)) return;
     target.loading = true;
-    await hider.isolate(selection);
+    await isolateSelection(components);
     target.loading = false;
   };
 
