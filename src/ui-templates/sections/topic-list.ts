@@ -113,7 +113,7 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   const originalRestoreViewpoint = bcfTopics.restoreViewpoint.bind(bcfTopics);
   bcfTopics.restoreViewpoint = async (topic: OBC.Topic, options?: { updateSnapshot?: boolean }): Promise<boolean> => {
-    const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === topic.guid);
+    const targetGroup = topicListTable.value?.find((row: any) => row.data && row.data.Guid === topic.guid);
     if (targetGroup) {
       topicListTable.selection.clear();
       topicListTable.selection.add(targetGroup.data);
@@ -214,14 +214,15 @@ export const topicListTemplate: BUI.StatefullComponent<
         return;
       }
 
-      for (const topic of bcfTopics.list.values()) {
+      const topics = Array.from(bcfTopics.list.values());
+      for (const topic of topics) {
         // restoreViewpoint가 스냅샷을 찍었는지 여부를 반환합니다.
         // Clash 토픽의 경우, 내부적으로 줌인 직후 스냅샷을 찍습니다.
         const snapshotTaken = await bcfTopics.restoreViewpoint(topic, { updateSnapshot: true });
 
         if (snapshotTaken) {
           // 스냅샷이 내부에서 이미 처리된 경우, UI만 업데이트하고 다음 토픽으로 넘어갑니다.
-          bcfTopics.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
+          bcfTopics.list.set(topic.guid, topic);
           await new Promise((resolve) => setTimeout(resolve, 100)); // UI가 멈추지 않도록 짧은 딜레이
         } else {
           // Clash 토픽이 아닌 경우, 기존 로직대로 전체 뷰를 잡고 스냅샷을 찍습니다.
@@ -234,7 +235,7 @@ export const topicListTemplate: BUI.StatefullComponent<
           (topic as any).snapshot = dataUrl;
           
           // UI에 스냅샷 갱신을 반영
-          bcfTopics.list.onItemUpdated.trigger({ key: topic.guid, value: topic });
+          bcfTopics.list.set(topic.guid, topic);
         }
       }
 
