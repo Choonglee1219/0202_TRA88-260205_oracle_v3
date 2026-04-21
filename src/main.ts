@@ -75,6 +75,26 @@ world.camera.controls.mouseButtons.left = 0;
 world.camera.controls.mouseButtons.middle = 2;
 world.camera.controls.mouseButtons.right = 0;
 
+// 마우스 휠(줌) 동작 개선: 화면 중앙이 아닌 마우스 포인터를 향해 줌 인/아웃 활성화 및 속도 초기화
+world.camera.controls.dollyToCursor = true;
+
+// 타겟과 가까워질수록 이동/줌 속도가 0에 수렴하는 것을 방지하기 위한 동적 속도 보정
+const baseDollySpeed = 1.0;
+const baseTruckSpeed = 3.0;
+const minEffectiveDistance = 10.0; // 이 거리보다 가까워지면 배율을 강제로 높여서 일정 속도 유지
+
+world.camera.controls.addEventListener("update", () => {
+  const dist = world.camera.controls.distance;
+  if (dist < minEffectiveDistance && dist > 0) {
+    const boost = minEffectiveDistance / dist;
+    world.camera.controls.dollySpeed = baseDollySpeed * boost * 1.5;
+    world.camera.controls.truckSpeed = baseTruckSpeed * boost;
+  } else {
+    world.camera.controls.dollySpeed = baseDollySpeed;
+    world.camera.controls.truckSpeed = baseTruckSpeed;
+  }
+});
+
 window.addEventListener("keydown", (event) => {
   if (event.key === "Shift") {
     world.camera.controls.mouseButtons.middle = 1; // Shift + Middle = ROTATE
