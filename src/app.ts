@@ -29,9 +29,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // ✅ OracleDB Connection Pool 설정
 const ifcPoolConfig = {
-  user: "HR",
+  user: "ifcAdmin",
   password: "123456",
-  connectString: "localhost/orcl",
+  connectString: "localhost:1521/ORCLPDB",
   poolAlias: 'ifcPool',
   poolMax: 10,
   poolMin: 2,

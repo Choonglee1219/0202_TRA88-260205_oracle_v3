@@ -365,6 +365,18 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+// 🎯 Double Click: Fit To Item
+viewport.addEventListener("dblclick", async () => {
+  if (clipper.enabled || lengthMeasurer.enabled || areaMeasurer.enabled) return;
+
+  const selection = highlighter.selection.select;
+  if (!OBC.ModelIdMapUtils.isEmpty(selection)) {
+    if (world.camera && "fitToItems" in world.camera) {
+      await (world.camera as any).fitToItems(selection);
+    }
+  }
+});
+
 // 📦 Ctrl + Drag: Box Selection
 let selectionStart: THREE.Vector2 | null = null;
 let selectionBox: HTMLDivElement | null = null;
