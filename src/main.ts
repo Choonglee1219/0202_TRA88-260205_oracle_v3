@@ -11,6 +11,8 @@ import { setupViewCube } from "./ui-components/ViewCube";
 import { Highlighter } from "./bim-components/Highlighter";
 import { setupContextMenu } from "./ui-components/ContextMenu";
 import { CustomCameraControl } from "./bim-components/CustomCameraControl";
+import { setupBoxSelection } from "./ui-components/BoxSelection";
+import { Measurer } from "./bim-components/Measurer";
 
 // 🎨Override the bim-label template to use a local SVG icon and apply custom colors
 // @ts-ignore
@@ -233,169 +235,15 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-// 📐Length Measurement Setup
-const lengthMeasurer = components.get(OBF.LengthMeasurement);
-lengthMeasurer.world = world;
-lengthMeasurer.color = new THREE.Color("#6528d7");
-
-lengthMeasurer.list.onItemAdded.add((line) => {
-  const center = new THREE.Vector3();
-  line.getCenter(center);
-  const radius = line.distance() / 3;
-  const sphere = new THREE.Sphere(center, radius);
-  world.camera.controls.fitToSphere(sphere, true);
-});
-
-viewport.addEventListener("dblclick", () => {
-  lengthMeasurer.create();
-});
-
-window.addEventListener("keydown", (event) => {
-  if (event.code === "Delete" || event.code === "Backspace") {
-    lengthMeasurer.delete();
-  }
-});
-
-// 📐Area Measurement Setup
-const areaMeasurer = components.get(OBF.AreaMeasurement);
-areaMeasurer.world = world;
-areaMeasurer.color = new THREE.Color("#6528d7");
-
-areaMeasurer.list.onItemAdded.add((area) => {
-  if (!area.boundingBox) return;
-  const sphere = new THREE.Sphere();
-  area.boundingBox.getBoundingSphere(sphere);
-  world.camera.controls.fitToSphere(sphere, true);
-});
-
-viewport.addEventListener("dblclick", () => {
-  areaMeasurer.create();
-});
-
-window.addEventListener("keydown", (event) => {
-  if (event.code === "Enter" || event.code === "NumpadEnter") {
-    areaMeasurer.endCreation();
-  }
-});
-
-window.addEventListener("keydown", (event) => {
-  if (event.code === "Delete" || event.code === "Backspace") {
-    areaMeasurer.delete();
-  }
-});
-
-// 🚶‍♂️ Custom Camera Control 초기화
+// ‍♂️ Custom Camera Control 초기화
 new CustomCameraControl(components, world, viewport, highlighter);
 
-// � Ctrl + Drag: Box Selection
-let selectionStart: THREE.Vector2 | null = null;
-let selectionBox: HTMLDivElement | null = null;
+// 📐 Measurer Setup
+const measurer = components.get(Measurer);
+measurer.init(world, viewport);
 
-const onPointerDown = (event: PointerEvent) => {
-  // Ctrl + 좌클릭 조합일 때만 작동하도록 설정
-  if (event.button !== 0 || !event.ctrlKey) return;
-  
-  const rect = viewport.getBoundingClientRect();
-  selectionStart = new THREE.Vector2(event.clientX - rect.left, event.clientY - rect.top);
-  
-  selectionBox = document.createElement("div");
-  selectionBox.style.position = "absolute";
-  selectionBox.style.border = "1px solid rgba(143, 188, 12, 0.8)";
-  selectionBox.style.backgroundColor = "rgba(143, 188, 12, 0.2)";
-  selectionBox.style.pointerEvents = "none";
-  selectionBox.style.zIndex = "999";
-  selectionBox.style.left = `${selectionStart.x}px`;
-  selectionBox.style.top = `${selectionStart.y}px`;
-  selectionBox.style.width = "0px";
-  selectionBox.style.height = "0px";
-  
-  viewport.append(selectionBox);
-  
-  world.camera.controls.enabled = false;
-  
-  window.addEventListener("pointermove", onPointerMove);
-  window.addEventListener("pointerup", onPointerUp);
-};
-  
-const onPointerMove = (event: PointerEvent) => {
-  if (!selectionStart || !selectionBox) return;
-
-  const rect = viewport.getBoundingClientRect();
-  const current = new THREE.Vector2(event.clientX - rect.left, event.clientY - rect.top);
-
-  const minX = Math.min(selectionStart.x, current.x);
-  const minY = Math.min(selectionStart.y, current.y);
-  const width = Math.abs(selectionStart.x - current.x);
-  const height = Math.abs(selectionStart.y - current.y);
-
-  selectionBox.style.left = `${minX}px`;
-  selectionBox.style.top = `${minY}px`;
-  selectionBox.style.width = `${width}px`;
-  selectionBox.style.height = `${height}px`;
-};
-
-const onPointerUp = async (event: PointerEvent) => {
-  window.removeEventListener("pointermove", onPointerMove);
-  window.removeEventListener("pointerup", onPointerUp);
-
-  world.camera.controls.enabled = true;
-
-  if (!selectionStart || !selectionBox) {
-    selectionBox?.remove();
-    selectionStart = null;
-    selectionBox = null;
-    return;
-  }
-
-  const rect = viewport.getBoundingClientRect();
-  const end = new THREE.Vector2(event.clientX - rect.left, event.clientY - rect.top);
-
-  const topLeft = new THREE.Vector2(Math.min(selectionStart.x, end.x), Math.min(selectionStart.y, end.y));
-  const bottomRight = new THREE.Vector2(Math.max(selectionStart.x, end.x), Math.max(selectionStart.y, end.y));
-
-  selectionBox.remove();
-  selectionStart = null;
-  selectionBox = null;
-
-  // 박스 크기가 너무 작으면 단순 클릭으로 간주
-  if (Math.abs(bottomRight.x - topLeft.x) < 5 && Math.abs(bottomRight.y - topLeft.y) < 5) {
-    return;
-  }
-
-  const raycastTopLeft = new THREE.Vector2(topLeft.x + rect.left, topLeft.y + rect.top);
-  const raycastBottomRight = new THREE.Vector2(bottomRight.x + rect.left, bottomRight.y + rect.top);
-
-  const modelIdMap: OBC.ModelIdMap = {};
-
-  for (const [, model] of fragments.list) {
-    if (!model.object.visible) continue;
-
-    const res = await (model as any).rectangleRaycast({
-      camera: world.camera.three,
-      dom: world.renderer!.three.domElement,
-      topLeft: raycastTopLeft,
-      bottomRight: raycastBottomRight,
-      fullyIncluded: true,
-    });
-
-    if (res && res.localIds.length) {
-      modelIdMap[model.modelId] = new Set(res.localIds);
-    }
-  }
-
-  if (Object.keys(modelIdMap).length > 0) {
-    await highlighter.highlightByID(
-      highlighter.config.selectName,
-      modelIdMap,
-      true,
-      false
-    );
-  } else {
-    await highlighter.clear(highlighter.config.selectName);
-  }
-};
-
-viewport.addEventListener("pointerdown", onPointerDown);
+// 🔲 Box Selection Setup
+setupBoxSelection(components, world, viewport, highlighter);
 
 // 📌 Context Menu Setup
 setupContextMenu(components, world, viewport);

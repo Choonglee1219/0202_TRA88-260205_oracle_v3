@@ -9,7 +9,52 @@ export class Measurer extends OBC.Component {
 
   constructor(components: OBC.Components) {
     super(components);
-    components.add(Measurer.uuid, this);
+    components.list.set(Measurer.uuid, this);
+  }
+
+  init(world: OBC.World, viewport: HTMLElement) {
+    // 📐 Length Measurement Setup
+    const lengthMeasurer = this.components.get(OBF.LengthMeasurement);
+    lengthMeasurer.world = world;
+    lengthMeasurer.color = new THREE.Color("#6528d7");
+    lengthMeasurer.enabled = false; // 기본 활성화 방지 (단축키/버튼으로 제어)
+
+    lengthMeasurer.list.onItemAdded.add((line) => {
+      const center = new THREE.Vector3();
+      line.getCenter(center);
+      const radius = line.distance() / 3;
+      const sphere = new THREE.Sphere(center, radius);
+      (world.camera as any).controls?.fitToSphere(sphere, true);
+    });
+
+    // 📐 Area Measurement Setup
+    const areaMeasurer = this.components.get(OBF.AreaMeasurement);
+    areaMeasurer.world = world;
+    areaMeasurer.color = new THREE.Color("#6528d7");
+    areaMeasurer.enabled = false; // 기본 활성화 방지 (단축키/버튼으로 제어)
+
+    areaMeasurer.list.onItemAdded.add((area) => {
+      if (!area.boundingBox) return;
+      const sphere = new THREE.Sphere();
+      area.boundingBox.getBoundingSphere(sphere);
+      (world.camera as any).controls?.fitToSphere(sphere, true);
+    });
+
+    viewport.addEventListener("dblclick", () => {
+      if (lengthMeasurer.enabled) lengthMeasurer.create();
+      if (areaMeasurer.enabled) areaMeasurer.create();
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+      if ((event.code === "Enter" || event.code === "NumpadEnter") && areaMeasurer.enabled) {
+        areaMeasurer.endCreation();
+      }
+      if (event.code === "Delete" || event.code === "Backspace") {
+        if (lengthMeasurer.enabled) lengthMeasurer.delete();
+        if (areaMeasurer.enabled) areaMeasurer.delete();
+      }
+    });
   }
 
   async getMeasure() {
