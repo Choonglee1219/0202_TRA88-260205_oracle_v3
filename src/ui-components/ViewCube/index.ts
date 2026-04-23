@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { LitElement, css, html } from "lit";
 import { property, state } from "lit/decorators.js";
+import * as OBC from "@thatopen/components";
 
 /**
  * A custom 3D view cube component for BIM applications. HTML tag: bim-view-cube
@@ -242,4 +243,41 @@ export class ViewCube extends LitElement {
       </div>
     `;
   }
+}
+
+export function setupViewCube(world: OBC.World, viewport: HTMLElement) {
+  if (!customElements.get("bim-view-cube")) {
+    customElements.define("bim-view-cube", ViewCube);
+  }
+
+  const viewCube = document.createElement("bim-view-cube") as ViewCube;
+  viewCube.camera = world.camera.three;
+  viewCube.rightText = "Right";
+  viewCube.leftText = "Left";
+  viewCube.topText = "Top";
+  viewCube.bottomText = "Bottom";
+  viewCube.frontText = "Front";
+  viewCube.backText = "Back";
+
+  viewport.append(viewCube);
+
+  world.camera.controls?.addEventListener("update", () => {
+    viewCube.updateOrientation();
+  });
+
+  if ("projection" in world.camera) {
+    (world.camera as any).projection.onChanged.add(() => {
+      viewCube.camera = world.camera.three;
+      viewCube.updateOrientation();
+    });
+  }
+
+  viewCube.addEventListener("frontclick", () => { world.camera.controls?.rotateTo(0, Math.PI / 2, true); });
+  viewCube.addEventListener("backclick", () => { world.camera.controls?.rotateTo(Math.PI, Math.PI / 2, true); });
+  viewCube.addEventListener("rightclick", () => { world.camera.controls?.rotateTo(Math.PI / 2, Math.PI / 2, true); });
+  viewCube.addEventListener("leftclick", () => { world.camera.controls?.rotateTo(-Math.PI / 2, Math.PI / 2, true); });
+  viewCube.addEventListener("topclick", () => { world.camera.controls?.rotateTo(0, 0, true); });
+  viewCube.addEventListener("bottomclick", () => { world.camera.controls?.rotateTo(0, Math.PI, true); });
+
+  return viewCube;
 }

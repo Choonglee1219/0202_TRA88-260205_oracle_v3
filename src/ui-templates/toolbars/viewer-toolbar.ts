@@ -6,6 +6,7 @@ import { appIcons, tooltips } from "../../globals";
 import { MeasurerUI } from "../../bim-components/Measurer/src";
 import { Colorize } from "../../ui-components/Colorize";
 import { Highlighter } from "../../bim-components/Highlighter";
+import { CustomCameraControl } from "../../bim-components/CustomCameraControl";
 
 export interface ViewerToolbarState {
   components: OBC.Components;
@@ -118,6 +119,35 @@ const cloneModelIdMap = (map: OBC.ModelIdMap) => {
   return clone;
 };
 
+// 단축키 연동을 위한 버튼 DOM 참조 변수
+let showAllBtn: BUI.Button | undefined;
+let ghostBtn: BUI.Button | undefined;
+let hiddenItemsBtn: BUI.Button | undefined;
+let focusBtnRef: BUI.Button | undefined;
+let hideBtn: BUI.Button | undefined;
+let isolateBtn: BUI.Button | undefined;
+let isFlyModeActive = false; // Fly Mode 상태를 추적하기 위한 변수
+
+if (!(window as any)._toolbarHotkeyRegistered) {
+  (window as any)._toolbarHotkeyRegistered = true;
+  window.addEventListener("keydown", (e) => {
+    if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+    const key = e.key.toLowerCase();
+
+    // Fly Mode가 켜져 있을 때는 이동 키(W, A, S, D)가 단축키로 작동하지 않도록 방지
+    if (isFlyModeActive && ['w', 'a', 's', 'd'].includes(key)) {
+      return;
+    }
+
+    if (key === 'a') showAllBtn?.click();
+    if (key === 'g') ghostBtn?.click();
+    if (key === 's') hiddenItemsBtn?.click();
+    if (key === 'f') focusBtnRef?.click();
+    if (key === 'h') hideBtn?.click();
+    if (key === 'i') isolateBtn?.click();
+  });
+}
+
 export const showAllItems = async (components: OBC.Components) => {
   const hider = components.get(OBC.Hider);
   await hider.set(true);
@@ -129,6 +159,8 @@ export const showAllItems = async (components: OBC.Components) => {
       await hider.set(false, hiddenItems);
     }
   }
+  isCurrentlyHidden = false;
+  lastHiddenSelection = null;
 };
 
 export const toggleGhostMode = (components: OBC.Components) => {
@@ -174,17 +206,18 @@ ViewerToolbarState
   const highlighter = components.get(Highlighter);
   const hider = components.get(OBC.Hider);
   
-  let hiddenItemsBtn: BUI.Button | undefined;
-
   const onShowAll = async ({ target }: { target: BUI.Button }) => {
     target.loading = true;
     await showAllItems(components);
     if (hiddenItemsBtn) hiddenItemsBtn.active = false;
+    if (hideBtn) hideBtn.active = false;
     target.loading = false;
   };
 
   const onToggleGhost = () => {
     toggleGhostMode(components);
+    if (ghostBtn) ghostBtn.active = isGhostModeActive;
+    if (hideBtn) hideBtn.active = isCurrentlyHidden; // 고스트 모드가 켜지면 Hide 상태가 초기화되므로 동기화
   };
 
   const onToggleHidden = async ({ target }: { target: BUI.Button }) => {
@@ -213,12 +246,13 @@ ViewerToolbarState
       target.loading = false;
     };
 
-    focusBtn = BUI.html`<bim-button tooltip-title=${tooltips.FOCUS.TITLE} tooltip-text=${tooltips.FOCUS.TEXT} icon=${appIcons.FOCUS} label="Focus" @click=${onFocus}></bim-button>`;
+    focusBtn = BUI.html`<bim-button ${BUI.ref((e) => { focusBtnRef = e as BUI.Button; })} tooltip-title=${tooltips.FOCUS.TITLE} tooltip-text=${tooltips.FOCUS.TEXT} icon=${appIcons.FOCUS} label="Focus" @click=${onFocus}></bim-button>`;
   }
 
   const onHide = async ({ target }: { target: BUI.Button }) => {
     target.loading = true;
     await hideSelection(components);
+    if (hideBtn) hideBtn.active = isCurrentlyHidden;
     target.loading = false;
   };
 
@@ -228,19 +262,43 @@ ViewerToolbarState
     target.loading = false;
   };
 
+  const customCameraControl = components.get(CustomCameraControl as any) as CustomCameraControl;
+  isFlyModeActive = customCameraControl.flyMode.isFlyMode;
+
+  const onToggleFlyMode = () => {
+    customCameraControl.flyMode.toggle();
+  };
+
+  const setupFlyModeBtn = (e?: Element) => {
+    if (!e) return;
+    const btn = e as BUI.Button;
+    btn.active = customCameraControl.flyMode.isFlyMode;
+    if ((btn as any)._flyModeListener) {
+      customCameraControl.flyMode.onToggle.remove((btn as any)._flyModeListener);
+    }
+    (btn as any)._flyModeListener = (isFlyMode: boolean) => { 
+      btn.active = isFlyMode; 
+      isFlyModeActive = isFlyMode; // Fly Mode 상태 동기화
+    };
+    customCameraControl.flyMode.onToggle.add((btn as any)._flyModeListener);
+  };
+
   return BUI.html`
     <bim-toolbar>
       <bim-toolbar-section label="Visibility" icon=${appIcons.SHOW}>
-        <bim-button tooltip-title=${tooltips.SHOW_ALL.TITLE} tooltip-text=${tooltips.SHOW_ALL.TEXT} icon=${appIcons.SHOW} label="Show All" @click=${onShowAll}></bim-button> 
-        <bim-button tooltip-title=${tooltips.GHOST.TITLE} tooltip-text=${tooltips.GHOST.TEXT} icon=${appIcons.TRANSPARENT} label="Ghost" @click=${onToggleGhost}></bim-button>
-        <bim-button ${BUI.ref((e) => { hiddenItemsBtn = e as BUI.Button; })} tooltip-title="Toggle Hidden Items" icon=${appIcons.MODEL} label="Space" @click=${onToggleHidden}></bim-button>
+        <bim-button ${BUI.ref((e) => { showAllBtn = e as BUI.Button; })} tooltip-title=${tooltips.SHOW_ALL.TITLE} tooltip-text=${tooltips.SHOW_ALL.TEXT} icon=${appIcons.SHOW} label="Show All" @click=${onShowAll}></bim-button> 
+        <bim-button ${BUI.ref((e) => { ghostBtn = e as BUI.Button; if(ghostBtn) ghostBtn.active = isGhostModeActive; })} tooltip-title=${tooltips.GHOST.TITLE} tooltip-text=${tooltips.GHOST.TEXT} icon=${appIcons.TRANSPARENT} label="Ghost" @click=${onToggleGhost}></bim-button>
+        <bim-button ${BUI.ref((e) => { hiddenItemsBtn = e as BUI.Button; })} tooltip-title="Toggle Hidden Items (S)" icon=${appIcons.MODEL} label="Space" @click=${onToggleHidden}></bim-button>
       </bim-toolbar-section> 
       <bim-toolbar-section label="Selection" icon=${appIcons.SELECT}>
         ${focusBtn}
-        <bim-button tooltip-title=${tooltips.HIDE.TITLE} tooltip-text=${tooltips.HIDE.TEXT} icon=${appIcons.HIDE} label="Hide" @click=${onHide}></bim-button> 
-        <bim-button tooltip-title=${tooltips.ISOLATE.TITLE} tooltip-text=${tooltips.ISOLATE.TEXT} icon=${appIcons.ISOLATE} label="Isolate" @click=${onIsolate}></bim-button>
+        <bim-button ${BUI.ref((e) => { hideBtn = e as BUI.Button; if(hideBtn) hideBtn.active = isCurrentlyHidden; })} tooltip-title=${tooltips.HIDE.TITLE} tooltip-text=${tooltips.HIDE.TEXT} icon=${appIcons.HIDE} label="Hide" @click=${onHide}></bim-button> 
+        <bim-button ${BUI.ref((e) => { isolateBtn = e as BUI.Button; })} tooltip-title=${tooltips.ISOLATE.TITLE} tooltip-text=${tooltips.ISOLATE.TEXT} icon=${appIcons.ISOLATE} label="Isolate" @click=${onIsolate}></bim-button>
         ${Colorize(components)}
       </bim-toolbar-section> 
+      <bim-toolbar-section label="Navigation" icon=${appIcons.COMPASS}>
+        <bim-button ${BUI.ref(setupFlyModeBtn)} tooltip-title="Fly Mode (L)" icon=${appIcons.FLY} label="Fly Mode" @click=${onToggleFlyMode}></bim-button>
+      </bim-toolbar-section>
       <bim-toolbar-section label="Measure" icon=${appIcons.RULER}>
         ${MeasurerUI(components)}
       </bim-toolbar-section>

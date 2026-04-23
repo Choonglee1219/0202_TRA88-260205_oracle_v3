@@ -4,6 +4,7 @@ import { appIcons } from "../../globals";
 import { showAllItems, toggleGhostMode, hideSelection, isolateSelection } from "../../ui-templates/toolbars/viewer-toolbar";
 import { Colorize } from "../Colorize";
 import { Highlighter } from "../../bim-components/Highlighter";
+import { CustomCameraControl } from "../../bim-components/CustomCameraControl";
 
 export const setupContextMenu = (components: OBC.Components, world: OBC.World, viewport: BUI.Viewport) => {
   const highlighter = components.get(Highlighter);
@@ -54,6 +55,11 @@ export const setupContextMenu = (components: OBC.Components, world: OBC.World, v
           btn.loading = true;
           await isolateSelection(components);
           btn.loading = false;
+          contextMenu.style.display = "none";
+        }}></bim-button>
+        <bim-button label="Fly Mode" icon=${appIcons.CAMERA} @click=${() => {
+          const customCameraControl = components.get(CustomCameraControl as any) as CustomCameraControl;
+          customCameraControl.flyMode.toggle();
           contextMenu.style.display = "none";
         }}></bim-button>
         ${Colorize(components)}

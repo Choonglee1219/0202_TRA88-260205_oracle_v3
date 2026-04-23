@@ -57,6 +57,8 @@ export const appIcons = {
   TABLE: "/icons/mdi--table-filter.svg",
   BACK: "/icons/eva--arrow-ios-back-outline.svg",
   FORWARD: "/icons/eva--arrow-ios-forward-outline.svg",
+  FLY: "/icons/mdi--airplane.svg",
+  COMPASS: "/icons/mdi--compass.svg",
 };
 
 export const onToggleSection = (e: Event) => {
@@ -78,23 +80,23 @@ export const onToggleSection = (e: Event) => {
 
 export const tooltips = {
   FOCUS: {
-    TITLE: "Items Focusing",
+    TITLE: "Items Focusing (F)",
     TEXT: "Move the camera to focus the selected items. If no items are selected, all models will be focused.",
   },
   HIDE: {
-    TITLE: "Hide Selection",
+    TITLE: "Hide Selection (H)",
     TEXT: "Hide the currently selected items.",
   },
   ISOLATE: {
-    TITLE: "Isolate Selection",
+    TITLE: "Isolate Selection (I)",
     TEXT: "Hide everything expect the currently selected items.",
   },
   GHOST: {
-    TITLE: "Ghost Mode",
+    TITLE: "Ghost Mode (G)",
     TEXT: "Set all models transparent, so selections and colors can be seen better.",
   },
   SHOW_ALL: {
-    TITLE: "Show All Items",
+    TITLE: "Show All Items (A)",
     TEXT: "Reset the visibility of all hidden items, so they become visible again.",
   },
   CLEARANCE: {

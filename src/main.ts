@@ -7,9 +7,10 @@ import * as TEMPLATES from "./ui-templates";
 import { appIcons, CONTENT_GRID_ID } from "./globals";
 import { setupFinders } from "./setup/finders";
 import { setupViewTemplates } from "./setup/templaters";
-import { ViewCube } from "./ui-components/ViewCube";
+import { setupViewCube } from "./ui-components/ViewCube";
 import { Highlighter } from "./bim-components/Highlighter";
 import { setupContextMenu } from "./ui-components/ContextMenu";
+import { CustomCameraControl } from "./bim-components/CustomCameraControl";
 
 // 🎨Override the bim-label template to use a local SVG icon and apply custom colors
 // @ts-ignore
@@ -68,90 +69,8 @@ world.camera.threePersp.far = 100000;
 world.camera.threePersp.updateProjectionMatrix();
 world.camera.controls.restThreshold = 0.05;
 
-// --- 카메라 마우스 조작법 변경 ---
-// Action 상수 (0: NONE, 1: ROTATE, 2: TRUCK(Pan), 4: SCREEN_PAN, 8: OFFSET, 16: DOLLY, 32: ZOOM)
-
-world.camera.controls.mouseButtons.left = 0;
-world.camera.controls.mouseButtons.middle = 2;
-world.camera.controls.mouseButtons.right = 0;
-
-// 마우스 휠(줌) 동작 개선: 화면 중앙이 아닌 마우스 포인터를 향해 줌 인/아웃 활성화 및 속도 초기화
-world.camera.controls.dollyToCursor = true;
-
-// 타겟과 가까워질수록 이동/줌 속도가 0에 수렴하는 것을 방지하기 위한 동적 속도 보정
-const baseDollySpeed = 1.0;
-const baseTruckSpeed = 3.0;
-const minEffectiveDistance = 10.0; // 이 거리보다 가까워지면 배율을 강제로 높여서 일정 속도 유지
-
-world.camera.controls.addEventListener("update", () => {
-  const dist = world.camera.controls.distance;
-  if (dist < minEffectiveDistance && dist > 0) {
-    const boost = minEffectiveDistance / dist;
-    world.camera.controls.dollySpeed = baseDollySpeed * boost * 1.5;
-    world.camera.controls.truckSpeed = baseTruckSpeed * boost;
-  } else {
-    world.camera.controls.dollySpeed = baseDollySpeed;
-    world.camera.controls.truckSpeed = baseTruckSpeed;
-  }
-});
-
-window.addEventListener("keydown", (event) => {
-  if (event.key === "Shift") {
-    world.camera.controls.mouseButtons.middle = 1; // Shift + Middle = ROTATE
-  }
-});
-
-window.addEventListener("keyup", (event) => {
-  if (event.key === "Shift") {
-    world.camera.controls.mouseButtons.middle = 2; // Middle = TRUCK(Pan)
-  }
-});
-
-// ---------------------------------
-
 // 🧊 ViewCube Setup
-if (!customElements.get("bim-view-cube")) {
-  customElements.define("bim-view-cube", ViewCube);
-}
-
-const viewCube = document.createElement("bim-view-cube") as ViewCube;
-viewCube.camera = world.camera.three;
-viewCube.rightText = "Right";
-viewCube.leftText = "Left";
-viewCube.topText = "Top";
-viewCube.bottomText = "Bottom";
-viewCube.frontText = "Front";
-viewCube.backText = "Back";
-
-viewport.append(viewCube);
-
-world.camera.controls.addEventListener("update", () => {
-  viewCube.updateOrientation();
-});
-
-world.camera.projection.onChanged.add(() => {
-  viewCube.camera = world.camera.three;
-  viewCube.updateOrientation();
-});
-
-viewCube.addEventListener("frontclick", () => {
-  world.camera.controls.rotateTo(0, Math.PI / 2, true);
-});
-viewCube.addEventListener("backclick", () => {
-  world.camera.controls.rotateTo(Math.PI, Math.PI / 2, true);
-});
-viewCube.addEventListener("rightclick", () => {
-  world.camera.controls.rotateTo(Math.PI / 2, Math.PI / 2, true);
-});
-viewCube.addEventListener("leftclick", () => {
-  world.camera.controls.rotateTo(-Math.PI / 2, Math.PI / 2, true);
-});
-viewCube.addEventListener("topclick", () => {
-  world.camera.controls.rotateTo(0, 0, true);
-});
-viewCube.addEventListener("bottomclick", () => {
-  world.camera.controls.rotateTo(0, Math.PI, true);
-});
+setupViewCube(world, viewport);
 
 const worldGrid = components.get(OBC.Grids).create(world);
 worldGrid.material.uniforms.uColor.value = new THREE.Color(0x494b50);
@@ -365,29 +284,20 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-// 🎯 Double Click: Fit To Item
-viewport.addEventListener("dblclick", async () => {
-  if (clipper.enabled || lengthMeasurer.enabled || areaMeasurer.enabled) return;
+// 🚶‍♂️ Custom Camera Control 초기화
+new CustomCameraControl(components, world, viewport, highlighter);
 
-  const selection = highlighter.selection.select;
-  if (!OBC.ModelIdMapUtils.isEmpty(selection)) {
-    if (world.camera && "fitToItems" in world.camera) {
-      await (world.camera as any).fitToItems(selection);
-    }
-  }
-});
-
-// 📦 Ctrl + Drag: Box Selection
+// � Ctrl + Drag: Box Selection
 let selectionStart: THREE.Vector2 | null = null;
 let selectionBox: HTMLDivElement | null = null;
 
 const onPointerDown = (event: PointerEvent) => {
   // Ctrl + 좌클릭 조합일 때만 작동하도록 설정
   if (event.button !== 0 || !event.ctrlKey) return;
-
+  
   const rect = viewport.getBoundingClientRect();
   selectionStart = new THREE.Vector2(event.clientX - rect.left, event.clientY - rect.top);
-
+  
   selectionBox = document.createElement("div");
   selectionBox.style.position = "absolute";
   selectionBox.style.border = "1px solid rgba(143, 188, 12, 0.8)";
@@ -398,15 +308,15 @@ const onPointerDown = (event: PointerEvent) => {
   selectionBox.style.top = `${selectionStart.y}px`;
   selectionBox.style.width = "0px";
   selectionBox.style.height = "0px";
-
+  
   viewport.append(selectionBox);
-
+  
   world.camera.controls.enabled = false;
-
+  
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
 };
-
+  
 const onPointerMove = (event: PointerEvent) => {
   if (!selectionStart || !selectionBox) return;
 
