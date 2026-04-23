@@ -86,6 +86,8 @@ const extractSelectionData = async (components: OBC.Components, modelIdMap: OBC.
     }
 
     const idsArray = Array.from(expressIds);
+    if (idsArray.length === 0) continue; // 빈 배열 시 전체 데이터를 가져오는 버그 방어
+
     const itemsData = await model.getItemsData(idsArray, {
         attributesDefault: true,
         relationsDefault: { attributes: false, relations: false },
@@ -95,11 +97,10 @@ const extractSelectionData = async (components: OBC.Components, modelIdMap: OBC.
         },
     });
 
-    for (const item of itemsData) {
-      const itemAny = item as any;
-      const expressId = itemAny.expressID ?? itemAny.id ?? itemAny._localId?.value ?? itemAny._localId;
-      
-      // Map에서 값을 찾기 위해 ID를 숫자형으로 변환 (타입 불일치 방지)
+    for (let i = 0; i < itemsData.length; i++) {
+      const itemAny = itemsData[i] as any;
+      // ID 매핑 안정성 복원 및 fallback으로 배열 인덱스 활용
+      const expressId = itemAny.expressID ?? itemAny.id ?? itemAny._localId?.value ?? itemAny._localId ?? idsArray[i];
       const category = catMap.get(Number(expressId)) || "Unknown";
       
 
@@ -357,6 +358,14 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
     totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
     if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
 
+    // 라이브러리의 자동 컬럼 생성(캐싱) 로직을 우회하고, 
+    // 원본 데이터(allData)의 구조에 맞춰 매번 컬럼을 강제로 명시해 줍니다.
+    if (allData.length > 0) {
+      (quantityTable as any).columns = Object.keys(allData[0]).map(k => ({ name: k }));
+    } else {
+      (quantityTable as any).columns = [];
+    }
+
     updatePage();
 
     // 요약 데이터 업데이트 (총합계, 평균, 최대, 최소)
@@ -382,6 +391,12 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
       }
     }
     summaryTable.data = summaryData;
+
+    if (summaryData.length > 0) {
+      (summaryTable as any).columns = Object.keys(summaryData[0].data).map(k => ({ name: k }));
+    } else {
+      (summaryTable as any).columns = [];
+    }
 
     // 차트 업데이트 (동기화)
     updateChartPanel({
@@ -589,6 +604,13 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
     isEventsRegistered = true;
     highlighter.events.select.onHighlight.add(async (modelIdMap) => {
       if (activeSection) activeSection.label = "Quantity Table (Loading...)";
+
+      // 이전 선택 객체의 컬럼 찌꺼기가 남는 버그 방지를 위해 테이블 캐시 강제 초기화
+      quantityTable.data = [];
+      (quantityTable as any).columns = [];
+      summaryTable.data = [];
+      (summaryTable as any).columns = [];
+
       await extractSelectionData(components, modelIdMap);
       
       selectedSummaryKeys.clear();
@@ -605,6 +627,12 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
     });
 
     highlighter.events.select.onClear.add(() => {
+      // 테이블 캐시 강제 초기화
+      quantityTable.data = [];
+      (quantityTable as any).columns = [];
+      summaryTable.data = [];
+      (summaryTable as any).columns = [];
+
       allData = [];
       numericKeys.clear();
       currentFilters.text = {};
