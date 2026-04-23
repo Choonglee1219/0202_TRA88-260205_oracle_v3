@@ -2,6 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { createRef } from "lit/directives/ref.js";
 import { TopicUserStyles } from "./types";
+import { appState } from "../../../globals";
 
 interface DataStyles {
   users: TopicUserStyles;
@@ -155,6 +156,10 @@ export const topicFormTemplate = (state: TopicFormUI) => {
       valueTransform,
     ) as Partial<OBC.BCFTopic>;
 
+    if (!appState.isAdmin) {
+      delete topicData.creationAuthor;
+    }
+
     if (topic) {
       topic.set(topicData);
       await onSubmit(topic);
@@ -189,7 +194,7 @@ export const topicFormTemplate = (state: TopicFormUI) => {
         </bim-dropdown>
       </div>
       <div style="display: flex; gap: 0.375rem">
-        <bim-dropdown vertical label="Author" name="creationAuthor">
+        <bim-dropdown vertical label="Author" name="creationAuthor" ?disabled=${!appState.isAdmin} style=${!appState.isAdmin ? "pointer-events: none; opacity: 0.5;" : ""}>
           ${[...users].map((u) => {
             const userStyle = styles?.users ? styles.users[u] : null;
             const name = userStyle ? userStyle.name : u;

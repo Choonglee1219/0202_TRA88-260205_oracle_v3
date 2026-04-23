@@ -1,7 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { users } from "../../../setup/users";
-import { appIcons } from "../../../globals";
 import { topicFormTemplate, TopicFormUI } from "../../../ui-components/TopicsList/src/form-template";
 
 const addBackdropStyles = () => {
@@ -77,6 +76,15 @@ export const newTopic = (components: OBC.Components) => {
       alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
     },
   });
+
+  const originalShowModal = modal.showModal.bind(modal);
+  modal.showModal = () => {
+    updateTopicForm({
+      components,
+      styles: { users },
+    });
+    originalShowModal();
+  };
 
   return modal;
 };

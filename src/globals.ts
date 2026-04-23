@@ -1,5 +1,10 @@
 import * as BUI from "@thatopen/ui";
 
+export const appState = {
+  isAdmin: false,
+  currentUser: "",
+};
+
 export const CONTENT_GRID_ID = "app-content";
 export const CONTENT_GRID_GAP = "1rem";
 export const SMALL_COLUMN_WIDTH = "22rem";

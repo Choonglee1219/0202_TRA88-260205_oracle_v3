@@ -1,7 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { users } from "../../../setup/users";
-import { appIcons } from "../../../globals";
+import { appIcons, appState } from "../../../globals";
 import { Highlighter } from "../../Highlighter";
 
 const addBackdropStyles = () => {
@@ -45,7 +45,6 @@ export const updateTopic = (bcfTopics: any) => {
   const authorDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   authorDropdown.label = "Author";
   authorDropdown.vertical = true;
-  authorDropdown.setAttribute("disabled", "");
 
   const assigneeDropdown = document.createElement("bim-dropdown") as BUI.Dropdown;
   assigneeDropdown.label = "Assignee";
@@ -84,6 +83,9 @@ export const updateTopic = (bcfTopics: any) => {
     if (statusDropdown.value.length > 0) currentTopic.status = statusDropdown.value[0];
     if (stageDropdown.value.length > 0) (currentTopic as any).stage = stageDropdown.value[0];
     if (assigneeDropdown.value.length > 0) currentTopic.assignedTo = assigneeDropdown.value[0];
+    if (appState.isAdmin && authorDropdown.value.length > 0) {
+      currentTopic.creationAuthor = authorDropdown.value[0];
+    }
     
     currentTopic.description = descriptionInput.value;
     
@@ -164,6 +166,7 @@ export const updateTopic = (bcfTopics: any) => {
 
   const updateForm = (topic: OBC.Topic) => {
     currentTopic = topic;
+
     titleInput.value = topic.title;
     descriptionInput.value = topic.description ?? "";
     
@@ -204,6 +207,16 @@ export const updateTopic = (bcfTopics: any) => {
     populate(stageDropdown, bcf.config.stages, topic.stage);
     populate(statusDropdown, bcf.config.statuses, topic.status);
     
+    if (appState.isAdmin) {
+      authorDropdown.removeAttribute("disabled");
+      authorDropdown.style.pointerEvents = "auto";
+      authorDropdown.style.opacity = "1";
+    } else {
+      authorDropdown.setAttribute("disabled", "");
+      authorDropdown.style.pointerEvents = "none";
+      authorDropdown.style.opacity = "0.5";
+    }
+
     if (topic.dueDate) {
       dueDateInput.value = topic.dueDate.toISOString().split('T')[0];
     } else {
