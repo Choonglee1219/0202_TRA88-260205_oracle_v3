@@ -1,4 +1,3 @@
-import * as CUI from "@thatopen/ui-obc";
 import * as BUI from "@thatopen/ui";
 
 export const CONTENT_GRID_ID = "app-content";
@@ -102,21 +101,6 @@ export const tooltips = {
   CLEARANCE: {
     TITLE: "Clearance Check",
     TEXT: "Measure the North-South or East-West clearance of the two selected objects.",
-  },
-};
-
-export const users: CUI.TopicUserStyles = {
-  "jhon.doe@example.com": {
-    name: "John Doe",
-    picture: "/profiles/john.jpg",
-  },
-  "user_a@something.com": {
-    name: "User A",
-    picture: "/profiles/user_a.jpg",
-  },
-  "user_b@something.com": {
-    name: "User B",
-    picture: "/profiles/user_b.jpg",
   },
 };
 

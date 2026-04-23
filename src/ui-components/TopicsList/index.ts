@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { users } from "../../globals";
+import { users } from "../../setup/users";
 import {
   TopicsListState,
   TopicsListTableData,

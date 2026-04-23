@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { users } from "../../globals";
+import { users } from "../../setup/users";
 import { ClashPointData } from "./src/clash-result-parser";
 import { BCFFileOperations } from "./src/bcf-file-operations";
 import { ClashMapDisplay } from "./src/clash-map";

@@ -1,6 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { users } from "../../../globals";
+import { users } from "../../../setup/users";
+import { appIcons } from "../../../globals";
 import { topicFormTemplate, TopicFormUI } from "../../../ui-components/TopicsList/src/form-template";
 
 const addBackdropStyles = () => {
