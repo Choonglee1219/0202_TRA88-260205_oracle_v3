@@ -39,8 +39,8 @@ export function MeasurerUI(components: OBC.Components) {
   return BUI.Component.create(() => {
     return BUI.html`
       <div style="display: flex; gap: 0.5rem;">
-        <bim-button style="flex: 0;" tooltip-title=${tooltips.CLEARANCE.TITLE} tooltip-text=${tooltips.CLEARANCE.TEXT} icon=${appIcons.RULER} label="Clearance" @click=${onMeasure}></bim-button>
-        <bim-button style="flex: 0;" tooltip-title="Clear All" icon=${appIcons.CLEAR} label="Clear All" @click=${onClearAll}></bim-button>
+        <bim-button style="flex: 0;" tooltip-title=${tooltips.CLEARANCE.TITLE} tooltip-text=${tooltips.CLEARANCE.TEXT} icon=${appIcons.RULER} @click=${onMeasure}></bim-button>
+        <bim-button style="flex: 0;" tooltip-title=${tooltips.CLEAR_MEASUREMENTS.TITLE} tooltip-text=${tooltips.CLEAR_MEASUREMENTS.TEXT} icon=${appIcons.CLEAR} @click=${onClearAll}></bim-button>
       </div>
     `;
   });

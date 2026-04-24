@@ -246,7 +246,7 @@ ViewerToolbarState
       target.loading = false;
     };
 
-    focusBtn = BUI.html`<bim-button ${BUI.ref((e) => { focusBtnRef = e as BUI.Button; })} tooltip-title=${tooltips.FOCUS.TITLE} tooltip-text=${tooltips.FOCUS.TEXT} icon=${appIcons.FOCUS} label="Focus" @click=${onFocus}></bim-button>`;
+    focusBtn = BUI.html`<bim-button ${BUI.ref((e) => { focusBtnRef = e as BUI.Button; })} tooltip-title=${tooltips.FOCUS.TITLE} tooltip-text=${tooltips.FOCUS.TEXT} icon=${appIcons.FOCUS} @click=${onFocus}></bim-button>`;
   }
 
   const onHide = async ({ target }: { target: BUI.Button }) => {
@@ -273,33 +273,83 @@ ViewerToolbarState
     if (!e) return;
     const btn = e as BUI.Button;
     btn.active = customCameraControl.flyMode.isFlyMode;
+
+    // HUD(비행기 조종간) 오버레이 요소 생성
+    let cockpitOverlay = document.getElementById("fly-mode-hud");
+    if (!cockpitOverlay) {
+      cockpitOverlay = document.createElement("div");
+      cockpitOverlay.id = "fly-mode-hud";
+      cockpitOverlay.style.position = "absolute";
+      cockpitOverlay.style.inset = "0";
+      cockpitOverlay.style.pointerEvents = "none";
+      cockpitOverlay.style.zIndex = "50";
+      cockpitOverlay.style.display = btn.active ? "block" : "none";
+      cockpitOverlay.innerHTML = `
+        <div style="position: absolute; inset: 0; box-shadow: inset 0 0 150px rgba(0,0,0,0.8);"></div>
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+          <div style="width: 40px; height: 2px; background: rgba(0, 255, 0, 0.6); position: absolute; top: 0; left: -20px;"></div>
+          <div style="width: 2px; height: 40px; background: rgba(0, 255, 0, 0.6); position: absolute; left: 0; top: -20px;"></div>
+          <div style="width: 30px; height: 30px; border: 2px solid rgba(0, 255, 0, 0.6); border-radius: 50%; position: absolute; top: -15px; left: -15px;"></div>
+        </div>
+        <div id="fly-mode-coords" style="position: absolute; bottom: 30px; left: 30px; color: rgba(0, 255, 0, 0.8); font-family: monospace; font-size: 1.2rem;">
+          <div>POS X: 0.00</div>
+          <div>POS Y: 0.00</div>
+          <div>POS Z: 0.00</div>
+        </div>
+        <div style="position: absolute; top: 30px; right: 30px; color: rgba(0, 255, 0, 0.8); font-family: monospace; font-size: 1.2rem; text-align: right;">
+          <div>[ FLY MODE ]</div>
+          <div style="font-size: 0.9rem; opacity: 0.8;">WASD to move</div>
+        </div>
+      `;
+      const viewportElement = document.querySelector("bim-viewport");
+      if (viewportElement) viewportElement.appendChild(cockpitOverlay);
+    }
+
+    const updateCoords = () => {
+      if (!isFlyModeActive) return;
+      const coordsEl = document.getElementById("fly-mode-coords");
+      if (coordsEl && world.camera) {
+        const pos = (world.camera as any).three?.position;
+        if (pos) {
+          coordsEl.innerHTML = `
+            <div>POS X: ${pos.x.toFixed(2)}</div>
+            <div>POS Y: ${pos.y.toFixed(2)}</div>
+            <div>POS Z: ${pos.z.toFixed(2)}</div>
+          `;
+        }
+      }
+      requestAnimationFrame(updateCoords);
+    };
+
     if ((btn as any)._flyModeListener) {
       customCameraControl.flyMode.onToggle.remove((btn as any)._flyModeListener);
     }
     (btn as any)._flyModeListener = (isFlyMode: boolean) => { 
       btn.active = isFlyMode; 
       isFlyModeActive = isFlyMode; // Fly Mode 상태 동기화
+      if (cockpitOverlay) cockpitOverlay.style.display = isFlyMode ? "block" : "none";
+      if (isFlyMode) updateCoords();
     };
     customCameraControl.flyMode.onToggle.add((btn as any)._flyModeListener);
   };
 
   return BUI.html`
     <bim-toolbar>
-      <bim-toolbar-section label="Visibility" icon=${appIcons.SHOW}>
-        <bim-button ${BUI.ref((e) => { showAllBtn = e as BUI.Button; })} tooltip-title=${tooltips.SHOW_ALL.TITLE} tooltip-text=${tooltips.SHOW_ALL.TEXT} icon=${appIcons.SHOW} label="Show All" @click=${onShowAll}></bim-button> 
-        <bim-button ${BUI.ref((e) => { ghostBtn = e as BUI.Button; if(ghostBtn) ghostBtn.active = isGhostModeActive; })} tooltip-title=${tooltips.GHOST.TITLE} tooltip-text=${tooltips.GHOST.TEXT} icon=${appIcons.TRANSPARENT} label="Ghost" @click=${onToggleGhost}></bim-button>
-        <bim-button ${BUI.ref((e) => { hiddenItemsBtn = e as BUI.Button; })} tooltip-title="Toggle Hidden Items (S)" icon=${appIcons.MODEL} label="Space" @click=${onToggleHidden}></bim-button>
+      <bim-toolbar-section>
+        <bim-button ${BUI.ref((e) => { showAllBtn = e as BUI.Button; })} tooltip-title=${tooltips.SHOW_ALL.TITLE} tooltip-text=${tooltips.SHOW_ALL.TEXT} icon=${appIcons.SHOW} @click=${onShowAll}></bim-button> 
+        <bim-button ${BUI.ref((e) => { ghostBtn = e as BUI.Button; if(ghostBtn) ghostBtn.active = isGhostModeActive; })} tooltip-title=${tooltips.GHOST.TITLE} tooltip-text=${tooltips.GHOST.TEXT} icon=${appIcons.TRANSPARENT} @click=${onToggleGhost}></bim-button>
+        <bim-button ${BUI.ref((e) => { hiddenItemsBtn = e as BUI.Button; })} tooltip-title=${tooltips.TOGGLE_HIDDEN.TITLE} tooltip-text=${tooltips.TOGGLE_HIDDEN.TEXT} icon=${appIcons.MODEL} @click=${onToggleHidden}></bim-button>
       </bim-toolbar-section> 
-      <bim-toolbar-section label="Selection" icon=${appIcons.SELECT}>
+      <bim-toolbar-section>
         ${focusBtn}
-        <bim-button ${BUI.ref((e) => { hideBtn = e as BUI.Button; if(hideBtn) hideBtn.active = isCurrentlyHidden; })} tooltip-title=${tooltips.HIDE.TITLE} tooltip-text=${tooltips.HIDE.TEXT} icon=${appIcons.HIDE} label="Hide" @click=${onHide}></bim-button> 
-        <bim-button ${BUI.ref((e) => { isolateBtn = e as BUI.Button; })} tooltip-title=${tooltips.ISOLATE.TITLE} tooltip-text=${tooltips.ISOLATE.TEXT} icon=${appIcons.ISOLATE} label="Isolate" @click=${onIsolate}></bim-button>
+        <bim-button ${BUI.ref((e) => { hideBtn = e as BUI.Button; if(hideBtn) hideBtn.active = isCurrentlyHidden; })} tooltip-title=${tooltips.HIDE.TITLE} tooltip-text=${tooltips.HIDE.TEXT} icon=${appIcons.HIDE} @click=${onHide}></bim-button> 
+        <bim-button ${BUI.ref((e) => { isolateBtn = e as BUI.Button; })} tooltip-title=${tooltips.ISOLATE.TITLE} tooltip-text=${tooltips.ISOLATE.TEXT} icon=${appIcons.ISOLATE} @click=${onIsolate}></bim-button>
         ${Colorize(components)}
       </bim-toolbar-section> 
-      <bim-toolbar-section label="Navigation" icon=${appIcons.COMPASS}>
-        <bim-button ${BUI.ref(setupFlyModeBtn)} tooltip-title="Fly Mode (L)" icon=${appIcons.FLY} label="Fly Mode" @click=${onToggleFlyMode}></bim-button>
+      <bim-toolbar-section>
+        <bim-button ${BUI.ref(setupFlyModeBtn)} tooltip-title=${tooltips.FLY.TITLE} tooltip-text=${tooltips.FLY.TEXT} icon=${appIcons.FLY} @click=${onToggleFlyMode}></bim-button>
       </bim-toolbar-section>
-      <bim-toolbar-section label="Measure" icon=${appIcons.RULER}>
+      <bim-toolbar-section>
         ${MeasurerUI(components)}
       </bim-toolbar-section>
     </bim-toolbar>

@@ -1,8 +1,7 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { appIcons } from "../../globals";
+import { appIcons, tooltips } from "../../globals";
 import { showAllItems, toggleGhostMode, hideSelection, isolateSelection } from "../../ui-templates/toolbars/viewer-toolbar";
-import { Colorize } from "../Colorize";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { CustomCameraControl } from "../../bim-components/CustomCameraControl";
 
@@ -20,18 +19,18 @@ export const setupContextMenu = (components: OBC.Components, world: OBC.World, v
             justify-content: flex-start;
           }
         </style>
-        <bim-button label="Show All" icon=${appIcons.SHOW} @click=${async (e: Event) => {
+        <bim-button label="Show All" tooltip-title=${tooltips.SHOW_ALL.TITLE} tooltip-text=${tooltips.SHOW_ALL.TEXT} icon=${appIcons.SHOW} @click=${async (e: Event) => {
           const btn = e.target as BUI.Button;
           btn.loading = true;
           await showAllItems(components);
           btn.loading = false;
           contextMenu.style.display = "none";
         }}></bim-button>
-        <bim-button label="Toggle Ghost" icon=${appIcons.TRANSPARENT} @click=${() => {
+        <bim-button label="Ghost" tooltip-title=${tooltips.GHOST.TITLE} tooltip-text=${tooltips.GHOST.TEXT} icon=${appIcons.TRANSPARENT} @click=${() => {
           toggleGhostMode(components);
           contextMenu.style.display = "none";
         }}></bim-button>
-        <bim-button label="Focus" icon=${appIcons.FOCUS} @click=${async (e: Event) => {
+        <bim-button label="Focus" tooltip-title=${tooltips.FOCUS.TITLE} tooltip-text=${tooltips.FOCUS.TEXT} icon=${appIcons.FOCUS} @click=${async (e: Event) => {
           const btn = e.target as BUI.Button;
           btn.loading = true;
           const selection = highlighter.selection.select;
@@ -43,26 +42,25 @@ export const setupContextMenu = (components: OBC.Components, world: OBC.World, v
           btn.loading = false;
           contextMenu.style.display = "none";
         }}></bim-button>
-        <bim-button label="Hide" icon=${appIcons.HIDE} @click=${async (e: Event) => {
+        <bim-button label="Hide" tooltip-title=${tooltips.HIDE.TITLE} tooltip-text=${tooltips.HIDE.TEXT} icon=${appIcons.HIDE} @click=${async (e: Event) => {
           const btn = e.target as BUI.Button;
           btn.loading = true;
           await hideSelection(components);
           btn.loading = false;
           contextMenu.style.display = "none";
         }}></bim-button>
-        <bim-button label="Isolate" icon=${appIcons.ISOLATE} @click=${async (e: Event) => {
+        <bim-button label="Isolate" tooltip-title=${tooltips.ISOLATE.TITLE} tooltip-text=${tooltips.ISOLATE.TEXT} icon=${appIcons.ISOLATE} @click=${async (e: Event) => {
           const btn = e.target as BUI.Button;
           btn.loading = true;
           await isolateSelection(components);
           btn.loading = false;
           contextMenu.style.display = "none";
         }}></bim-button>
-        <bim-button label="Fly Mode" icon=${appIcons.CAMERA} @click=${() => {
+        <bim-button label="Fly Mode" tooltip-title=${tooltips.FLY.TITLE} tooltip-text=${tooltips.FLY.TEXT} icon=${appIcons.FLY} @click=${() => {
           const customCameraControl = components.get(CustomCameraControl as any) as CustomCameraControl;
           customCameraControl.flyMode.toggle();
           contextMenu.style.display = "none";
         }}></bim-button>
-        ${Colorize(components)}
       </div>
     `;
   });

@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
-import { appIcons } from "../../globals";
+import { appIcons, tooltips } from "../../globals";
 import { Highlighter } from "../../bim-components/Highlighter";
 
 const paletteColors = [
@@ -62,8 +62,8 @@ export const Colorize = (components: OBC.Components) => {
 
   return BUI.html`
     <div style="position: relative;">
-      <bim-button tooltip-title="Apply Color" icon=${appIcons.COLORIZE} label="Colorize" @click=${onToggleColorMenu}></bim-button>
-      <div id=${colorMenuId} style="display: none; position: absolute; top: 100%; left: 0; z-index: 100; background: var(--bim-ui_bg-base); border: 1px solid var(--bim-ui_bg-contrast-20); padding: 0.5rem; grid-template-columns: repeat(8, 1fr); gap: 0.25rem; border-radius: 0.25rem;">
+      <bim-button tooltip-title=${tooltips.COLORIZE.TITLE} tooltip-text=${tooltips.COLORIZE.TEXT} icon=${appIcons.COLORIZE} @click=${onToggleColorMenu}></bim-button>
+      <div id=${colorMenuId} style="display: none; position: absolute; bottom: 100%; left: 0; z-index: 100; background: var(--bim-ui_bg-base); border: 1px solid var(--bim-ui_bg-contrast-20); padding: 0.5rem; grid-template-columns: repeat(8, 1fr); gap: 0.25rem; border-radius: 0.25rem; margin-bottom: 0.25rem;">
         ${paletteColors.map(color => BUI.html`
           <div style="width: 1.5rem; height: 1.5rem; background-color: ${color}; cursor: pointer; border: 1px solid var(--bim-ui_bg-contrast-40); border-radius: 0.125rem;" @click=${() => onColorSelected(color)}></div>
         `)}

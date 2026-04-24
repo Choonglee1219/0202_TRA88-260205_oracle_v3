@@ -107,6 +107,22 @@ export const tooltips = {
     TITLE: "Clearance Check",
     TEXT: "Measure the North-South or East-West clearance of the two selected objects.",
   },
+  TOGGLE_HIDDEN: {
+    TITLE: "Toggle Hidden Items (S)",
+    TEXT: "Show or hide permanently hidden elements such as spaces, spatial zones, and openings.",
+  },
+  COLORIZE: {
+    TITLE: "Apply Color",
+    TEXT: "Open a color palette to apply a custom color to the selected items, or clear applied colors.",
+  },
+  FLY: {
+    TITLE: "Fly Mode (L)",
+    TEXT: "Toggle first-person fly mode to navigate the 3D model using keyboard (W, A, S, D) and mouse.",
+  },
+  CLEAR_MEASUREMENTS: {
+    TITLE: "Clear All Measurements",
+    TEXT: "Remove all length and area measurements from the 3D view.",
+  },
 };
 
 export const tableDefaultContentTemplate = (value: any) => {
