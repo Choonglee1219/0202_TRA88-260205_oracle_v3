@@ -1,12 +1,12 @@
 import * as OBC from "@thatopen/components";
 import * as BUI from "@thatopen/ui";
-import { CategoricalTreeState, categoricalTreeTemplate, CategoricalTreeData } from "./src";
+import { EntityTreeState, entityTreeTemplate, EntityTreeData } from "./src";
 
-export const categoricalTree = (state: CategoricalTreeState, autoUpdate = true) => {
+export const entityTree = (state: EntityTreeState, autoUpdate = true) => {
   const element = BUI.Component.create<
-    BUI.Table<CategoricalTreeData>,
-    CategoricalTreeState
-  >(categoricalTreeTemplate, state);
+    BUI.Table<EntityTreeData>,
+    EntityTreeState
+  >(entityTreeTemplate, state);
 
   const [table, update] = element;
   table.hiddenColumns = ["modelId", "localId", "children"];

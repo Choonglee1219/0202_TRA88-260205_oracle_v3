@@ -3,7 +3,7 @@ import * as OBC from "@thatopen/components";
 import { FragmentsModel } from "@thatopen/fragments";
 import { appIcons } from "../../globals";
 import { spatialTree } from "../../ui-components/SpatialTree";
-import { categoricalTree } from "../../ui-components/CategoricalTree";
+import { entityTree } from "../../ui-components/EntityTree";
 import { Highlighter } from "../../bim-components/Highlighter";
 
 export interface ModelTreePanelState {
@@ -17,12 +17,12 @@ export const modelTreePanelTemplate: BUI.StatefullComponent<
   const { components, models } = state;
   
   const [spatialTreeTable] = spatialTree({ components, models: models ? [...models.values()] : [] });
-  const [categoricalTreeTable] = categoricalTree({ components, models: models ? [...models.values()] : [] });
+  const [entityTreeTable] = entityTree({ components, models: models ? [...models.values()] : [] });
   
   spatialTreeTable.preserveStructureOnFilter = true;
-  categoricalTreeTable.preserveStructureOnFilter = true;
+  entityTreeTable.preserveStructureOnFilter = true;
   
-  categoricalTreeTable.style.display = "none"; // 기본적으로 숨김
+  entityTreeTable.style.display = "none"; // 기본적으로 숨김
   let activeTreeTable = spatialTreeTable;
 
   let searchInput: BUI.TextInput | undefined;
@@ -30,14 +30,14 @@ export const modelTreePanelTemplate: BUI.StatefullComponent<
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
     spatialTreeTable.queryString = input.value;
-    categoricalTreeTable.queryString = input.value;
+    entityTreeTable.queryString = input.value;
   };
 
   const onClearSearch = () => {
     if (!searchInput) return;
     searchInput.value = "";
     spatialTreeTable.queryString = null;
-    categoricalTreeTable.queryString = null;
+    entityTreeTable.queryString = null;
   };
 
   const toggleExpanded = () => {
@@ -74,7 +74,7 @@ export const modelTreePanelTemplate: BUI.StatefullComponent<
           const nameStr = String(nameVal);
           if (searchInput) searchInput.value = nameStr; // 입력창에도 검색어 반영
           spatialTreeTable.queryString = nameStr; // 테이블 필터링 적용
-          categoricalTreeTable.queryString = nameStr;
+          entityTreeTable.queryString = nameStr;
           activeTreeTable.expanded = true; // 활성화된 트리를 확장해서 결과를 보여줌
         } else {
           alert("선택된 객체에서 이름(Name) 속성을 찾을 수 없습니다.");
@@ -89,12 +89,12 @@ export const modelTreePanelTemplate: BUI.StatefullComponent<
     const target = e.target as HTMLInputElement;
     if (target.value === "spatial") {
       spatialTreeTable.style.display = "block";
-      categoricalTreeTable.style.display = "none";
+      entityTreeTable.style.display = "none";
       activeTreeTable = spatialTreeTable;
     } else {
       spatialTreeTable.style.display = "none";
-      categoricalTreeTable.style.display = "block";
-      activeTreeTable = categoricalTreeTable;
+      entityTreeTable.style.display = "block";
+      activeTreeTable = entityTreeTable;
     }
   };
 
@@ -107,8 +107,8 @@ export const modelTreePanelTemplate: BUI.StatefullComponent<
             <span style="font-size: 0.75rem; color: var(--bim-ui_main-contrast);">Spatial</span>
           </label>
           <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-            <input type="radio" name="treeType" value="categorical" @change=${onTreeTypeChange} style="margin: 0; cursor: pointer; accent-color: var(--bim-ui_main-base);">
-            <span style="font-size: 0.75rem; color: var(--bim-ui_main-contrast);">Categorical</span>
+            <input type="radio" name="treeType" value="entity" @change=${onTreeTypeChange} style="margin: 0; cursor: pointer; accent-color: var(--bim-ui_main-base);">
+            <span style="font-size: 0.75rem; color: var(--bim-ui_main-contrast);">Entity</span>
           </label>
         </div>
         <div style="display: flex; gap: 0.375rem; flex: 0;">
@@ -120,7 +120,7 @@ export const modelTreePanelTemplate: BUI.StatefullComponent<
       </div>
       <div style="display: flex; flex-direction: column; flex: 1; overflow: auto; min-height: 0; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding-top: 0.25rem;">
         ${spatialTreeTable}
-        ${categoricalTreeTable}
+        ${entityTreeTable}
       </div>
     </bim-panel-section> 
   `;

@@ -1,7 +1,7 @@
 import * as FRAGS from "@thatopen/fragments";
 import * as OBC from "@thatopen/components";
 import * as BUI from "@thatopen/ui";
-import { CategoricalTreeState, CategoricalTreeData } from "./types";
+import { EntityTreeState, EntityTreeData } from "./types";
 import { Highlighter } from "../../../bim-components/Highlighter";
 import { tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated } from "../../../globals";
 
@@ -26,7 +26,7 @@ const computeRowData = async (models: Iterable<FRAGS.FragmentsModel>, components
   for (const model of models) {
     const modelId = model.modelId;
     const modelName = (model as any).name || model.modelId;
-    const modelChildren: BUI.TableGroupData<CategoricalTreeData>[] = [];
+    const modelChildren: BUI.TableGroupData<EntityTreeData>[] = [];
     const allLocalIds = new Set<number>();
 
     for (const [categoryName, modelMap] of preFetchedCategories.entries()) {
@@ -51,7 +51,7 @@ const computeRowData = async (models: Iterable<FRAGS.FragmentsModel>, components
         if (id !== undefined) nameMap.set(id, name);
       }
 
-      const elementRows: BUI.TableGroupData<CategoricalTreeData>[] = [];
+      const elementRows: BUI.TableGroupData<EntityTreeData>[] = [];
       for (const expressId of categoryIds) {
         const name = nameMap.get(expressId) || `Element ${expressId}`;
         elementRows.push({
@@ -82,7 +82,7 @@ const computeRowData = async (models: Iterable<FRAGS.FragmentsModel>, components
     modelChildren.sort((a, b) => String(a.data.Name || "Untitled").localeCompare(String(b.data.Name || "Untitled")));
 
     // 모델 별 데이터 최상단 래핑
-    const modelData: BUI.TableGroupData<CategoricalTreeData> = {
+    const modelData: BUI.TableGroupData<EntityTreeData> = {
       data: {
         Name: modelName,
         modelId: modelId,
@@ -99,17 +99,17 @@ const computeRowData = async (models: Iterable<FRAGS.FragmentsModel>, components
   return rows;
 };
 
-export const categoricalTreeTemplate = (state: CategoricalTreeState) => {
+export const entityTreeTemplate = (state: EntityTreeState) => {
   const { components, models } = state;
   const selectHighlighterName = state.selectHighlighterName ?? "select";
 
-  const onCellCreated = ({ detail }: CustomEvent<BUI.CellCreatedEventDetail<CategoricalTreeData>>) => {
+  const onCellCreated = ({ detail }: CustomEvent<BUI.CellCreatedEventDetail<EntityTreeData>>) => {
     onTableCellCreated(new CustomEvent("cellcreated", { detail })); // 전역 이벤트 주입
     const { cell } = detail;
     if (cell.column === "Name" && !cell.rowData.Name) cell.style.gridColumn = "1 / -1";
   };
 
-  const onRowCreated = (e: CustomEvent<BUI.RowCreatedEventDetail<CategoricalTreeData>>) => {
+  const onRowCreated = (e: CustomEvent<BUI.RowCreatedEventDetail<EntityTreeData>>) => {
     onTableRowCreated(e); // 전역 이벤트 주입
     const { row } = e.detail;
     const highlighter = components.get(Highlighter);
@@ -132,7 +132,7 @@ export const categoricalTreeTemplate = (state: CategoricalTreeState) => {
 
   const onTableCreated = async (element?: Element) => {
     if (!element) return;
-    const table = element as BUI.Table<CategoricalTreeData>;
+    const table = element as BUI.Table<EntityTreeData>;
     table.columns = [{ name: "Name", width: "minmax(0, 1fr)" }];
     table.hiddenColumns = ["modelId", "localId", "children"];
     table.defaultContentTemplate = tableDefaultContentTemplate;
@@ -142,7 +142,7 @@ export const categoricalTreeTemplate = (state: CategoricalTreeState) => {
 
   return BUI.html`
     <bim-table @rowcreated=${onRowCreated} @cellcreated=${onCellCreated} ${BUI.ref(onTableCreated)} headers-hidden style="gap: 0;">
-      <bim-label slot="missing-data" style="--bim-icon--c: gold">⚠️ No models available to display the categorical structure!</bim-label>
+      <bim-label slot="missing-data" style="--bim-icon--c: gold">⚠️ No models available to display the entity structure!</bim-label>
     </bim-table>
   `;
 };
