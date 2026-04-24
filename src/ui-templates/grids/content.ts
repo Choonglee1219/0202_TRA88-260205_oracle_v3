@@ -40,9 +40,9 @@ type IDSSpecs = {
   state: TEMPLATES.IDSSpecPanelState;
 };
 
-type SpatialTree = {
-  name: "spatialTree";
-  state: TEMPLATES.SpatialTreePanelState;
+type ModelTree = {
+  name: "modelTree";
+  state: TEMPLATES.ModelTreePanelState;
 };
 
 type PropsManager = {
@@ -75,7 +75,7 @@ export type ContentGridElements = [
   IFCList,
   ElementData,
   Queries,
-  SpatialTree,
+  ModelTree,
   ViewTemplater,
   PropsManager,
   TopicList,
@@ -109,8 +109,8 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
     grid.style.setProperty("--right-col-width", MEDIUM_COLUMN_WIDTH);
 
     grid.elements = {
-      spatialTree: {
-        template: TEMPLATES.spatialTreePanelTemplate,
+      modelTree: {
+        template: TEMPLATES.modelTreePanelTemplate,
         initialState: { components, models: fragments.list },
       },
       queries: {
@@ -164,8 +164,8 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       Viewer: {
         template: `
           "ifcList viewer elementData" var(--top-row-height, auto)
-          "spatialTree viewer elementData" 1fr
-          "spatialTree viewer viewTemplater" var(--bottom-row-height, auto)
+          "modelTree viewer elementData" 1fr
+          "modelTree viewer viewTemplater" var(--bottom-row-height, auto)
           / var(--left-col-width) 1fr var(--right-col-width)
         `,
       },
