@@ -196,6 +196,8 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
   const quantityTable = document.createElement("bim-table") as BUI.Table<any>;
   quantityTable.hiddenColumns = ["id"];
   quantityTable.headersHidden = false;
+  quantityTable.noIndentation = true;
+  quantityTable.noCarets = true;
 
   // 공통 테이블 템플릿 및 셀 스타일 적용
   quantityTable.defaultContentTemplate = tableDefaultContentTemplate;
@@ -361,7 +363,10 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
     // 라이브러리의 자동 컬럼 생성(캐싱) 로직을 우회하고, 
     // 원본 데이터(allData)의 구조에 맞춰 매번 컬럼을 강제로 명시해 줍니다.
     if (allData.length > 0) {
-      (quantityTable as any).columns = Object.keys(allData[0]).map(k => ({ name: k }));
+      (quantityTable as any).columns = Object.keys(allData[0]).map(k => ({ 
+        name: k,
+        width: k === "Name" ? "minmax(200px, 2fr)" : (categoricalKeys.includes(k) ? "minmax(120px, 1fr)" : "minmax(100px, 1fr)")
+      }));
     } else {
       (quantityTable as any).columns = [];
     }
@@ -393,7 +398,10 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
     summaryTable.data = summaryData;
 
     if (summaryData.length > 0) {
-      (summaryTable as any).columns = Object.keys(summaryData[0].data).map(k => ({ name: k }));
+      (summaryTable as any).columns = Object.keys(summaryData[0].data).map(k => ({
+        name: k,
+        width: k === "Quantity" ? "minmax(150px, 2fr)" : "minmax(100px, 1fr)"
+      }));
     } else {
       (summaryTable as any).columns = [];
     }
