@@ -104,11 +104,11 @@ export const modelTreePanelTemplate: BUI.StatefullComponent<
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; align-items: center; margin-bottom: 0.125rem;">
           <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
             <input type="radio" name="treeType" value="spatial" checked @change=${onTreeTypeChange} style="margin: 0; cursor: pointer; accent-color: var(--bim-ui_main-base);">
-            <span style="font-size: 0.75rem; color: var(--bim-ui_main-contrast);">Spatial</span>
+            <bim-label style="pointer-events: none;">Spatial</bim-label>
           </label>
           <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
             <input type="radio" name="treeType" value="entity" @change=${onTreeTypeChange} style="margin: 0; cursor: pointer; accent-color: var(--bim-ui_main-base);">
-            <span style="font-size: 0.75rem; color: var(--bim-ui_main-contrast);">Entity</span>
+            <bim-label style="pointer-events: none;">Entity</bim-label>
           </label>
         </div>
         <div style="display: flex; gap: 0.375rem; flex: 0;">
