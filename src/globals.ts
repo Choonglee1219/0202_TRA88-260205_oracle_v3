@@ -63,6 +63,7 @@ export const appIcons = {
   FORWARD: "/icons/eva--arrow-ios-forward-outline.svg",
   FLY: "/icons/mdi--airplane.svg",
   COMPASS: "/icons/mdi--compass.svg",
+  LAYERS: "/icons/mdi--layers-outline.svg",
 };
 
 export const onToggleSection = (e: Event) => {
@@ -122,6 +123,10 @@ export const tooltips = {
   CLEAR_MEASUREMENTS: {
     TITLE: "Clear All Measurements",
     TEXT: "Remove all length and area measurements from the 3D view.",
+  },
+  FLOOR_EXPLODE: {
+    TITLE: "Floor Exploder (E)",
+    TEXT: "Explode the 3D model by floors to easily view the interior, or restore it to its original state.",
   },
 };
 

@@ -7,6 +7,7 @@ import { MeasurerUI } from "../../bim-components/Measurer/src";
 import { Colorize } from "../../ui-components/Colorize";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { CustomCameraControl } from "../../bim-components/CustomCameraControl";
+import { FloorExploder } from "../../bim-components/FloorExploder";
 
 export interface ViewerToolbarState {
   components: OBC.Components;
@@ -127,6 +128,17 @@ let focusBtnRef: BUI.Button | undefined;
 let hideBtn: BUI.Button | undefined;
 let isolateBtn: BUI.Button | undefined;
 let isFlyModeActive = false; // Fly Mode 상태를 추적하기 위한 변수
+let floorExploder: FloorExploder | null = null;
+let explodeBtn: BUI.Button | undefined;
+let yScaleInput: HTMLInputElement | undefined;
+let scaleContainer: HTMLDivElement | undefined;
+
+const onScaleChange = () => {
+  if (floorExploder) {
+    const y = parseFloat(yScaleInput?.value || "5");
+    floorExploder.setScales(y);
+  }
+};
 
 if (!(window as any)._toolbarHotkeyRegistered) {
   (window as any)._toolbarHotkeyRegistered = true;
@@ -145,6 +157,7 @@ if (!(window as any)._toolbarHotkeyRegistered) {
     if (key === 'f') focusBtnRef?.click();
     if (key === 'h') hideBtn?.click();
     if (key === 'i') isolateBtn?.click();
+    if (key === 'e') explodeBtn?.click();
   });
 }
 
@@ -206,6 +219,10 @@ ViewerToolbarState
   const highlighter = components.get(Highlighter);
   const hider = components.get(OBC.Hider);
   
+  if (!floorExploder) {
+    floorExploder = new FloorExploder(components);
+  }
+
   const onShowAll = async ({ target }: { target: BUI.Button }) => {
     target.loading = true;
     await showAllItems(components);
@@ -237,6 +254,12 @@ ViewerToolbarState
   let focusBtn: BUI.TemplateResult | undefined;
   if (world.camera instanceof OBC.SimpleCamera) {
     const onFocus = async ({ target }: { target: BUI.Button }) => {
+      if (floorExploder?.isExploded) {
+        target.loading = true;
+        await floorExploder.focusSelection();
+        target.loading = false;
+        return;
+      }
       if (!(world.camera instanceof OBC.SimpleCamera)) return;
       const selection = highlighter.selection.select;
       target.loading = true;
@@ -333,6 +356,20 @@ ViewerToolbarState
     customCameraControl.flyMode.onToggle.add((btn as any)._flyModeListener);
   };
 
+  const onToggleExplode = async ({ target }: { target: BUI.Button }) => {
+    if (!floorExploder) return;
+    target.loading = true;
+    const wasExploded = floorExploder.isExploded;
+    const success = await floorExploder.toggleExplode();
+    if (success) {
+      target.active = !wasExploded;
+      if (scaleContainer) {
+        scaleContainer.style.display = target.active ? "flex" : "none";
+      }
+    }
+    target.loading = false;
+  };
+
   return BUI.html`
     <bim-toolbar>
       <bim-toolbar-section>
@@ -348,6 +385,20 @@ ViewerToolbarState
       </bim-toolbar-section> 
       <bim-toolbar-section>
         <bim-button ${BUI.ref(setupFlyModeBtn)} tooltip-title=${tooltips.FLY.TITLE} tooltip-text=${tooltips.FLY.TEXT} icon=${appIcons.FLY} @click=${onToggleFlyMode}></bim-button>
+        <div style="position: relative;">
+          <bim-button ${BUI.ref((e) => { explodeBtn = e as BUI.Button; if(explodeBtn && floorExploder) explodeBtn.active = floorExploder.isExploded; })} tooltip-title=${tooltips.FLOOR_EXPLODE.TITLE} tooltip-text=${tooltips.FLOOR_EXPLODE.TEXT} icon=${appIcons.LAYERS} @click=${onToggleExplode}></bim-button>
+          <div ${BUI.ref(e => { scaleContainer = e as HTMLDivElement; if(scaleContainer && floorExploder) scaleContainer.style.display = floorExploder.isExploded ? "flex" : "none"; })} style="display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--bim-ui_bg-base); border: 1px solid var(--bim-ui_bg-contrast-20); padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.25rem; flex-direction: column; gap: 0.5rem; min-width: 120px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--bim-ui_gray-10);">
+              <span>Y Scale</span>
+              <span ${BUI.ref(e => { if(e) e.textContent = floorExploder?.yScale.toFixed(1) || "5.0"; })}>5.0</span>
+            </div>
+            <input ${BUI.ref(e => { yScaleInput = e as HTMLInputElement; })} type="range" min="2" max="20" step="0.5" value="5" @input=${(e: Event) => {
+              const val = (e.target as HTMLInputElement).value;
+              (e.target as HTMLElement).previousElementSibling!.children[1].textContent = Number(val).toFixed(1);
+              onScaleChange();
+            }} style="width: 100%; cursor: pointer;">
+          </div>
+        </div>
       </bim-toolbar-section>
       <bim-toolbar-section>
         ${MeasurerUI(components)}

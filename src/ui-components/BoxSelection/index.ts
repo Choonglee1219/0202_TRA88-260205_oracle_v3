@@ -2,6 +2,11 @@ import * as THREE from "three";
 import * as OBC from "@thatopen/components";
 import { Highlighter } from "../../bim-components/Highlighter";
 
+export const CustomBoxSelector = {
+  isActive: false,
+  onIntersect: null as ((topLeft: THREE.Vector2, bottomRight: THREE.Vector2) => OBC.ModelIdMap) | null
+};
+
 export function setupBoxSelection(
   components: OBC.Components,
   world: OBC.World,
@@ -97,21 +102,25 @@ export function setupBoxSelection(
     const raycastTopLeft = new THREE.Vector2(topLeft.x + rect.left, topLeft.y + rect.top);
     const raycastBottomRight = new THREE.Vector2(bottomRight.x + rect.left, bottomRight.y + rect.top);
 
-    const modelIdMap: OBC.ModelIdMap = {};
+    let modelIdMap: OBC.ModelIdMap = {};
 
-    for (const [, model] of fragments.list) {
-      if (!model.object.visible) continue;
-
-      const res = await (model as any).rectangleRaycast({
-        camera: world.camera.three,
-        dom: world.renderer!.three.domElement,
-        topLeft: raycastTopLeft,
-        bottomRight: raycastBottomRight,
-        fullyIncluded: true,
-      });
-
-      if (res && res.localIds.length) {
-        modelIdMap[model.modelId] = new Set(res.localIds);
+    if (CustomBoxSelector.isActive && CustomBoxSelector.onIntersect) {
+      modelIdMap = CustomBoxSelector.onIntersect(raycastTopLeft, raycastBottomRight);
+    } else {
+      for (const [, model] of fragments.list) {
+        if (!model.object.visible) continue;
+  
+        const res = await (model as any).rectangleRaycast({
+          camera: world.camera.three,
+          dom: world.renderer!.three.domElement,
+          topLeft: raycastTopLeft,
+          bottomRight: raycastBottomRight,
+          fullyIncluded: true,
+        });
+  
+        if (res && res.localIds.length) {
+          modelIdMap[model.modelId] = new Set(res.localIds);
+        }
       }
     }
 
