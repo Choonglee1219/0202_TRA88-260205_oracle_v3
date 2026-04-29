@@ -1,8 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as BUI from "@thatopen/ui";
-import * as OBC from "@thatopen/components";
 import { TopicsListState, TopicsListTableData } from "./types";
 import { onTableCellCreated, onTableRowCreated } from "../../../globals";
+import { BCFTopics as EngineBCFTopics } from "../../../engine-components/BCFTopics";
 
 export const topicsListTemplate: BUI.StatefullComponent<TopicsListState> = (
   state,
@@ -11,7 +11,7 @@ export const topicsListTemplate: BUI.StatefullComponent<TopicsListState> = (
 
   const missingDataMessage = state.missingDataMessage ?? "No topics to display";
 
-  const bcfTopics = components.get(OBC.BCFTopics);
+  const bcfTopics = components.get(EngineBCFTopics);
   const topics = state.topics ?? bcfTopics.list.values();
   const onTableCreated = (e?: Element) => {
     if (!e) return;

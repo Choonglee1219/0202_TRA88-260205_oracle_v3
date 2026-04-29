@@ -184,3 +184,37 @@ export const setupBIMTable = (table: BUI.Table<any>) => {
   table.addEventListener("cellcreated", onTableCellCreated);
   table.addEventListener("rowcreated", onTableRowCreated);
 };
+
+export const showLightbox = (url: string) => {
+  if (!url) return;
+  const dialog = document.createElement("dialog");
+  dialog.style.margin = "auto";
+  dialog.style.padding = "0";
+  dialog.style.border = "none";
+  dialog.style.background = "transparent";
+  dialog.style.maxWidth = "90vw";
+  dialog.style.maxHeight = "90vh";
+  
+  dialog.addEventListener("click", () => {
+    dialog.close();
+    dialog.remove();
+  });
+
+  const style = document.createElement("style");
+  style.textContent = `dialog::backdrop { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }`;
+  dialog.appendChild(style);
+  
+  const img = document.createElement("img");
+  img.src = url;
+  img.style.display = "block";
+  img.style.maxWidth = "100%";
+  img.style.maxHeight = "90vh";
+  img.style.objectFit = "contain";
+  img.style.cursor = "zoom-out";
+  img.style.borderRadius = "0.5rem";
+  img.style.boxShadow = "0 4px 30px rgba(0,0,0,0.5)";
+
+  dialog.appendChild(img);
+  document.body.appendChild(dialog);
+  dialog.showModal();
+};

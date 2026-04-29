@@ -1,5 +1,4 @@
 import * as BUI from "@thatopen/ui";
-import * as OBC from "@thatopen/components";
 import { users } from "../../setup/users";
 import {
   TopicsListState,
@@ -7,6 +6,7 @@ import {
   topicsListTemplate,
 } from "./src";
 import { setDefaults } from "./src/set-defaults";
+import { BCFTopics as EngineBCFTopics } from "../../engine-components/BCFTopics";
 
 /**
  * Creates a BCF Topics List component with the given UI state.
@@ -50,7 +50,7 @@ export const topicsList = (state: TopicsListState, autoUpdate = true) => {
 
   if (autoUpdate) {
     const { components, topics } = state;
-    const bcfTopics = components.get(OBC.BCFTopics);
+    const bcfTopics = components.get(EngineBCFTopics);
     
     let updateTimeout: ReturnType<typeof setTimeout>;
     const updateCallback = () => {

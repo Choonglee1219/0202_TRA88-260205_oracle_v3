@@ -3,10 +3,11 @@ import JSZip from "jszip";
 import { SharedBCF } from "../../SharedBCF";
 import { SharedIFC } from "../../SharedIFC";
 import { BCFTopics } from "../index";
+import { BCFTopics as EngineBCFTopics } from "../../../engine-components/BCFTopics";
 
 export class BCFFileOperations {
   private components: OBC.Components;
-  private _bcf: OBC.BCFTopics;
+  private _bcf: EngineBCFTopics; // 커스텀 엔진 컴포넌트 타입으로 변경
   private onRefresh: OBC.Event<void>;
   private sharedIFC: SharedIFC;
   private sharedBCF: SharedBCF;

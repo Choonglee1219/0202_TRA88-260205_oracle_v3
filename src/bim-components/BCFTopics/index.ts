@@ -6,6 +6,10 @@ import { BCFFileOperations } from "./src/bcf-file-operations";
 import { ClashMapDisplay } from "./src/clash-map";
 import { TopicViewpointManager } from "./src/topic-viewpoint";
 
+// 새로 주입한 엔진 컴포넌트를 Import 합니다. (이름 충돌 방지를 위해 Alias 사용)
+import { BCFTopics as EngineBCFTopics } from "../../engine-components/BCFTopics";
+import { Topic as EngineTopic } from "../../engine-components/BCFTopics";
+
 export * from "./src/new-topic";
 export * from "./src/update-topic";
 export * from "./src/clash-input";
@@ -14,7 +18,7 @@ export class BCFTopics extends OBC.Component {
   static uuid = "e7526972-853c-4392-b6c6-33435e123456" as const;
   enabled = true;
   readonly onRefresh = new OBC.Event<void>();
-  public _bcf: OBC.BCFTopics;
+  public _bcf: EngineBCFTopics; // 커스텀 엔진 컴포넌트 타입으로 변경
   private _loading = false;
 
   // Events for ClashMapDisplay to trigger
@@ -40,7 +44,12 @@ export class BCFTopics extends OBC.Component {
   // Setting up BCFTopics
   constructor(components: OBC.Components) {
     super(components);
-    this._bcf = components.get(OBC.BCFTopics);
+    
+    // 참고: 위 PATCH 코드는 새로 복사한 engine-components 내부의 BCF Parser 구현체 자체를
+    // 수정하여 원천 해결하고 여기서는 삭제하는 것을 권장합니다.
+
+
+    this._bcf = components.get(EngineBCFTopics); // 커스텀 엔진 인스턴스를 가져옵니다.
     this._bcf.setup({
       author: "Admin",
       types: new Set(["Error", "Info", "Unknown", "Warning"]),
@@ -72,7 +81,7 @@ export class BCFTopics extends OBC.Component {
   }
 
   getSelectedTopics(selection: Set<any>) {
-    const topics: OBC.Topic[] = [];
+    const topics: EngineTopic[] = [];
     for (const item of selection) {
       const guid = (item as any).Guid;
       if (guid) {
@@ -83,7 +92,7 @@ export class BCFTopics extends OBC.Component {
     return topics;
   }
 
-  async restoreViewpoint(topic: OBC.Topic, options?: { updateSnapshot?: boolean }): Promise<boolean> {
+  async restoreViewpoint(topic: EngineTopic, options?: { updateSnapshot?: boolean, viewpointGuid?: string }): Promise<boolean> {
     return this.topicViewpointManager.restoreViewpoint(topic, options);
   }
 
@@ -96,6 +105,44 @@ export class BCFTopics extends OBC.Component {
         }}>${value}</bim-label>
       `;
     };
+  }
+
+  addComment(topicGuid: string, text: string) {
+    const topic = this.list.get(topicGuid);
+    if (!topic) {
+      console.warn(`Topic with GUID ${topicGuid} not found.`);
+      return null;
+    }
+    const comment = topic.createComment(text);
+    this.onRefresh.trigger();
+    return comment;
+  }
+
+  updateComment(topicGuid: string, commentGuid: string, text: string) {
+    const topic = this.list.get(topicGuid);
+    if (!topic) {
+      console.warn(`Topic with GUID ${topicGuid} not found.`);
+      return false;
+    }
+    const comment = topic.comments.get(commentGuid);
+    if (!comment) {
+      console.warn(`Comment with GUID ${commentGuid} not found in topic ${topicGuid}.`);
+      return false;
+    }
+    comment.comment = text;
+    this.onRefresh.trigger();
+    return true;
+  }
+
+  deleteComment(topicGuid: string, commentGuid: string) {
+    const topic = this.list.get(topicGuid);
+    if (!topic) return false;
+    if (topic.comments.has(commentGuid)) {
+      topic.comments.delete(commentGuid);
+      this.onRefresh.trigger();
+      return true;
+    }
+    return false;
   }
 
   delete(selection: Set<any>) {

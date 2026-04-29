@@ -143,7 +143,14 @@ const onScaleChange = () => {
 if (!(window as any)._toolbarHotkeyRegistered) {
   (window as any)._toolbarHotkeyRegistered = true;
   window.addEventListener("keydown", (e) => {
-    if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+    // Shadow DOM 내부의 input 요소에 포커스가 있는 경우 단축키 비활성화
+    let activeEl = document.activeElement;
+    if (activeEl?.shadowRoot?.activeElement) {
+      activeEl = activeEl.shadowRoot.activeElement;
+    }
+    if (activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA") {
+      return;
+    }
     const key = e.key.toLowerCase();
 
     // Fly Mode가 켜져 있을 때는 이동 키(W, A, S, D)가 단축키로 작동하지 않도록 방지

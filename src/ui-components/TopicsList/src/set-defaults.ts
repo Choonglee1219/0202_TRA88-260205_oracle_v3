@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import { TopicsListState, TopicsListTableData } from "./types";
 import { baseTopicTagStyle, defaultTopicStyles } from "./styles";
 import { createAuthorTag } from "./author-tag";
-import { appIcons } from "../../../globals";
+import { appIcons, showLightbox } from "../../../globals";
 import { tableDefaultContentTemplate } from "../../../globals";
 
 export const setDefaults = (
@@ -32,14 +32,9 @@ export const setDefaults = (
     Snapshot: (value) => {
       if (typeof value !== "string" || !value) return "";
       
-      const download = (e: Event) => {
+      const openLightbox = (e: Event) => {
         e.stopPropagation();
-        const a = document.createElement("a");
-        a.href = value;
-        a.download = "snapshot.png";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        showLightbox(value);
       };
 
       const showPreview = (e: Event) => {
@@ -65,7 +60,7 @@ export const setDefaults = (
           @mouseleave=${hidePreview} 
           style="position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;"
         >
-          <bim-button icon=${appIcons.IMAGE} @click=${download} tooltip-title="Download Snapshot" style="flex: 0;"></bim-button>
+          <bim-button icon=${appIcons.IMAGE} @click=${openLightbox} tooltip-title="View Snapshot" style="flex: 0;"></bim-button>
           <img class="snapshot-preview" src="${value}" style="display: none; position: fixed; transform: translate(1.5rem, -50%); width: auto; height: 10rem; border: 1px solid var(--bim-ui_bg-contrast-20); background-color: var(--bim-ui_bg-base); z-index: 9999; border-radius: 0.25rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: none;">
         </div>
       `;

@@ -3,9 +3,12 @@ import * as OBC from "@thatopen/components";
 import { BCFTopics, newTopic, updateTopic } from "../../bim-components/BCFTopics";
 import { topicsList, clashMatrix } from "../../ui-components/TopicsList";
 import { appIcons, onToggleSection } from "../../globals";
+import { Topic as EngineTopic, BCFTopics as EngineBCFTopics } from "../../engine-components/BCFTopics";
+import { users } from "../../setup/users";
 
 export interface TopicListState {
   components: OBC.Components;
+  view?: "list" | "new" | "update";
 }
 
 export const topicListTemplate: BUI.StatefullComponent<
@@ -15,6 +18,37 @@ export const topicListTemplate: BUI.StatefullComponent<
   const bcfTopics = components.get(BCFTopics);
   const [topicListTable, updateTopicListTable] = topicsList({ components });
   
+  let panelSection: BUI.PanelSection;
+  const updateTopicCount = () => {
+    if (!panelSection) return;
+    let open = 0, assigned = 0, closed = 0, resolved = 0, total = 0;
+    for (const topic of bcfTopics.list.values()) {
+      total++;
+      const status = (topic as any).status;
+      if (status === "Open") open++;
+      else if (status === "Assigned") assigned++;
+      else if (status === "Closed") closed++;
+      else if (status === "Resolved") resolved++;
+    }
+    panelSection.label = `Topic List ( Total(${total}) = Open(${open}) + Assigned(${assigned}) + Closed(${closed}) + Resolved(${resolved}) )`;
+  };
+
+  let listContainer: HTMLDivElement;
+  let newContainer: HTMLDivElement;
+  let updateContainer: HTMLDivElement;
+
+  const setView = (view: "list" | "new" | "update") => {
+    if (listContainer) listContainer.style.display = view === "list" ? "flex" : "none";
+    if (newContainer) newContainer.style.display = view === "new" ? "flex" : "none";
+    if (updateContainer) updateContainer.style.display = view === "update" ? "flex" : "none";
+    
+    if (panelSection) {
+      if (view === "new") panelSection.label = "New Topic";
+      else if (view === "update") panelSection.label = "Update Topic";
+      else updateTopicCount();
+    }
+  };
+
   // --- Pagination State ---
   let currentPage = 0;
   const pageSize = 30;
@@ -102,8 +136,8 @@ export const topicListTemplate: BUI.StatefullComponent<
   matrixPanel.style.width = "100%";
   matrixPanel.style.boxSizing = "border-box";
 
-  const newTopicModal = newTopic(components);
-  const updateTopicModal = updateTopic(bcfTopics);
+  const [newTopicForm, updateNewTopicForm] = newTopic(components);
+  const { panel: updateTopicPanel, show: showUpdateTopic } = updateTopic(bcfTopics);
 
   bcfTopics.setupTable(topicListTable);
 
@@ -112,7 +146,7 @@ export const topicListTemplate: BUI.StatefullComponent<
   let lastClickTime = 0;
 
   const originalRestoreViewpoint = bcfTopics.restoreViewpoint.bind(bcfTopics);
-  bcfTopics.restoreViewpoint = async (topic: OBC.Topic, options?: { updateSnapshot?: boolean }): Promise<boolean> => {
+  bcfTopics.restoreViewpoint = async (topic: EngineTopic, options?: { updateSnapshot?: boolean, viewpointGuid?: string }): Promise<boolean> => {
     const targetGroup = topicListTable.value?.find((row: any) => row.data && row.data.Guid === topic.guid);
     if (targetGroup) {
       topicListTable.selection.clear();
@@ -125,7 +159,7 @@ export const topicListTemplate: BUI.StatefullComponent<
     lastClickTime = now;
 
     if (isDoubleClick) {
-      onUpdateTopicModalOpen();
+      onUpdateTopicOpen();
       return false;
     } else {
       return originalRestoreViewpoint(topic, options);
@@ -133,46 +167,68 @@ export const topicListTemplate: BUI.StatefullComponent<
   };
 
   let topicCountBeforeNew = 0;
-  const onNewTopicModalOpen = () => {
+  const onNewTopicOpen = () => {
     topicCountBeforeNew = bcfTopics.list.size;
-    newTopicModal.showModal();
+    updateNewTopicForm({
+      components,
+      styles: { users },
+      onCancel: () => { setView("list"); },
+      onSubmit: () => {
+        setView("list");
+        
+        setTimeout(() => {
+          const bcfTopicsEngine = components.get(EngineBCFTopics);
+          const worlds = components.get(OBC.Worlds);
+          const world = worlds.list.values().next().value;
+          if (world && world.renderer) {
+            world.renderer.three.render(world.scene.three, world.camera.three);
+            const dataUrl = world.renderer.three.domElement.toDataURL("image/png");
+            
+            const topicsArray = Array.from(bcfTopicsEngine.list.values());
+            if (topicsArray.length > 0) {
+              const lastTopic = topicsArray[topicsArray.length - 1];
+              (lastTopic as any).snapshot = dataUrl;
+              bcfTopicsEngine.list.onItemUpdated.trigger({ key: lastTopic.guid, value: lastTopic });
+            }
+          }
+        }, 100);
+
+        alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
+
+        if (bcfTopics.list.size > topicCountBeforeNew) {
+          setTimeout(() => {
+            const topicsArray = Array.from(bcfTopics.list.values());
+            if (topicsArray.length > 0) {
+              const newTopic = topicsArray[topicsArray.length - 1];
+              
+              refreshTopicsCache(); // 캐시 즉시 동기화
+              
+              const newTopicIndex = currentTopicsCache.findIndex(t => t.guid === newTopic.guid);
+              if (newTopicIndex !== -1) {
+                currentPage = Math.floor(newTopicIndex / pageSize);
+                updatePage();
+              }
+              
+              const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === newTopic.guid);
+              if (targetGroup) {
+                topicListTable.selection.clear();
+                topicListTable.selection.add(targetGroup.data);
+              }
+            }
+          }, 150);
+        }
+      },
+    });
+    setView("new");
   };
 
-  newTopicModal.addEventListener("close", () => {
-    if (bcfTopics.list.size > topicCountBeforeNew) {
-      setTimeout(() => {
-        const topicsArray = Array.from(bcfTopics.list.values());
-        if (topicsArray.length > 0) {
-          const newTopic = topicsArray[topicsArray.length - 1];
-          
-          refreshTopicsCache(); // 캐시 즉시 동기화
-          
-          const newTopicIndex = currentTopicsCache.findIndex(t => t.guid === newTopic.guid);
-          if (newTopicIndex !== -1) {
-            currentPage = Math.floor(newTopicIndex / pageSize);
-            updatePage();
-          }
-          
-          const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === newTopic.guid);
-          if (targetGroup) {
-            topicListTable.selection.clear();
-            topicListTable.selection.add(targetGroup.data);
-          }
-        }
-      }, 150);
-    }
-  });
-
-  const onUpdateTopicModalOpen = () => {
-    // 모달을 열기 전, 현재 선택되어 있는 토픽들의 고유 ID(Guid)를 배열에 저장합니다.
+  const onUpdateTopicOpen = () => {
     const selectedGuids = Array.from(topicListTable.selection).map((data: any) => data.Guid);
 
-    updateTopicModal.showModal(topicListTable.selection);
-
-    // 모달이 닫히면 테이블 데이터가 갱신되면서 선택이 해제되므로, 딜레이를 조금 준 후 이전 선택 상태를 복원합니다.
-    updateTopicModal.modal.addEventListener("close", () => {
+    const switchBackAndRestoreSelection = () => {
+      setView("list");
       setTimeout(() => {
-        refreshTopicsCache(); // 속성 변경(Resolved 등)으로 인한 캐시 업데이트 및 필터 재적용
+        refreshTopicsCache();
         for (const guid of selectedGuids) {
           const targetGroup = topicListTable.value.find((row: any) => row.data && row.data.Guid === guid);
           if (targetGroup) {
@@ -180,8 +236,15 @@ export const topicListTemplate: BUI.StatefullComponent<
           }
         }
       }, 150);
-    }, { once: true });
+    };
+
+    showUpdateTopic(topicListTable.selection, {
+      onCancel: switchBackAndRestoreSelection,
+      onUpdate: switchBackAndRestoreSelection,
+    });
+    setView("update");
   };
+
   const onDeleteTopic = () => {
     bcfTopics.delete(topicListTable.selection);
   };
@@ -248,27 +311,6 @@ export const topicListTemplate: BUI.StatefullComponent<
     }
   };
 
-  let panelSection: BUI.PanelSection;
-  const updateTopicCount = () => {
-    if (!panelSection) return;
-    let open = 0;
-    let assigned = 0;
-    let closed = 0;
-    let resolved = 0;
-    let total = 0;
-
-    for (const topic of bcfTopics.list.values()) {
-      total++;
-      const status = (topic as any).status;
-      if (status === "Open") open++;
-      else if (status === "Assigned") assigned++;
-      else if (status === "Closed") closed++;
-      else if (status === "Resolved") resolved++;
-    }
-    
-    panelSection.label = `Topic List ( Total(${total}) = Open(${open}) + Assigned(${assigned}) + Closed(${closed}) + Resolved(${resolved}) )`;
-  };
-
   let updateTopicCountTimeout: ReturnType<typeof setTimeout>;
   const debouncedUpdateTopicCount = () => {
     if (updateTopicCountTimeout) clearTimeout(updateTopicCountTimeout);
@@ -309,50 +351,52 @@ export const topicListTemplate: BUI.StatefullComponent<
   // 최초 로드시 전체 목록 캐싱 및 렌더링
   refreshTopicsCache();
 
+  const topicListPanel = BUI.html`
+    <div ${BUI.ref(e => listContainer = e as HTMLDivElement)} style="display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem; overflow: hidden;">
+      <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+        <div style="display: flex; gap: 0.25rem; flex: 1;">
+          <bim-button style="flex: 1;" @click=${onNewTopicOpen} label="Create Topic" icon=${appIcons.ADD}></bim-button>
+          <bim-button style="flex: 1;" @click=${onUpdateTopicOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
+          <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
+          <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
+          <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Auto Snapshots" icon=${appIcons.CAMERA}></bim-button>
+          <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
+          <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
+        </div>
+        <div style="display: flex; gap: 0.5rem; flex: 1;">
+          <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
+          <div ${BUI.ref(e => paginationContainer = e as HTMLDivElement)} style="display: none; gap: 0.25rem; align-items: center; justify-content: center; background: var(--bim-ui_bg-contrast-10); border-radius: 4px; padding: 0.125rem 0.25rem; flex-shrink: 0;">
+            <bim-button ${BUI.ref(e => prevButton = e as BUI.Button)} @click=${onPrevPage} icon=${appIcons.BACK} tooltip-title="Previous Page" style="flex: 0; margin: 0;"></bim-button>
+            <bim-label ${BUI.ref(e => pageInfoLabel = e as BUI.Label)} style="font-weight: bold; white-space: nowrap; margin: 0 0.25rem; font-size: 0.875rem;"></bim-label>
+            <bim-button ${BUI.ref(e => nextButton = e as BUI.Button)} @click=${onNextPage} icon=${appIcons.FORWARD} tooltip-title="Next Page" style="flex: 0; margin: 0;"></bim-button>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden; min-width: 0;">
+        ${topicListTable}
+      </div>
+
+      <div data-flex="false" style="display: flex; flex-direction: column; flex-shrink: 0; min-width: 0; max-width: 100%; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden;">
+        <div @click=${onToggleSection} style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 0.5rem; background-color: var(--bim-ui_bg-contrast-10);">
+          <bim-label style="font-weight: bold; pointer-events: none;">Clash Matrix</bim-label>
+          <bim-label class="toggle-icon" icon=${appIcons.RIGHT} style="pointer-events: none; --bim-icon--fz: 1.25rem;"></bim-label>
+        </div>
+        <div style="display: none; flex-direction: column; width: 100%; min-width: 0; box-sizing: border-box;">
+          ${matrixPanel}
+        </div>
+      </div>
+    </div>
+  `;
+
   return BUI.html`
-    <bim-panel-section
-      ${BUI.ref((e) => {
-        panelSection = e as BUI.PanelSection;
-        updateTopicCount();
-      })}
-      fixed icon=${appIcons.TASK} label="Topic List">
-      
-      <div style="display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem; overflow: hidden;">
-        
-        <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
-          <div style="display: flex; gap: 0.25rem; flex: 1;">
-            <bim-button style="flex: 1;" @click=${onNewTopicModalOpen} label="Create Topic" icon=${appIcons.ADD}></bim-button>
-            <bim-button style="flex: 1;" @click=${onUpdateTopicModalOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
-            <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
-            <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
-            <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Auto Snapshots" icon=${appIcons.CAMERA}></bim-button>
-            <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
-            <bim-button style="flex: 1;" @click=${onExportTopicsToJSON} label="Send to TDVS" icon=${appIcons.EXPORT}></bim-button>
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex: 1;">
-            <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
-            <div ${BUI.ref(e => paginationContainer = e as HTMLDivElement)} style="display: none; gap: 0.25rem; align-items: center; justify-content: center; background: var(--bim-ui_bg-contrast-10); border-radius: 4px; padding: 0.125rem 0.25rem; flex-shrink: 0;">
-              <bim-button ${BUI.ref(e => prevButton = e as BUI.Button)} @click=${onPrevPage} icon=${appIcons.BACK} tooltip-title="Previous Page" style="flex: 0; margin: 0;"></bim-button>
-              <bim-label ${BUI.ref(e => pageInfoLabel = e as BUI.Label)} style="font-weight: bold; white-space: nowrap; margin: 0 0.25rem; font-size: 0.875rem;"></bim-label>
-              <bim-button ${BUI.ref(e => nextButton = e as BUI.Button)} @click=${onNextPage} icon=${appIcons.FORWARD} tooltip-title="Next Page" style="flex: 0; margin: 0;"></bim-button>
-            </div>
-          </div>
-        </div>
-
-        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden; min-width: 0;">
-          ${topicListTable}
-        </div>
-
-        <div data-flex="false" style="display: flex; flex-direction: column; flex-shrink: 0; min-width: 0; max-width: 100%; border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; overflow: hidden;">
-          <div @click=${onToggleSection} style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 0.5rem; background-color: var(--bim-ui_bg-contrast-10);">
-            <bim-label style="font-weight: bold; pointer-events: none;">Clash Matrix</bim-label>
-            <bim-label class="toggle-icon" icon=${appIcons.RIGHT} style="pointer-events: none; --bim-icon--fz: 1.25rem;"></bim-label>
-          </div>
-          <div style="display: none; flex-direction: column; width: 100%; min-width: 0; box-sizing: border-box;">
-            ${matrixPanel}
-          </div>
-        </div>
-
+    <bim-panel-section ${BUI.ref((e) => { panelSection = e as BUI.PanelSection; updateTopicCount(); })} fixed icon=${appIcons.TASK} label="Topic List">
+      ${topicListPanel}
+      <div ${BUI.ref(e => newContainer = e as HTMLDivElement)} style="display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;">
+        ${newTopicForm}
+      </div>
+      <div ${BUI.ref(e => updateContainer = e as HTMLDivElement)} style="display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;">
+        ${updateTopicPanel}
       </div>
     </bim-panel-section>
   `;

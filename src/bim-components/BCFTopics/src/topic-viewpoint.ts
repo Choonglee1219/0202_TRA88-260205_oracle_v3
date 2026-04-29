@@ -1,9 +1,10 @@
 import * as OBC from "@thatopen/components";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
-import { setModelTransparent } from "../../../ui-templates/toolbars/viewer-toolbar";
+import { setModelTransparent, restoreModelMaterials } from "../../../ui-templates/toolbars/viewer-toolbar";
 import { ClashMapDisplay } from "./clash-map";
 import { Highlighter } from "../../Highlighter";
+import { Topic as EngineTopic } from "../../../engine-components/BCFTopics";
 
 export class TopicViewpointManager {
   private components: OBC.Components;
@@ -14,7 +15,7 @@ export class TopicViewpointManager {
     this.clashMapDisplay = clashMapDisplay;
   }
 
-  async createViewpointForTopic(topic: OBC.Topic) {
+  async createViewpointForTopic(topic: EngineTopic) {
     const viewpoints = this.components.get(OBC.Viewpoints);
     const viewpoint = viewpoints.create();
     const worlds = this.components.get(OBC.Worlds);
@@ -39,6 +40,25 @@ export class TopicViewpointManager {
       }
     }
 
+    // 단면 박스(Clipping Planes) 정보 저장 (Three.js -> BCF 역변환)
+    const clipper = this.components.get(OBC.Clipper);
+    if (clipper && clipper.enabled) {
+      const bcfPlanes: any[] = [];
+      const planes = (clipper as any).list?.values ? Array.from((clipper as any).list.values()) : (clipper as any).elements || [];
+      for (const item of planes) {
+        const plane = (item as any).plane || item;
+        if (plane && plane.normal && plane.constant !== undefined) {
+          const point = new THREE.Vector3();
+          plane.coplanarPoint(point);
+          bcfPlanes.push({
+            location: { x: point.x, y: -point.z, z: point.y },
+            direction: { x: -plane.normal.x, y: plane.normal.z, z: -plane.normal.y }
+          });
+        }
+      }
+      if (bcfPlanes.length > 0) (viewpoint as any).clipping_planes = bcfPlanes;
+    }
+
     topic.viewpoints.add(viewpoint.guid);
 
     topic.comments.onItemSet.add(({ value: comment }) => {
@@ -50,16 +70,43 @@ export class TopicViewpointManager {
     });
   }
 
-  async restoreViewpoint(topic: OBC.Topic, options?: { updateSnapshot?: boolean }): Promise<boolean> {
-    if (topic.viewpoints.size > 0) {
-      const viewpointGuid = topic.viewpoints.values().next().value;
+  async restoreViewpoint(topic: EngineTopic, options?: { updateSnapshot?: boolean, viewpointGuid?: string }): Promise<boolean> {
+    // 지정된 뷰포인트가 없으면 토픽 자체 뷰포인트나 코멘트의 뷰포인트를 수집합니다.
+    console.log(`[DEBUG] --- Start Restoring Viewpoint for Topic: ${topic.title} ---`);
+
+    let viewpointGuid = options?.viewpointGuid;
+
+    if (!viewpointGuid) {
+      console.log(`[DEBUG] 1. Topic has ${topic.viewpoints.size} direct viewpoint(s).`);
+      const allViewpointGuids = new Set<string>();
+      for (const vp of topic.viewpoints) allViewpointGuids.add(vp);
+      console.log(`[DEBUG] 2. Topic has ${topic.comments.size} comment(s).`);
+      for (const [_, comment] of topic.comments) {
+        if (comment.viewpoint) allViewpointGuids.add(comment.viewpoint);
+        console.log(`[DEBUG]    - Comment (${comment.guid}) has ${comment.viewpoint ? 1 : 0} viewpoint(s).`);
+      }
+      if (allViewpointGuids.size > 0) {
+        viewpointGuid = allViewpointGuids.values().next().value;
+      }
+    }
+
       if (viewpointGuid) {
         const viewpoints = this.components.get(OBC.Viewpoints);
         const viewpoint = viewpoints.list.get(viewpointGuid);
         if (viewpoint?.world) {
-          await viewpoint.go();
+          // 1. 모든 이전 상태(하이라이트, 투명도, 클리핑)를 초기화합니다.
           const highlighter = this.components.get(Highlighter);
           await highlighter.clear();
+          restoreModelMaterials(this.components);
+          const clipper = this.components.get(OBC.Clipper);
+          if (clipper) {
+            if (clipper.deleteAll) clipper.deleteAll();
+            else if ((clipper as any).clear) (clipper as any).clear();
+            clipper.enabled = true;
+          }
+
+          // 2. 새로운 뷰포인트 상태를 적용합니다.
+          await viewpoint.go();
           const fragments = this.components.get(OBC.FragmentsManager);
 
           // 카메라 줌인을 위해 Sphere의 위치를 지워지기 전에 미리 복사해 둡니다.
@@ -75,7 +122,18 @@ export class TopicViewpointManager {
           }
 
           // Restore Selection
-          const guids = Array.from(viewpoint.selectionComponents);
+          let guids = Array.from(viewpoint.selectionComponents);
+          
+          // 인스턴스에 없으면 JSON에서 직접 추출하는 안전장치
+          if (guids.length === 0) {
+            const vpJson = viewpoint.toJSON();
+            if (vpJson.components?.selection) {
+              guids = vpJson.components.selection
+                .map(s => s.ifc_guid)
+                .filter((guid): guid is string => guid !== null);
+            }
+          }
+          
           if (guids.length > 0) {
             const modelIdMap = await fragments.guidsToModelIdMap(guids);
             setModelTransparent(this.components);
@@ -96,6 +154,39 @@ export class TopicViewpointManager {
             const colorModelIdMap = await fragments.guidsToModelIdMap(guids);
             await highlighter.highlightByID(styleName, colorModelIdMap, false, false);
           }
+
+          // Restore Clipping Planes
+            const vpJson = viewpoint.toJSON();
+            const clippingPlanes = (viewpoint as any).clipping_planes || vpJson.clipping_planes || [];
+            console.log(`[DEBUG] Final collected Clipping Planes for Viewpoint (${viewpointGuid}):`, clippingPlanes);
+
+            if (clippingPlanes && clippingPlanes.length > 0) {
+              for (const cp of clippingPlanes) {
+                const loc = cp.location || cp.Location;
+                const dir = cp.direction || cp.Direction;
+                if (!loc || !dir) continue;
+
+                const bcfNx = Number(dir.x ?? dir.X ?? 0);
+                const bcfNy = Number(dir.y ?? dir.Y ?? 0);
+                const bcfNz = Number(dir.z ?? dir.Z ?? 0);
+                const bcfPx = Number(loc.x ?? loc.X ?? 0);
+                const bcfPy = Number(loc.y ?? loc.Y ?? 0);
+                const bcfPz = Number(loc.z ?? loc.Z ?? 0);
+
+                if (!isNaN(bcfNx) && !isNaN(bcfPx)) {
+                  // BCF (Z-up) -> Three.js (Y-up) 좌표계 변환 및 Normal 방향 반전
+                  // BCF의 Direction은 잘려나가는(보이지 않는) 방향이므로 Three.js의 Plane Normal(남는 방향)을 구하려면 역벡터를 취합니다.
+                  const normal = new THREE.Vector3(-bcfNx, -bcfNz, bcfNy).normalize();
+                  const point = new THREE.Vector3(bcfPx, bcfPz, -bcfPy);
+
+                  if (clipper.createFromNormalAndCoplanarPoint) {
+                    clipper.createFromNormalAndCoplanarPoint(viewpoint.world, normal, point);
+                  } else if ((clipper as any).create) {
+                    (clipper as any).create({ normal, point });
+                  }
+                }
+              }
+            }
 
           const camera = viewpoint.world.camera as OBC.OrthoPerspectiveCamera;
           
@@ -134,7 +225,6 @@ export class TopicViewpointManager {
           }
         }
       }
-    }
-    return false; // 스냅샷이 촬영되지 않았음을 알립니다.
+    return false;
   }
 }
