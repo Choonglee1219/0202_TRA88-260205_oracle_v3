@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { users } from "../../../setup/users";
 import * as THREE from "three";
-import { appIcons, onToggleSection, showLightbox } from "../../../globals";
+import { appIcons, onToggleSection, showLightbox, appState } from "../../../globals";
 import { Highlighter } from "../../Highlighter";
 import { BCFTopics as EngineBCFTopics } from "../../../engine-components/BCFTopics";
 import { Topic as EngineTopic } from "../../../engine-components/BCFTopics";
@@ -22,11 +22,11 @@ export const updateTopic = (bcfTopics: any) => {
   commentsContainer.style.gap = "0.5rem";
   commentsContainer.style.flex = "1";
   commentsContainer.style.minHeight = "0";
+  commentsContainer.style.overflow = "hidden";
   commentsContainer.style.marginBottom = "0.5rem";
   commentsContainer.style.paddingRight = "0.5rem";
 
   let currentCommentPage = 0;
-  const COMMENTS_PER_PAGE = 1; // 한 페이지에 보여줄 코멘트 수
 
   // 헤더에 붙일 페이지네이션 컨테이너를 미리 생성해 둡니다.
   const paginationContainer = document.createElement("div");
@@ -37,7 +37,7 @@ export const updateTopic = (bcfTopics: any) => {
   const newCommentInput = document.createElement("bim-text-input") as BUI.TextInput;
   newCommentInput.vertical = true;
   newCommentInput.type = "area";
-  newCommentInput.rows = 2;
+  newCommentInput.rows = 1;
   newCommentInput.resize = "vertical";
 
   // New Comment 영역을 묶고 토글 기능을 제공할 섹션 생성
@@ -54,7 +54,7 @@ export const updateTopic = (bcfTopics: any) => {
   newCommentHeader.style.display = "flex";
   newCommentHeader.style.justifyContent = "space-between";
   newCommentHeader.style.alignItems = "center";
-  // newCommentHeader.style.padding = "0.5rem";
+  newCommentHeader.style.padding = "0.5rem";
   newCommentHeader.style.cursor = "pointer";
   newCommentHeader.style.backgroundColor = "var(--bim-ui_bg-contrast-10)";
 
@@ -90,6 +90,8 @@ export const updateTopic = (bcfTopics: any) => {
     if (!currentTopic || !newCommentInput.value.trim()) return;
 
     addCommentBtn.loading = true;
+
+    bcf.config.author = appState.currentUser;
 
     // 새 Viewpoint 생성 (카메라 및 선택된 객체 저장)
     const viewpoints = components.get(OBC.Viewpoints);
@@ -147,7 +149,7 @@ export const updateTopic = (bcfTopics: any) => {
     }
 
     newCommentInput.value = "";
-    currentCommentPage = Math.max(0, Math.ceil(currentTopic.comments.size / COMMENTS_PER_PAGE) - 1);
+    currentCommentPage = Number.MAX_SAFE_INTEGER; // 새 뷰포인트 추가 후 항상 가장 마지막 페이지로 보정됨
     renderComments(currentTopic);
     addCommentBtn.loading = false;
 
@@ -175,8 +177,8 @@ export const updateTopic = (bcfTopics: any) => {
   };
 
   const renderComments = (topic: EngineTopic) => {
-    // 새로운 코멘트 작성란 라벨에 현재 작성자(이메일)와 현재 시각 표시
-    newCommentInput.label = `${bcf.config.author} | ${new Date().toLocaleString()}`;
+    // 5. [Write a New Comment...] Author 적용
+    newCommentInput.label = `${appState.currentUser} | ${new Date().toLocaleString()}`;
 
     commentsContainer.innerHTML = "";
     if (topic.comments.size === 0) {
@@ -185,128 +187,183 @@ export const updateTopic = (bcfTopics: any) => {
       noComments.style.fontStyle = "italic";
       noComments.style.opacity = "0.7";
       commentsContainer.append(noComments);
+      paginationContainer.innerHTML = "";
       return;
     }
 
+    // 코멘트들을 시간 순으로 정렬
     const commentsArray = Array.from(topic.comments.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    const totalPages = Math.ceil(commentsArray.length / COMMENTS_PER_PAGE);
-    if (currentCommentPage >= totalPages) currentCommentPage = Math.max(0, totalPages - 1);
-
-    const startIdx = currentCommentPage * COMMENTS_PER_PAGE;
-    const pageComments = commentsArray.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
-
-    const commentsList = document.createElement("div");
-    commentsList.style.display = "flex";
-    commentsList.style.flexDirection = "column";
-    commentsList.style.gap = "0.5rem";
-    commentsList.style.flex = "1";
-    commentsList.style.overflowY = "auto";
-    commentsList.style.overflowX = "hidden";
-    commentsList.classList.add("custom-scrollbar");
-
-    for (const comment of pageComments) {
-      const commentDiv = document.createElement("div");
-      commentDiv.style.border = "1px solid var(--bim-ui_bg-contrast, gray)";
-      commentDiv.style.padding = "0.5rem";
-      commentDiv.style.borderRadius = "0.25rem";
-      commentDiv.style.backgroundColor = "var(--bim-ui_bg-base, transparent)";
-
-      const commentInput = document.createElement("bim-text-input") as BUI.TextInput;
-      commentInput.label = `${comment.author} | ${comment.date.toLocaleString()}`;
-      commentInput.vertical = true;
-      commentInput.type = "area";
-      commentInput.rows = 3;
-      commentInput.resize = "vertical";
-      commentInput.value = comment.comment;
-
-      const bodyDiv = document.createElement("div");
-      bodyDiv.style.display = "flex";
-      bodyDiv.style.gap = "0.5rem";
-      bodyDiv.style.alignItems = "stretch"; // 스냅샷과 높이 동기화
-
-      const leftWrapper = document.createElement("div");
-      leftWrapper.style.display = "flex";
-      leftWrapper.style.flexDirection = "column";
-      leftWrapper.style.gap = "0.5rem";
-      leftWrapper.style.flex = "1";
-      leftWrapper.style.minWidth = "0";
-
-      commentInput.style.flex = "1";
-      commentInput.style.minWidth = "0";
-
-      const actions = document.createElement("div");
-      actions.style.display = "grid";
-      actions.style.gap = "0.25rem";
-      actions.style.alignItems = "center";
-      actions.style.flexShrink = "0";
-      actions.style.width = "100%";
-
-      leftWrapper.append(commentInput, actions);
-      bodyDiv.append(leftWrapper);
-
-      const snapshotUrl = getCommentSnapshotUrl(comment);
-      if (snapshotUrl) {
-        const img = document.createElement("img");
-        img.src = snapshotUrl;
-        img.style.height = "100%";
-        img.style.maxHeight = "8rem";
-        img.style.width = "auto";
-        img.style.objectFit = "contain";
-        img.style.borderRadius = "0.25rem";
-        img.style.border = "1px solid var(--bim-ui_bg-contrast-20)";
-        img.style.backgroundColor = "var(--bim-ui_bg-base, transparent)";
-        img.style.cursor = "zoom-in";
-        img.style.transition = "filter 0.2s";
-        img.onmouseover = () => img.style.filter = "brightness(1.1)";
-        img.onmouseout = () => img.style.filter = "none";
-        img.addEventListener("click", () => showLightbox(snapshotUrl));
-        bodyDiv.append(img);
-      }
-
-      const updateBtn = document.createElement("bim-button") as BUI.Button;
-      updateBtn.label = "Update";
-      updateBtn.style.margin = "0";
-      updateBtn.style.width = "100%";
-      updateBtn.addEventListener("click", () => {
-        if (commentInput.value.trim()) {
-          bcfTopics.updateComment(topic.guid, comment.guid, commentInput.value.trim());
-          alert("Comment updated.");
-        }
-      });
-
-      const deleteBtn = document.createElement("bim-button") as BUI.Button;
-      deleteBtn.label = "Delete";
-      deleteBtn.style.margin = "0";
-      deleteBtn.style.width = "100%";
-      deleteBtn.addEventListener("click", () => {
-        if (confirm("Delete this comment?")) {
-          bcfTopics.deleteComment(topic.guid, comment.guid);
-          renderComments(topic);
-        }
-      });
-
-      // 코멘트에 연결된 뷰포인트가 있다면 해당 뷰로 이동하는 버튼 추가
+    // Viewpoint 기준으로 그룹화 (Viewpoint가 없는 것은 각각 개별 그룹으로 분리)
+    const groups: { viewpointGuid: string | null, comments: any[] }[] = [];
+    const vpMap = new Map<string, any[]>();
+    for (const comment of commentsArray) {
       if (comment.viewpoint) {
-        const viewBtn = document.createElement("bim-button") as BUI.Button;
-        viewBtn.label = "View";
-        viewBtn.style.margin = "0";
-        viewBtn.style.width = "100%";
-        viewBtn.addEventListener("click", async () => {
-        await bcfTopics.restoreViewpoint(topic, { viewpointGuid: comment.viewpoint });
-        });
-        actions.style.gridTemplateColumns = "repeat(3, 1fr)";
-        actions.append(viewBtn, updateBtn, deleteBtn);
+        if (!vpMap.has(comment.viewpoint)) vpMap.set(comment.viewpoint, []);
+        vpMap.get(comment.viewpoint)!.push(comment);
       } else {
-        actions.style.gridTemplateColumns = "repeat(2, 1fr)";
-        actions.append(updateBtn, deleteBtn);
+        groups.push({ viewpointGuid: null, comments: [comment] });
+      }
+    }
+    for (const [vpGuid, cmts] of vpMap.entries()) {
+      groups.push({ viewpointGuid: vpGuid, comments: cmts });
+    }
+    // 각 그룹의 가장 처음 작성된 코멘트 시간을 기준으로 그룹 정렬
+    groups.sort((a, b) => a.comments[0].date.getTime() - b.comments[0].date.getTime());
+
+    const totalPages = groups.length;
+    if (currentCommentPage >= totalPages) currentCommentPage = Math.max(0, totalPages - 1);
+    const currentGroup = groups[currentCommentPage];
+
+    // 1. Viewpoint 페이지의 전체 레이아웃 컨테이너
+    const pageWrapper = document.createElement("div");
+    pageWrapper.style.display = "flex";
+    pageWrapper.style.gap = "0.5rem";
+    pageWrapper.style.height = "100%";
+    pageWrapper.style.minHeight = "0";
+    pageWrapper.style.overflow = "hidden";
+
+    // 1. 고정된 스냅샷 이미지 (그룹의 첫번째 코멘트 기준)
+    const firstComment = currentGroup.comments[0];
+    const snapshotUrl = getCommentSnapshotUrl(firstComment);
+    if (snapshotUrl) {
+      const snapshotWrapper = document.createElement("div");
+      snapshotWrapper.style.width = "12rem";
+      snapshotWrapper.style.flexShrink = "0";
+      snapshotWrapper.style.display = "flex";
+      snapshotWrapper.style.flexDirection = "column";
+      snapshotWrapper.style.gap = "0.5rem";
+      snapshotWrapper.style.minHeight = "0";
+      snapshotWrapper.style.overflowY = "auto";
+      snapshotWrapper.style.overflowX = "hidden";
+      snapshotWrapper.classList.add("custom-scrollbar");
+      
+      const img = document.createElement("img");
+      img.src = snapshotUrl;
+      img.style.width = "100%";
+      img.style.height = "auto";
+      img.style.minHeight = "0";
+      img.style.boxSizing = "border-box";
+      img.style.maxHeight = "100%";
+      img.style.objectFit = "contain";
+      img.style.borderRadius = "0.25rem";
+      img.style.border = "1px solid var(--bim-ui_bg-contrast-20)";
+      img.style.backgroundColor = "var(--bim-ui_bg-base, transparent)";
+      img.style.cursor = "zoom-in";
+      img.style.transition = "filter 0.2s";
+      img.onmouseover = () => img.style.filter = "brightness(1.1)";
+      img.onmouseout = () => img.style.filter = "none";
+      img.addEventListener("click", () => showLightbox(snapshotUrl));
+
+      snapshotWrapper.append(img);
+
+      // 해당 그룹에 Viewpoint가 존재하면 복원 버튼을 스냅샷 아래에 추가
+      if (currentGroup.viewpointGuid) {
+        const viewBtn = document.createElement("bim-button") as BUI.Button;
+        viewBtn.label = "Restore 3D View";
+        viewBtn.icon = appIcons.FOCUS;
+        viewBtn.style.margin = "0";
+        viewBtn.style.flex = "none";
+        viewBtn.style.marginBottom = "auto";
+        viewBtn.style.width = "100%";
+        viewBtn.style.boxSizing = "border-box";
+        viewBtn.addEventListener("click", async () => {
+          viewBtn.loading = true;
+          await bcfTopics.restoreViewpoint(topic, { viewpointGuid: currentGroup.viewpointGuid });
+          viewBtn.loading = false;
+        });
+        snapshotWrapper.append(viewBtn);
       }
 
-      commentDiv.append(bodyDiv);
-      commentsList.append(commentDiv);
+      pageWrapper.append(snapshotWrapper);
     }
 
-    commentsContainer.append(commentsList);
+    // 2. 스크롤 가능한 코멘트 목록과 답글 폼을 담을 컨테이너
+    const commentsListWrapper = document.createElement("div");
+    commentsListWrapper.style.flex = "1";
+    commentsListWrapper.style.minWidth = "0";
+    commentsListWrapper.style.display = "flex";
+    commentsListWrapper.style.flexDirection = "column";
+    commentsListWrapper.style.gap = "0.5rem";
+    
+    const commentsScroll = document.createElement("div");
+    commentsScroll.style.flex = "1";
+    commentsScroll.style.minHeight = "0";
+    commentsScroll.style.overflowY = "auto";
+    commentsScroll.style.display = "flex";
+    commentsScroll.style.flexDirection = "column";
+    commentsScroll.style.gap = "0.5rem";
+    commentsScroll.classList.add("custom-scrollbar");
+
+    // 3. 각 Comment 카드 렌더링 (수정/삭제 기능 제거)
+    for (const comment of currentGroup.comments) {
+      const commentCard = document.createElement("div");
+      commentCard.style.border = "1px solid var(--bim-ui_bg-contrast, gray)";
+      commentCard.style.padding = "0.5rem";
+      commentCard.style.borderRadius = "0.25rem";
+      commentCard.style.backgroundColor = "var(--bim-ui_bg-base, transparent)";
+      commentCard.style.display = "flex";
+      commentCard.style.flexDirection = "column";
+      commentCard.style.gap = "0.25rem";
+      commentCard.style.flexShrink = "0";
+      commentCard.style.color = "var(--bim-ui_bg-contrast-100)"; // Dark 테마 지원을 위해 텍스트 색상 적용
+
+      const cardHeader = document.createElement("div");
+      cardHeader.style.display = "flex";
+      cardHeader.style.justifyContent = "space-between";
+      cardHeader.style.fontSize = "0.75rem";
+      cardHeader.style.opacity = "0.8";
+      cardHeader.innerHTML = `<span><b>${comment.author}</b></span><span>${comment.date.toLocaleString()}</span>`;
+
+      const cardBody = document.createElement("div");
+      cardBody.textContent = comment.comment;
+      cardBody.style.whiteSpace = "pre-wrap";
+      cardBody.style.wordBreak = "break-word";
+      cardBody.style.fontSize = "0.75rem";
+      cardBody.style.lineHeight = "1.4";
+
+      commentCard.append(cardHeader, cardBody);
+      commentsScroll.append(commentCard);
+    }
+    
+    commentsListWrapper.append(commentsScroll);
+
+    // 4. "Add Reply" 섹션 추가 (뷰포인트가 있는 페이지에만)
+    if (currentGroup.viewpointGuid) {
+      const replySection = document.createElement("div");
+      replySection.style.display = "flex";
+      replySection.style.flexDirection = "column";
+      replySection.style.gap = "0.5rem";
+      replySection.style.marginTop = "auto";
+      replySection.style.paddingTop = "0.5rem";
+      replySection.style.borderTop = "1px dashed var(--bim-ui_bg-contrast-20)";
+      replySection.style.flexShrink = "0";
+
+      const replyInput = document.createElement("bim-text-input") as BUI.TextInput;
+      replyInput.label = `${appState.currentUser} | ${new Date().toLocaleString()} (Reply)`;
+      replyInput.vertical = true;
+      replyInput.type = "area";
+      replyInput.rows = 1;
+      replyInput.resize = "vertical";
+
+      const replyBtn = document.createElement("bim-button") as BUI.Button;
+      replyBtn.label = "Add Reply to this Viewpoint";
+      replyBtn.icon = appIcons.ADD;
+      replyBtn.addEventListener("click", () => {
+        if (!replyInput.value.trim()) return;
+        replyBtn.loading = true;
+        bcf.config.author = appState.currentUser;
+        const newComment = bcfTopics.addComment(topic.guid, replyInput.value.trim());
+        if (newComment) newComment.viewpoint = currentGroup.viewpointGuid;
+        renderComments(topic);
+      });
+
+      replySection.append(replyInput, replyBtn);
+      commentsScroll.append(replySection);
+    }
+
+    pageWrapper.append(commentsListWrapper);
+    commentsContainer.append(pageWrapper);
 
     // 페이지네이션(Pagination) UI 업데이트 (헤더 영역으로 분리)
     paginationContainer.innerHTML = "";
@@ -387,6 +444,11 @@ export const updateTopic = (bcfTopics: any) => {
         styles: { users },
         commentsUI: commentsWrapper, // 우측에 배치될 Comments 컴포넌트 주입
         onCancel: onCancelHandler,
+        onRestoreViewpoint: async () => {
+          if (currentTopic) {
+            await bcfTopics.restoreViewpoint(currentTopic);
+          }
+        },
         onSubmit: async (topic) => {
           const viewpoints = components.get(OBC.Viewpoints);
           const viewpoint = viewpoints.create();

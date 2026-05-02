@@ -328,26 +328,74 @@ export class BCFTopics
     const viewpoints = this.components.get(Viewpoints);
     for (const topic of topics) {
       const topicFolder = zip.folder(topic.guid) as JSZip;
-      topicFolder.file("markup.bcf", topic.serialize());
-      for (const viewpointID of topic.viewpoints) {
+      // Collect all unique viewpoint GUIDs from the topic and its comments
+      const allViewpointGuids = new Set(topic.viewpoints);
+      const commentViewpoints = new Set<string>();
+      
+      for (const [, comment] of topic.comments) {
+        if (comment.viewpoint) {
+          allViewpointGuids.add(comment.viewpoint);
+          commentViewpoints.add(comment.viewpoint);
+        }
+      }
+
+      // Identify the default viewpoint (first one not referenced by any comment)
+      const unreferencedViewpoints = [...allViewpointGuids].filter(id => !commentViewpoints.has(id));
+      const defaultViewpointGuid = unreferencedViewpoints.length > 0 ? unreferencedViewpoints[0] : null;
+
+      // Temporarily assign this full set to the topic for serialization
+      const originalViewpoints = topic.viewpoints;
+      (topic as any).viewpoints = allViewpointGuids;
+      let markupXml = topic.serialize();
+      (topic as any).viewpoints = originalViewpoints; // Restore original
+
+      // Replace default viewpoint GUID with "viewpoint" and "snapshot" in markup.bcf
+      if (defaultViewpointGuid) {
+        markupXml = markupXml.replace(
+          new RegExp(`>\\s*${defaultViewpointGuid}\\.bcfv\\s*</Viewpoint>`, "g"),
+          `>viewpoint.bcfv</Viewpoint>`
+        ).replace(
+          new RegExp(`>\\s*${defaultViewpointGuid}\\.png\\s*</Snapshot>`, "g"),
+          `>snapshot.png</Snapshot>`
+        );
+      }
+
+      topicFolder.file("markup.bcf", markupXml);
+
+      for (const viewpointID of allViewpointGuids) {
         const viewpoint = viewpoints.list.get(viewpointID);
         if (!viewpoint) continue;
-        const viewpointFileName = viewpoint.title ?? viewpoint.guid;
+        
+        const isDefault = viewpointID === defaultViewpointGuid;
+        const bcfvName = isDefault ? "viewpoint.bcfv" : `${viewpointID}.bcfv`;
+        const pngName = isDefault ? "snapshot.png" : `${viewpointID}.png`;
+
+        let viewpointXml = await viewpoint.serialize();
+
+        // PATCH: 직렬화 과정에서 누락되는 ClippingPlanes 정보를 수동으로 XML에 주입합니다.
+        const clippingPlanes = (viewpoint as any).clipping_planes;
+        if (clippingPlanes && clippingPlanes.length > 0) {
+          let cpXml = `  <ClippingPlanes>\n`;
+          for (const cp of clippingPlanes) {
+            const loc = cp.location || cp.Location;
+            const dir = cp.direction || cp.Direction;
+            if (loc && dir) {
+              cpXml += `    <ClippingPlane>\n      <Location>\n        <X>${loc.x}</X>\n        <Y>${loc.y}</Y>\n        <Z>${loc.z}</Z>\n      </Location>\n      <Direction>\n        <X>${dir.x}</X>\n        <Y>${dir.y}</Y>\n        <Z>${dir.z}</Z>\n      </Direction>\n    </ClippingPlane>\n`;
+            }
+          }
+          cpXml += `  </ClippingPlanes>\n`;
+          viewpointXml = viewpointXml.replace(/<\/VisualizationInfo>/i, `${cpXml}</VisualizationInfo>`);
+        }
+
         topicFolder.file(
-          `${viewpointFileName}.bcfv`,
-          await viewpoint.serialize(),
+          bcfvName,
+          viewpointXml,
         );
 
         const snapshotData = viewpoints.snapshots.get(viewpoint.snapshot);
         if (!snapshotData) continue;
-        const snapshotFileName = snapshotData
-          ? viewpoint.snapshot
-          : viewpoint.guid;
-        const snapshotExtension = viewpoints.getSnapshotExtension(
-          viewpoint.snapshot,
-        );
         topicFolder.file(
-          `${snapshotFileName}.${snapshotExtension}`,
+          pngName,
           snapshotData,
           {
             binary: true,

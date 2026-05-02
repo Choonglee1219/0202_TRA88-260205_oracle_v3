@@ -67,4 +67,29 @@ export class Comment {
 
     return result;
   }
+
+  /**
+   * Serializes the comment to an XML string for BCF 2.1.
+   * @returns The serialized comment as an XML string.
+   */
+  serialize() {
+    const viewpointTag = this.viewpoint
+      ? `<Viewpoint Guid="${this.viewpoint}"/>`
+      : "";
+
+    const modifiedAuthorTag = this.modifiedAuthor
+      ? `<ModifiedAuthor>${this.modifiedAuthor}</ModifiedAuthor>`
+      : "";
+
+    const modifiedDateTag = this.modifiedDate
+      ? `<ModifiedDate>${this.modifiedDate.toISOString()}</ModifiedDate>`
+      : "";
+
+    return `<Comment Guid="${this.guid}">
+      <Date>${this.date.toISOString()}</Date>
+      <Author>${this.author}</Author>
+      <Comment>${this.comment}</Comment>
+      ${viewpointTag}${modifiedAuthorTag}${modifiedDateTag}
+    </Comment>`;
+  }
 }

@@ -77,3 +77,8 @@ WHERE username = 'IFCADMIN';
 SELECT name, open_mode, restricted
 FROM v$pdbs
 WHERE name = 'ORCLPDB';
+
+SELECT status FROM v$instance;
+ALTER DATABASE OPEN;
+ALTER PLUGGABLE DATABASE ALL SAVE STATE;
+SELECT name, open_mode, restricted FROM v$pdbs;

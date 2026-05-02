@@ -3,7 +3,7 @@ import * as OBC from "@thatopen/components";
 import { SharedBCF } from "../../bim-components/SharedBCF";
 import { SharedIFC } from "../../bim-components/SharedIFC";
 import { BCFTopics } from "../../bim-components/BCFTopics";
-import { appIcons } from "../../globals";
+import { appIcons, setupBIMTable } from "../../globals";
 
 export interface BCFListPanelState {
   components: OBC.Components;
@@ -123,23 +123,28 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
   bcfTable.noIndentation = true;
   bcfTable.noCarets = true;
 
+  setupBIMTable(bcfTable);
+
   bcfTable.dataTransform = {
     Name: (value, rowData) => {
       const name = value as string;
       const { id, models } = rowData as BCFTableData;
       return BUI.html`
-        <div style="display: flex; align-items: center; width: 100%; gap: 0.375rem; overflow: hidden; height: 1.5rem;">
-          <bim-label style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title=${name}>
+        <div style="display: flex; align-items: center; width: 100%; gap: 0.25rem; overflow: hidden; margin: 0; padding: 0; height: 1.5rem;">
+          <bim-label style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; padding: 0;" title=${name}>
             ${name}
           </bim-label>
-          <div style="display: flex; gap: 0.25rem; flex-shrink: 0;">
+          <div style="display: flex; gap: 0.25rem; flex-shrink: 0; margin: 0; padding: 0;">
             <bim-button style="flex: 0; margin: 0; padding: 0;" icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${models.join(", ")}></bim-button>
             <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${async (e: Event) => {
-              const btn = e.target as BUI.Button;
-              btn.loading = true;
-              try { await loadBCF(id); } finally { btn.loading = false; }
+              const btn = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
+              if (btn) btn.loading = true;
+              try { await loadBCF(id); } finally { if (btn) btn.loading = false; }
             }} icon=${appIcons.IMPORT} tooltip-title="Load Topics"></bim-button>
-            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${(e: Event) => toggleClashMap(id, e.target as BUI.Button)} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map"></bim-button>
+            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${(e: Event) => {
+              const btn = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
+              if (btn) toggleClashMap(id, btn);
+            }} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map"></bim-button>
             <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${() => downloadBCF(id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF"></bim-button>
             <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${() => deleteBCF(id)} icon=${appIcons.DELETE} tooltip-title="Delete BCF"></bim-button>
           </div>
@@ -219,12 +224,12 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
   return BUI.html`
     <bim-panel-section fixed icon=${appIcons.TASK} label="BCF List">
       <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-        <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200"></bim-text-input>
+        <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
         <bim-button style="flex: 0;" @click=${() => bcfTopics.saveBCFToDB()} icon=${appIcons.ADD} tooltip-title="Import BCF"></bim-button>
         <bim-button style="flex: 0;" @click=${() => bcfTopics.openClashDetectionModal()} icon=${appIcons.CLASH} tooltip-title="Clash Detection"></bim-button>
         <bim-button style="flex: 0;" @click=${refreshSharedBCFList} icon=${appIcons.REFRESH} tooltip-title="Refresh"></bim-button>
       </div>
-      <div style="flex: 1; min-height: 0; overflow-y: auto;">
+      <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; flex: 1; min-height: 0; overflow-y: auto;">
         ${bcfTable}
       </div>
     </bim-panel-section>

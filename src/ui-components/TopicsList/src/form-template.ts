@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { createRef } from "lit/directives/ref.js";
 import { TopicUserStyles } from "./types";
-import { appState, showLightbox } from "../../../globals";
+import { appState, showLightbox, appIcons } from "../../../globals";
 import { BCFTopics as EngineBCFTopics } from "../../../engine-components/BCFTopics";
 import { Topic as EngineTopic } from "../../../engine-components/BCFTopics";
 
@@ -60,6 +60,11 @@ export interface TopicFormUI {
   onCancel?: () => void | Promise<void>;
 
   /**
+   * Callback function triggered when restoring the 3D Viewpoint.
+   */
+  onRestoreViewpoint?: () => void | Promise<void>;
+
+  /**
    * Custom styles for the form components.
    */
   styles?: Partial<DataStyles>;
@@ -111,6 +116,7 @@ export const topicFormTemplate = (state: TopicFormUI) => {
     topic,
     value,
     onCancel,
+    onRestoreViewpoint,
     onSubmit: _onSubmit,
     styles,
   } = state;
@@ -253,6 +259,14 @@ export const topicFormTemplate = (state: TopicFormUI) => {
               <div style="display: flex; flex-direction: column; width: 16rem; height: 100%; flex-shrink: 0; gap: 0.375rem;">
                 <bim-label style="flex-shrink: 0;">Snapshot</bim-label>
                 <img @click=${() => showLightbox(snapshot)} src="${snapshot}" style="cursor: zoom-in; width: 100%; flex: 1; min-height: 0; object-fit: contain; border-radius: 0.25rem; border: 1px solid var(--bim-ui_bg-contrast-20); background-color: var(--bim-ui_bg-base, transparent); padding: 0.5rem; transition: filter 0.2s;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+                ${onRestoreViewpoint ? BUI.html`
+                  <bim-button style="margin: 0; flex: none;" label="Restore 3D View" icon=${appIcons.FOCUS} @click=${async (e: Event) => {
+                    const btn = e.target as BUI.Button;
+                    btn.loading = true;
+                    await onRestoreViewpoint();
+                    btn.loading = false;
+                  }}></bim-button>
+                ` : ""}
               </div>
             ` : ""}
           </div>
