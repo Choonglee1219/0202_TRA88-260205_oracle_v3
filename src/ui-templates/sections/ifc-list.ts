@@ -1,6 +1,6 @@
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
-import { appIcons, onToggleSection, setupBIMTable } from "../../globals";
+import { appIcons, onToggleSection, setupBIMTable, tableButtonStyle } from "../../globals";
 import { SharedIFC } from '../../bim-components/SharedIFC';
 import { SharedFRAG } from '../../bim-components/SharedFRAG';
 import { BCFTopics } from "../../bim-components/BCFTopics";
@@ -172,12 +172,12 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
             <bim-button @click=${() => {
               model.object.visible = !model.object.visible;
               updateLoadedModelsList();
-            }} icon=${model.object.visible ? appIcons.SHOW : appIcons.HIDE} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Visibility"></bim-button>
+          }} icon=${model.object.visible ? appIcons.SHOW : appIcons.HIDE} style=${tableButtonStyle} tooltip-title="Visibility"></bim-button>
             <bim-button @click=${() => {
               selectedLoadedModels.delete(model);
               model.dispose();
               updateLoadedModelsList();
-            }} icon=${appIcons.CLEAR} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Dispose"></bim-button>
+          }} icon=${appIcons.CLEAR} style=${tableButtonStyle} tooltip-title="Dispose"></bim-button>
           </div>
         </div>
       `;
@@ -586,9 +586,9 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
             </select>
           </div>
           <div style="flex: 0 0 auto; display: flex; gap: 0.25rem; margin: 0; padding: 0;">
-            <bim-button @click=${() => loadFRAGModel(id)} icon=${appIcons.OPEN} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Load Model"></bim-button>
-            <bim-button @click=${() => downloadFRAGModel(id)} icon=${appIcons.DOWNLOAD} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Download Model"></bim-button>
-            <bim-button @click=${() => deleteFRAGModel(id)} icon=${appIcons.DELETE} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Delete Model"></bim-button>
+          <bim-button @click=${() => loadFRAGModel(id)} icon=${appIcons.OPEN} style=${tableButtonStyle} tooltip-title="Load Model"></bim-button>
+          <bim-button @click=${() => downloadFRAGModel(id)} icon=${appIcons.DOWNLOAD} style=${tableButtonStyle} tooltip-title="Download Model"></bim-button>
+          <bim-button @click=${() => deleteFRAGModel(id)} icon=${appIcons.DELETE} style=${tableButtonStyle} tooltip-title="Delete Model"></bim-button>
           </div>
         </div>
       `;
@@ -721,9 +721,9 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
             </select>
           </div>
           <div style="flex: 0 0 auto; display: flex; gap: 0.25rem; margin: 0; padding: 0;">
-            <bim-button @click=${() => loadIFCModel(id)} icon=${appIcons.OPEN} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Load Model"></bim-button>
-            <bim-button @click=${() => downloadIFCModel(id)} icon=${appIcons.DOWNLOAD} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Download Model"></bim-button>
-            <bim-button @click=${() => deleteIFCModel(id)} icon=${appIcons.DELETE} style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Delete Model"></bim-button>
+          <bim-button @click=${() => loadIFCModel(id)} icon=${appIcons.OPEN} style=${tableButtonStyle} tooltip-title="Load Model"></bim-button>
+          <bim-button @click=${() => downloadIFCModel(id)} icon=${appIcons.DOWNLOAD} style=${tableButtonStyle} tooltip-title="Download Model"></bim-button>
+          <bim-button @click=${() => deleteIFCModel(id)} icon=${appIcons.DELETE} style=${tableButtonStyle} tooltip-title="Delete Model"></bim-button>
           </div>
         </div>
       `;

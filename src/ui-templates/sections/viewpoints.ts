@@ -59,7 +59,7 @@ export const viewpointsPanelTemplate: BUI.StatefullComponent<ViewpointsPanelStat
     // 새로 그려진 row 객체들에 대해 기존 선택 상태를 복원합니다.
     table.selection.clear();
     if (selectedViewpointId) {
-      const selectedRow = table.value.find(row => row.data && row.data.id === selectedViewpointId);
+      const selectedRow = table.data.find(row => row.data && row.data.id === selectedViewpointId);
       if (selectedRow) {
         table.selection.add(selectedRow.data);
       }

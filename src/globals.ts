@@ -66,6 +66,9 @@ export const appIcons = {
   LAYERS: "/icons/mdi--layers-outline.svg",
 };
 
+// 테이블 내 아이콘 버튼들의 공통 컴팩트 스타일
+export const tableButtonStyle = "flex: 0; margin: 0; padding: 0;";
+
 export const onToggleSection = (e: Event) => {
   const header = e.currentTarget as HTMLElement;
   const wrapper = header.parentElement as HTMLElement;

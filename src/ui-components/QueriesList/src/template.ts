@@ -2,7 +2,7 @@ import MarkdownIt from "markdown-it";
 import * as OBC from "@thatopen/components";
 import * as BUI from "@thatopen/ui";
 import { QueriesListState } from "./types";
-import { appIcons } from "../../../globals";
+import { appIcons, tableButtonStyle } from "../../../globals";
 import { Highlighter } from "../../../bim-components/Highlighter";
 import { tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated } from "../../../globals";
 
@@ -106,12 +106,12 @@ export const queriesListTemplate: BUI.StatefullComponent<QueriesListState> = (
           <div style="display: flex; gap: 0.25rem; align-items: center; justify-content: center;">
             <bim-button
               @click=${onClick}
-              style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;"
+              style=${tableButtonStyle}
               icon=${appIcons.SELECT}>
             </bim-button>
             <bim-button
               @click=${onOpenMarkdown}
-              style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;"
+              style=${tableButtonStyle}
               icon=${appIcons.REF} >
             </bim-button>
           </div>

@@ -2,7 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import * as FRAGS from "@thatopen/fragments";
 import * as THREE from "three";
-import { appIcons, onToggleSection, setupBIMTable } from "../../globals";
+import { appIcons, onToggleSection, setupBIMTable, tableButtonStyle } from "../../globals";
 import { setModelTransparent, restoreModelMaterials } from "../toolbars/viewer-toolbar";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { IDSSpecDefinition, predefinedSpecs } from "../../setup/specs";
@@ -70,7 +70,7 @@ export const idsSpecPanelTemplate: BUI.StatefullComponent<IDSSpecPanelState> = (
       const spec = (row as any).spec as IDSSpecDefinition;
       return BUI.html`
         <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 1.5rem;">
-          <bim-button style="flex: 0 0 auto; margin: 0; height: 1.5rem; min-height: 1.5rem; padding: 0 0.5rem;" tooltip-title="Check" icon=${appIcons.PLAY} @click=${async (e: Event) => {
+          <bim-button style=${tableButtonStyle} tooltip-title="Check" icon=${appIcons.PLAY} @click=${async (e: Event) => {
             const btn = e.target as BUI.Button;
             btn.loading = true;
             try { await testSpec(spec); } catch(err) { console.error(err); alert("테스트 중 오류가 발생했습니다."); } finally { btn.loading = false; }

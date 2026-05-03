@@ -3,7 +3,7 @@ import * as OBC from "@thatopen/components";
 import { SharedBCF } from "../../bim-components/SharedBCF";
 import { SharedIFC } from "../../bim-components/SharedIFC";
 import { BCFTopics } from "../../bim-components/BCFTopics";
-import { appIcons, setupBIMTable } from "../../globals";
+import { appIcons, setupBIMTable, tableButtonStyle } from "../../globals";
 
 export interface BCFListPanelState {
   components: OBC.Components;
@@ -135,18 +135,18 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
             ${name}
           </bim-label>
           <div style="display: flex; gap: 0.25rem; flex-shrink: 0; margin: 0; padding: 0;">
-            <bim-button style="flex: 0; margin: 0; padding: 0;" icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${models.join(", ")}></bim-button>
-            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${async (e: Event) => {
+            <bim-button style=${tableButtonStyle} icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${models.join(", ")}></bim-button>
+            <bim-button style=${tableButtonStyle} @click=${async (e: Event) => {
               const btn = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
               if (btn) btn.loading = true;
               try { await loadBCF(id); } finally { if (btn) btn.loading = false; }
             }} icon=${appIcons.IMPORT} tooltip-title="Load Topics"></bim-button>
-            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${(e: Event) => {
+            <bim-button style=${tableButtonStyle} @click=${(e: Event) => {
               const btn = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
               if (btn) toggleClashMap(id, btn);
             }} icon=${appIcons.MAP} tooltip-title="Toggle Clash Map"></bim-button>
-            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${() => downloadBCF(id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF"></bim-button>
-            <bim-button style="flex: 0; margin: 0; padding: 0;" @click=${() => deleteBCF(id)} icon=${appIcons.DELETE} tooltip-title="Delete BCF"></bim-button>
+            <bim-button style=${tableButtonStyle} @click=${() => downloadBCF(id)} icon=${appIcons.DOWNLOAD} tooltip-title="Download BCF"></bim-button>
+            <bim-button style=${tableButtonStyle} @click=${() => deleteBCF(id)} icon=${appIcons.DELETE} tooltip-title="Delete BCF"></bim-button>
           </div>
         </div>
       `;
