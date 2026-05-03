@@ -36,33 +36,47 @@ export const updateTopic = (bcfTopics: any) => {
     onUpdateHandler = callbacks.onUpdate;
     commentsUI.resetState();
 
+    let currentCapturedViewpoint: any = null;
+    let currentCapturedSnapshot: string | null = null;
+
     const selectedTopics = bcfTopics.getSelectedTopics(selection);
     if (selectedTopics.length > 0) {
       currentTopic = selectedTopics[0];
       
-      updateTopicForm({
-        topic: currentTopic ?? undefined,
-        components,
-        styles: { users },
-        commentsUI: commentsUI.ui,
-        onCancel: onCancelHandler,
-        onRestoreViewpoint: async () => {
-          if (currentTopic) {
-            await bcfTopics.restoreViewpoint(currentTopic);
+      const updateForm = () => {
+        updateTopicForm({
+          topic: currentTopic ?? undefined,
+          components,
+          styles: { users },
+          commentsUI: commentsUI.ui,
+          capturedViewpoint: currentCapturedViewpoint,
+          capturedSnapshot: currentCapturedSnapshot,
+          onCancel: onCancelHandler,
+          onRestoreViewpoint: async () => {
+            if (currentTopic) {
+              await bcfTopics.restoreViewpoint(currentTopic);
+            }
+          },
+          onCapture: async () => {
+            const { viewpoint, snapshot } = await bcfTopics.captureViewpoint();
+            currentCapturedViewpoint = viewpoint;
+            currentCapturedSnapshot = snapshot;
+            updateForm();
+          },
+          onSubmit: async (topic) => {
+            if (currentCapturedViewpoint) {
+              if (currentCapturedSnapshot) (topic as any).snapshot = currentCapturedSnapshot;
+              topic.viewpoints.clear();
+              topic.viewpoints.add(currentCapturedViewpoint.guid);
+            }
+            await bcf.list.set(topic.guid, topic);
+            onUpdateHandler();
+            alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
           }
-        },
-        onSubmit: async (topic) => {
-          const { viewpoint, snapshot } = await bcfTopics.captureViewpoint();
-          if (snapshot) (topic as any).snapshot = snapshot;
+        });
+      };
 
-          topic.viewpoints.clear();
-          topic.viewpoints.add(viewpoint.guid);
-          await bcf.list.set(topic.guid, topic);
-          onUpdateHandler();
-          alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
-        }
-      });
-
+      updateForm();
       commentsUI.render(currentTopic!);
     }
   };

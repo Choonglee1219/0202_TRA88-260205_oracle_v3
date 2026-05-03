@@ -65,6 +65,21 @@ export interface TopicFormUI {
   onRestoreViewpoint?: () => void | Promise<void>;
 
   /**
+   * Callback function triggered when capturing the 3D Viewpoint manually.
+   */
+  onCapture?: () => Promise<void>;
+
+  /**
+   * The captured viewpoint data (if any) before submitting.
+   */
+  capturedViewpoint?: any;
+
+  /**
+   * The captured snapshot image data (if any) before submitting.
+   */
+  capturedSnapshot?: string | null;
+
+  /**
    * Custom styles for the form components.
    */
   styles?: Partial<DataStyles>;
@@ -138,7 +153,7 @@ export const topicFormTemplate = (state: TopicFormUI) => {
   const dueDate =
     value?.dueDate ?? (topic?.dueDate ? topic.dueDate.toISOString().split("T")[0] : null);
 
-  const snapshot = (topic as any)?.snapshot ?? "";
+  const snapshot = state.capturedSnapshot ?? ((topic as any)?.snapshot ?? "");
   const statuses = new Set([...bcfTopics.config.statuses]);
   if (status) statuses.add(status);
 
@@ -164,6 +179,11 @@ export const topicFormTemplate = (state: TopicFormUI) => {
   const onAddTopic = async () => {
     const { value: form } = topicForm;
     if (!form) return;
+
+    if (!topic && !state.capturedViewpoint) {
+      alert("새로운 토픽을 생성하려면 먼저 [Capture] 버튼을 눌러 3D 뷰를 캡처해야 합니다.");
+      return;
+    }
 
     const topicData = BUI.getElementValue(
       form,
@@ -223,10 +243,18 @@ export const topicFormTemplate = (state: TopicFormUI) => {
                 ` : BUI.html`
                   <div style="width: 100%; aspect-ratio: 4 / 3; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed var(--bim-ui_bg-contrast-40); border-radius: 0.25rem; background-color: var(--bim-ui_bg-base, transparent); color: var(--bim-ui_gray-10);">
                     <bim-label icon="majesticons:camera-line" style="--bim-icon--fz: 2rem;"></bim-label>
-                    <bim-label style="font-size: 0.75rem; font-style: italic;">No Snapshot</bim-label>
+                    <bim-label style="font-size: 0.75rem; font-style: italic; text-align: center; white-space: pre-wrap;">Manual Capture Required\n(Click Capture)</bim-label>
                   </div>
                 `}
-                <bim-button label="Restore 3D View" icon=${appIcons.FOCUS} style="margin: 0; flex: none; width: 100%; box-sizing: border-box;" @click=${onRestoreViewpoint} ?disabled=${!topic}></bim-button>
+                <div style="display: flex; gap: 0.25rem; width: 100%;">
+                  <bim-button label="Restore" icon=${appIcons.FOCUS} style="margin: 0; flex: 1; box-sizing: border-box;" @click=${onRestoreViewpoint} ?disabled=${!topic}></bim-button>
+                  <bim-button label="Capture" icon=${appIcons.CAMERA} style="margin: 0; flex: 1; box-sizing: border-box;" @click=${async (e: Event) => {
+                    const btn = e.target as BUI.Button;
+                    btn.loading = true;
+                    if (state.onCapture) await state.onCapture();
+                    btn.loading = false;
+                  }}></bim-button>
+                </div>
               </div>
               <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem;">
                 <bim-text-input @input=${updateSubmitButton} vertical label="Title" name="title" .value=${title}></bim-text-input>

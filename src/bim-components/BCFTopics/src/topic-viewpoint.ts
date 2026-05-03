@@ -138,6 +138,13 @@ export class TopicViewpointManager {
             clipper.enabled = true;
           }
 
+          // [안전장치] BCF 작성 도구의 버그나 의도치 않은 설정으로 인해 DefaultVisibility가 false인데
+          // 표시할 예외 객체가 하나도 없는 경우, 전체 모델이 사라지는 현상을 방지합니다.
+          if (viewpoint.defaultVisibility === false && viewpoint.exceptionComponents.size === 0) {
+            console.warn("Viewpoint visibility fallback applied: Forced DefaultVisibility to true.");
+            viewpoint.defaultVisibility = true;
+          }
+
           // 2. 새로운 뷰포인트 상태를 적용합니다.
           await viewpoint.go();
           const fragments = this.components.get(OBC.FragmentsManager);
@@ -169,8 +176,21 @@ export class TopicViewpointManager {
           
           if (guids.length > 0) {
             const modelIdMap = await fragments.guidsToModelIdMap(guids);
-            setModelTransparent(this.components);
-            await highlighter.highlightByID("select", modelIdMap);
+            
+            // 현재 로드된 모델에 유효한(일치하는) 객체가 하나라도 존재하는지 확인
+            let hasValidItems = false;
+            for (const key in modelIdMap) {
+              if (modelIdMap[key].size > 0) {
+                hasValidItems = true;
+                break;
+              }
+            }
+            
+            // 일치하는 객체가 있을 때만 전체 모델을 투명화하고 선택 객체를 하이라이트
+            if (hasValidItems) {
+              setModelTransparent(this.components);
+              await highlighter.highlightByID("select", modelIdMap);
+            }
           }
 
           // Restore Colors
@@ -240,9 +260,9 @@ export class TopicViewpointManager {
             }
 
           } else {
-            const guidsForCenter = Array.from(viewpoint.selectionComponents);
-            if (guidsForCenter.length > 0) {
-              const centerModelIdMap = await fragments.guidsToModelIdMap(guidsForCenter);
+            // JSON 안전장치를 거친 guids 배열을 그대로 사용하여 줌인 대상을 찾음
+            if (guids.length > 0) {
+              const centerModelIdMap = await fragments.guidsToModelIdMap(guids);
               const bboxes = await fragments.getBBoxes(centerModelIdMap);
               if (bboxes.length > 0) {
                 const itemBox = new THREE.Box3();

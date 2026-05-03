@@ -19,6 +19,9 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
   let currentCommentPage = 0;
   let isAddingNewComment = false;
 
+  let pendingCommentViewpoint: any = null;
+  let pendingCommentSnapshot: string | null = null;
+
   // 헤더에 붙일 페이지네이션 컨테이너를 미리 생성해 둡니다.
   const paginationContainer = document.createElement("div");
   paginationContainer.style.display = "flex";
@@ -107,6 +110,8 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
       addBtn.disabled = isAddingNewComment;
       addBtn.addEventListener("click", () => {
         isAddingNewComment = true;
+        pendingCommentViewpoint = null;
+        pendingCommentSnapshot = null;
         renderComments(topic);
       });
 
@@ -137,46 +142,86 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
       snapshotWrapper.style.overflowX = "hidden";
       snapshotWrapper.classList.add("custom-scrollbar");
 
-      const infoCard = document.createElement("div");
-      infoCard.style.border = "1px dashed var(--bim-ui_bg-contrast-40)";
-      infoCard.style.padding = "1rem";
-      infoCard.style.borderRadius = "0.25rem";
-      infoCard.style.backgroundColor = "var(--bim-ui_bg-base, transparent)";
-      infoCard.style.display = "flex";
-      infoCard.style.flexDirection = "column";
-      infoCard.style.alignItems = "center";
-      infoCard.style.justifyContent = "center";
-      infoCard.style.gap = "0.5rem";
-      infoCard.style.flex = "none";
-      infoCard.style.aspectRatio = "4 / 3";
-      infoCard.style.color = "var(--bim-ui_gray-10)";
-      infoCard.style.boxSizing = "border-box";
-      infoCard.style.minHeight = "0";
-      infoCard.style.textAlign = "center";
+      if (pendingCommentSnapshot) {
+        const img = document.createElement("img");
+        img.src = pendingCommentSnapshot;
+        img.style.width = "100%";
+        img.style.aspectRatio = "4 / 3";
+        img.style.flex = "none";
+        img.style.boxSizing = "border-box";
+        img.style.objectFit = "contain";
+        img.style.borderRadius = "0.25rem";
+        img.style.border = "1px solid var(--bim-ui_bg-contrast-20)";
+        img.style.backgroundColor = "var(--bim-ui_bg-base, transparent)";
+        img.style.cursor = "zoom-in";
+        img.style.transition = "filter 0.2s";
+        img.onmouseover = () => img.style.filter = "brightness(1.1)";
+        img.onmouseout = () => img.style.filter = "none";
+        img.addEventListener("click", () => showLightbox(pendingCommentSnapshot!));
+        snapshotWrapper.append(img);
+      } else {
+        const infoCard = document.createElement("div");
+        infoCard.style.border = "1px dashed var(--bim-ui_bg-contrast-40)";
+        infoCard.style.padding = "1rem";
+        infoCard.style.borderRadius = "0.25rem";
+        infoCard.style.backgroundColor = "var(--bim-ui_bg-base, transparent)";
+        infoCard.style.display = "flex";
+        infoCard.style.flexDirection = "column";
+        infoCard.style.alignItems = "center";
+        infoCard.style.justifyContent = "center";
+        infoCard.style.gap = "0.5rem";
+        infoCard.style.flex = "none";
+        infoCard.style.aspectRatio = "4 / 3";
+        infoCard.style.color = "var(--bim-ui_gray-10)";
+        infoCard.style.boxSizing = "border-box";
+        infoCard.style.minHeight = "0";
+        infoCard.style.textAlign = "center";
 
-      const infoIcon = document.createElement("bim-label") as any;
-      infoIcon.icon = "majesticons:camera-line";
-      infoIcon.style.setProperty("--bim-icon--fz", "2rem");
+        const infoIcon = document.createElement("bim-label") as any;
+        infoIcon.icon = "majesticons:camera-line";
+        infoIcon.style.setProperty("--bim-icon--fz", "2rem");
 
-      const infoText = document.createElement("bim-label");
-      infoText.textContent = "Auto Capture\n(3D Viewpoint)";
-      infoText.style.fontStyle = "italic";
-      infoText.style.fontSize = "0.75rem";
-      infoText.style.whiteSpace = "pre-wrap";
-      
-      infoCard.append(infoIcon, infoText);
+        const infoText = document.createElement("bim-label");
+        infoText.textContent = "Manual Capture Required\n(Click Capture)";
+        infoText.style.fontStyle = "italic";
+        infoText.style.fontSize = "0.75rem";
+        infoText.style.whiteSpace = "pre-wrap";
+        infoCard.append(infoIcon, infoText);
+        snapshotWrapper.append(infoCard);
+      }
+
+      const btnContainer = document.createElement("div");
+      btnContainer.style.display = "flex";
+      btnContainer.style.gap = "0.25rem";
+      btnContainer.style.width = "100%";
+      btnContainer.style.marginBottom = "auto";
+      btnContainer.style.flex = "none";
 
       const fakeViewBtn = document.createElement("bim-button") as BUI.Button;
-      fakeViewBtn.label = "Restore 3D View";
+      fakeViewBtn.label = "Restore";
       fakeViewBtn.icon = appIcons.FOCUS;
       fakeViewBtn.style.margin = "0";
-      fakeViewBtn.style.flex = "none";
-      fakeViewBtn.style.marginBottom = "auto";
-      fakeViewBtn.style.width = "100%";
+      fakeViewBtn.style.flex = "1";
       fakeViewBtn.style.boxSizing = "border-box";
       fakeViewBtn.disabled = true;
 
-      snapshotWrapper.append(infoCard, fakeViewBtn);
+      const captureBtn = document.createElement("bim-button") as BUI.Button;
+      captureBtn.label = "Capture";
+      captureBtn.icon = appIcons.CAMERA;
+      captureBtn.style.margin = "0";
+      captureBtn.style.flex = "1";
+      captureBtn.style.boxSizing = "border-box";
+      captureBtn.addEventListener("click", async () => {
+        captureBtn.loading = true;
+        const { viewpoint, snapshot } = await bcfTopics.captureViewpoint();
+        pendingCommentViewpoint = viewpoint;
+        pendingCommentSnapshot = snapshot;
+        captureBtn.loading = false;
+        renderComments(topic);
+      });
+
+      btnContainer.append(fakeViewBtn, captureBtn);
+      snapshotWrapper.append(btnContainer);
 
       // 2. Comments List Wrapper Placeholder
       const commentsListWrapper = document.createElement("div");
@@ -209,19 +254,24 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
       replyBtn.tooltipTitle = "Add Comment";
       replyBtn.addEventListener("click", async () => {
         if (!replyInput.value.trim()) return;
+        if (!pendingCommentViewpoint) {
+           alert("코멘트를 추가하려면 먼저 [Capture] 버튼을 눌러 3D 뷰를 캡처해야 합니다.");
+           return;
+        }
         replyBtn.loading = true;
         bcf.config.author = appState.currentUser;
 
-        const { viewpoint, snapshot } = await bcfTopics.captureViewpoint();
-        topic.viewpoints.add(viewpoint.guid);
+        topic.viewpoints.add(pendingCommentViewpoint.guid);
 
         const newComment = bcfTopics.addComment(topic.guid, replyInput.value.trim());
         if (newComment) {
-            newComment.viewpoint = viewpoint.guid;
-            if (snapshot) (newComment as any).snapshot = snapshot;
+            newComment.viewpoint = pendingCommentViewpoint.guid;
+            if (pendingCommentSnapshot) (newComment as any).snapshot = pendingCommentSnapshot;
         }
         
         isAddingNewComment = false;
+        pendingCommentViewpoint = null;
+        pendingCommentSnapshot = null;
         currentCommentPage = Number.MAX_SAFE_INTEGER;
         renderComments(topic);
       });
@@ -236,6 +286,8 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
           cancelBtn.tooltipTitle = "Cancel";
           cancelBtn.addEventListener("click", () => {
               isAddingNewComment = false;
+              pendingCommentViewpoint = null;
+              pendingCommentSnapshot = null;
               renderComments(topic);
           });
       } else {
@@ -446,6 +498,8 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
   const resetState = () => {
     isAddingNewComment = false;
     currentCommentPage = 0;
+    pendingCommentViewpoint = null;
+    pendingCommentSnapshot = null;
   };
 
   return {

@@ -182,38 +182,38 @@ export const topicListTemplate: BUI.StatefullComponent<
   let topicCountBeforeNew = 0;
   const onNewTopicOpen = () => {
     topicCountBeforeNew = bcfTopics.list.size;
-    updateNewTopicForm({
-      components,
-      styles: { users },
-      onCancel: () => { setView("list"); },
-      onSubmit: () => {
-        setView("list");
-        
-        setTimeout(() => {
-          const bcfTopicsEngine = components.get(EngineBCFTopics);
-          const worlds = components.get(OBC.Worlds);
-          const world = worlds.list.values().next().value;
-          if (world && world.renderer) {
-            world.renderer.three.render(world.scene.three, world.camera.three);
-            const dataUrl = world.renderer.three.domElement.toDataURL("image/png");
-            
-            const topicsArray = Array.from(bcfTopicsEngine.list.values());
-            if (topicsArray.length > 0) {
-              const lastTopic = topicsArray[topicsArray.length - 1];
-              (lastTopic as any).snapshot = dataUrl;
-              bcfTopicsEngine.list.onItemUpdated.trigger({ key: lastTopic.guid, value: lastTopic });
+    let currentCapturedViewpoint: any = null;
+    let currentCapturedSnapshot: string | null = null;
+
+    const updateForm = () => {
+      updateNewTopicForm({
+        components,
+        styles: { users },
+        capturedViewpoint: currentCapturedViewpoint,
+        capturedSnapshot: currentCapturedSnapshot,
+        onCancel: () => { setView("list"); },
+        onCapture: async () => {
+          const { viewpoint, snapshot } = await bcfTopics.captureViewpoint();
+          currentCapturedViewpoint = viewpoint;
+          currentCapturedSnapshot = snapshot;
+          updateForm();
+        },
+        onSubmit: async (newTopic: EngineTopic) => {
+          if (currentCapturedViewpoint) {
+            newTopic.viewpoints.add(currentCapturedViewpoint.guid);
+            if (currentCapturedSnapshot) {
+              (newTopic as any).snapshot = currentCapturedSnapshot;    
             }
           }
-        }, 100);
 
-        alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
+          const bcfTopicsEngine = components.get(EngineBCFTopics);
+          bcfTopicsEngine.list.onItemUpdated.trigger({ key: newTopic.guid, value: newTopic });
 
-        if (bcfTopics.list.size > topicCountBeforeNew) {
-          setTimeout(() => {
-            const topicsArray = Array.from(bcfTopics.list.values());
-            if (topicsArray.length > 0) {
-              const newTopic = topicsArray[topicsArray.length - 1];
-              
+          setView("list");
+          alert("변경사항을 공유하려면 Save BCF 버튼을 눌러 데이터베이스에 저장하십시오.");
+
+          if (bcfTopics.list.size > topicCountBeforeNew) {
+            setTimeout(() => {          
               refreshTopicsCache(); // 캐시 즉시 동기화
               
               const newTopicIndex = currentTopicsCache.findIndex(t => t.guid === newTopic.guid);
@@ -228,11 +228,13 @@ export const topicListTemplate: BUI.StatefullComponent<
                 topicListTable.selection.add(targetGroup.data);
                 updateButtonStates();
               }
-            }
-          }, 150);
-        }
-      },
-    });
+            }, 150);
+          }
+        },
+      });
+    };
+
+    updateForm();
     setView("new");
   };
 
