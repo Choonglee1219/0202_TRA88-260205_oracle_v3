@@ -96,6 +96,10 @@ export class BCFTopics extends OBC.Component {
     return this.topicViewpointManager.restoreViewpoint(topic, options);
   }
 
+  async captureViewpoint() {
+    return await this.topicViewpointManager.captureViewpoint();
+  }
+
   setupTable(table: BUI.Table<any>) {
     table.dataTransform.Title = (value: any, row: any) => {
       return BUI.html`

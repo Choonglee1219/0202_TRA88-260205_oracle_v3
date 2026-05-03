@@ -15,18 +15,21 @@ export class TopicViewpointManager {
     this.clashMapDisplay = clashMapDisplay;
   }
 
-  async createViewpointForTopic(topic: EngineTopic) {
+  async captureViewpoint() {
     const viewpoints = this.components.get(OBC.Viewpoints);
     const viewpoint = viewpoints.create();
     const worlds = this.components.get(OBC.Worlds);
     const world = worlds.list.values().next().value;
+    
+    let snapshot = "";
+
     if (world) {
       viewpoint.world = world;
       await viewpoint.updateCamera();
 
       if (world.renderer) {
         world.renderer.three.render(world.scene.three, world.camera.three);
-        (topic as any).snapshot = world.renderer.three.domElement.toDataURL("image/png");
+        snapshot = world.renderer.three.domElement.toDataURL("image/png");
       }
     }
 
@@ -41,23 +44,53 @@ export class TopicViewpointManager {
     }
 
     // 단면 박스(Clipping Planes) 정보 저장 (Three.js -> BCF 역변환)
-    const clipper = this.components.get(OBC.Clipper);
-    if (clipper && clipper.enabled) {
-      const bcfPlanes: any[] = [];
-      const planes = (clipper as any).list?.values ? Array.from((clipper as any).list.values()) : (clipper as any).elements || [];
-      for (const item of planes) {
-        const plane = (item as any).plane || item;
-        if (plane && plane.normal && plane.constant !== undefined) {
-          const point = new THREE.Vector3();
-          plane.coplanarPoint(point);
-          bcfPlanes.push({
-            location: { x: point.x, y: -point.z, z: point.y },
-            direction: { x: -plane.normal.x, y: plane.normal.z, z: -plane.normal.y }
-          });
-        }
-      }
-      if (bcfPlanes.length > 0) (viewpoint as any).clipping_planes = bcfPlanes;
+    let clipper: any = null;
+    try {
+      clipper = this.components.get(OBC.Clipper);
+    } catch (e) {
+      // 무시 (Clipper가 없으면 수집하지 않음)
     }
+
+    if (clipper) {
+      const bcfPlanes: any[] = [];
+      let planes: any[] = [];
+      
+      // @thatopen/components 버전에 따라 단면 목록이 저장되는 위치가 다를 수 있으므로 모두 검사
+      if (clipper.list) {
+        planes = typeof clipper.list.values === "function" ? Array.from(clipper.list.values()) : Array.from(clipper.list);
+      } else if (clipper.planes) {
+        planes = typeof clipper.planes.values === "function" ? Array.from(clipper.planes.values()) : Array.from(clipper.planes);
+      } else if (clipper.elements) {
+        planes = Array.from(clipper.elements);
+      }
+
+      for (const item of planes) {
+        const planeObj = item.plane || item; // THREE.Plane 추출
+        const normal = planeObj.normal || item.normal;
+        if (!normal) continue;
+
+        const point = new THREE.Vector3();
+        if (typeof planeObj.coplanarPoint === "function") planeObj.coplanarPoint(point);
+        else if (item.origin) point.copy(item.origin);
+        else if (planeObj.constant !== undefined) point.copy(normal).multiplyScalar(-planeObj.constant);
+
+        bcfPlanes.push({
+          location: { x: point.x, y: -point.z, z: point.y },
+          direction: { x: -normal.x, y: normal.z, z: -normal.y }
+        });
+      }
+      if (bcfPlanes.length > 0) {
+        (viewpoint as any).clipping_planes = bcfPlanes;
+        console.log("[DEBUG] Captured Clipping Planes:", bcfPlanes);
+      }
+    }
+
+    return { viewpoint, snapshot };
+  }
+
+  async createViewpointForTopic(topic: EngineTopic) {
+    const { viewpoint, snapshot } = await this.captureViewpoint();
+    if (snapshot) (topic as any).snapshot = snapshot;
 
     topic.viewpoints.add(viewpoint.guid);
 

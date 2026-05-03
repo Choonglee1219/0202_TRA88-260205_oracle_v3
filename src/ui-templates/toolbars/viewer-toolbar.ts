@@ -145,10 +145,11 @@ if (!(window as any)._toolbarHotkeyRegistered) {
   window.addEventListener("keydown", (e) => {
     // Shadow DOM 내부의 input 요소에 포커스가 있는 경우 단축키 비활성화
     let activeEl = document.activeElement;
-    if (activeEl?.shadowRoot?.activeElement) {
+      while (activeEl?.shadowRoot?.activeElement) {
       activeEl = activeEl.shadowRoot.activeElement;
     }
     if (activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA") {
+        e.stopPropagation(); // 캡처 단계에서 이벤트를 중단하여 외부 모듈의 전역 단축키(L 등) 방지
       return;
     }
     const key = e.key.toLowerCase();
@@ -165,7 +166,7 @@ if (!(window as any)._toolbarHotkeyRegistered) {
     if (key === 'h') hideBtn?.click();
     if (key === 'i') isolateBtn?.click();
     if (key === 'e') explodeBtn?.click();
-  });
+    }, { capture: true }); // 다른 전역 리스너보다 먼저 이벤트를 가로채도록 캡처링 옵션 사용
 }
 
 export const showAllItems = async (components: OBC.Components) => {
