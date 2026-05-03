@@ -63,6 +63,17 @@ export const topicListTemplate: BUI.StatefullComponent<
   let pageInfoLabel: BUI.Label;
   let prevButton: BUI.Button;
   let nextButton: BUI.Button;
+  
+  let updateTopicBtn: BUI.Button | undefined;
+  let deleteTopicBtn: BUI.Button | undefined;
+
+  const updateButtonStates = () => {
+    const hasSelection = topicListTable.selection.size > 0;
+    if (updateTopicBtn) updateTopicBtn.disabled = !hasSelection;
+    if (deleteTopicBtn) deleteTopicBtn.disabled = !hasSelection;
+  };
+
+  topicListTable.addEventListener("change", updateButtonStates);
 
   const updatePage = () => {
     const start = currentPage * pageSize;
@@ -83,6 +94,7 @@ export const topicListTemplate: BUI.StatefullComponent<
     if (nextButton) {
       nextButton.disabled = currentPage >= totalPages - 1;
     }
+    updateButtonStates();
   };
 
   const refreshTopicsCache = () => {
@@ -151,6 +163,7 @@ export const topicListTemplate: BUI.StatefullComponent<
     if (targetGroup) {
       topicListTable.selection.clear();
       topicListTable.selection.add(targetGroup.data);
+      updateButtonStates();
     }
 
     const now = Date.now();
@@ -213,6 +226,7 @@ export const topicListTemplate: BUI.StatefullComponent<
               if (targetGroup) {
                 topicListTable.selection.clear();
                 topicListTable.selection.add(targetGroup.data);
+                updateButtonStates();
               }
             }
           }, 150);
@@ -235,6 +249,7 @@ export const topicListTemplate: BUI.StatefullComponent<
             topicListTable.selection.add(targetGroup.data);
           }
         }
+        updateButtonStates();
       }, 150);
     };
 
@@ -247,9 +262,13 @@ export const topicListTemplate: BUI.StatefullComponent<
 
   const onDeleteTopic = () => {
     bcfTopics.delete(topicListTable.selection);
+    topicListTable.selection.clear();
+    updateButtonStates();
   };
   const onClearTopicsList = () => {
     bcfTopics.deleteAll();
+    topicListTable.selection.clear();
+    updateButtonStates();
   };
   const onSaveTopicsToBCF = () => {
     bcfTopics.saveBCF();
@@ -340,6 +359,7 @@ export const topicListTemplate: BUI.StatefullComponent<
     if (targetGroup) {
       topicListTable.selection.clear();
       topicListTable.selection.add(targetGroup.data); // 테이블 체크박스 활성화
+      updateButtonStates();
 
       const topic = bcfTopics.list.get(guid);
       if (topic) {
@@ -356,8 +376,8 @@ export const topicListTemplate: BUI.StatefullComponent<
       <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
         <div style="display: flex; gap: 0.25rem; flex: 1;">
           <bim-button style="flex: 1;" @click=${onNewTopicOpen} label="Create Topic" icon=${appIcons.ADD}></bim-button>
-          <bim-button style="flex: 1;" @click=${onUpdateTopicOpen} label="Update Topic" icon=${appIcons.REF}></bim-button>
-          <bim-button style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE}></bim-button>
+          <bim-button ${BUI.ref(e => { updateTopicBtn = e as BUI.Button; updateButtonStates(); })} style="flex: 1;" @click=${onUpdateTopicOpen} label="Update Topic" icon=${appIcons.REF} disabled></bim-button>
+          <bim-button ${BUI.ref(e => { deleteTopicBtn = e as BUI.Button; updateButtonStates(); })} style="flex: 1;" @click=${onDeleteTopic} label="Delete Topic" icon=${appIcons.DELETE} disabled></bim-button>
           <bim-button style="flex: 1;" @click=${onClearTopicsList} label="Clear List" icon=${appIcons.CLEAR}></bim-button>
           <bim-button style="flex: 1;" @click=${onUpdateAllSnapshots} label="Auto Snapshots" icon=${appIcons.CAMERA}></bim-button>
           <bim-button style="flex: 1;" @click=${onSaveTopicsToBCF} label="Save BCF" icon=${appIcons.SAVE}></bim-button>
