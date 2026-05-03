@@ -207,16 +207,33 @@ export const topicFormTemplate = (state: TopicFormUI) => {
   };
 
   return BUI.html`
-    <div style="display: flex; flex-direction: column; height: 100%; width: 100%; gap: 1rem;">
+    <div style="display: flex; flex-direction: column; height: 100%; width: 100%; gap: 0.5rem;">
       <!-- Main Split Content -->
       <div style="display: flex; gap: 0.5rem; flex: 1; min-height: 0;">
         <!-- Left Half: Topic Details -->
-      <div ${BUI.ref(topicForm)} class="custom-scrollbar" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; overflow-x: hidden; padding-right: 0.5rem; box-sizing: border-box;">
-          <div style="display: flex; gap: 0.375rem">
-          <bim-text-input @input=${updateSubmitButton} vertical label="Title" name="title" .value=${title}></bim-text-input>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; padding-right: 0.5rem; box-sizing: border-box;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; flex-shrink: 0;">
+            <bim-label style="font-weight: bold;">Topic Details</bim-label>
           </div>
-          
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.375rem;">
+          <div ${BUI.ref(topicForm)} class="custom-scrollbar" style="display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; overflow-x: hidden; padding-right: 0.25rem; flex: 1; min-height: 0;">
+            <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+              <div style="width: 12rem; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                ${snapshot ? BUI.html`
+                  <img src="${snapshot}" style="width: 100%; aspect-ratio: 4 / 3; flex: none; box-sizing: border-box; object-fit: contain; border-radius: 0.25rem; border: 1px solid var(--bim-ui_bg-contrast-20); background-color: var(--bim-ui_bg-base, transparent); cursor: zoom-in; transition: filter 0.2s;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'" @click=${() => showLightbox(snapshot)}>
+                ` : BUI.html`
+                  <div style="width: 100%; aspect-ratio: 4 / 3; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed var(--bim-ui_bg-contrast-40); border-radius: 0.25rem; background-color: var(--bim-ui_bg-base, transparent); color: var(--bim-ui_gray-10);">
+                    <bim-label icon="majesticons:camera-line" style="--bim-icon--fz: 2rem;"></bim-label>
+                    <bim-label style="font-size: 0.75rem; font-style: italic;">No Snapshot</bim-label>
+                  </div>
+                `}
+                <bim-button label="Restore 3D View" icon=${appIcons.FOCUS} style="margin: 0; flex: none; width: 100%; box-sizing: border-box;" @click=${onRestoreViewpoint} ?disabled=${!topic}></bim-button>
+              </div>
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+                <bim-text-input @input=${updateSubmitButton} vertical label="Title" name="title" .value=${title}></bim-text-input>
+                <bim-text-input vertical label="Description" name="description" type="area" rows="4" .value=${description}></bim-text-input>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.375rem; flex-shrink: 0;">
             <bim-dropdown vertical label="Type" name="type" required ${BUI.ref(syncDropdown(type))}>
               ${[...types].map((t) => BUI.html`<bim-option label=${t}></bim-option>`)}
             </bim-dropdown>
@@ -250,34 +267,18 @@ export const topicFormTemplate = (state: TopicFormUI) => {
               ${[...stages].map((s) => BUI.html`<bim-option label=${s}></bim-option>`)}
             </bim-dropdown>
           </div>
-          
-          <div style="display: flex; gap: 0.5rem; align-items: stretch; flex: none; height: 12rem; flex-shrink: 0;">
-            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-              <bim-text-input vertical label="Description" name="description" type="area" rows="9" .value=${description ?? null} style="flex: 1; display: flex; flex-direction: column;"></bim-text-input>
-            </div>
-            ${snapshot ? BUI.html`
-              <div style="display: flex; flex-direction: column; width: 16rem; height: 100%; flex-shrink: 0; gap: 0.375rem;">
-                <bim-label style="flex-shrink: 0;">Snapshot</bim-label>
-                <img @click=${() => showLightbox(snapshot)} src="${snapshot}" style="cursor: zoom-in; width: 100%; flex: 1; min-height: 0; object-fit: contain; border-radius: 0.25rem; border: 1px solid var(--bim-ui_bg-contrast-20); background-color: var(--bim-ui_bg-base, transparent); padding: 0.5rem; transition: filter 0.2s;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
-                ${onRestoreViewpoint ? BUI.html`
-                  <bim-button style="margin: 0; flex: none;" label="Restore 3D View" icon=${appIcons.FOCUS} @click=${async (e: Event) => {
-                    const btn = e.target as BUI.Button;
-                    btn.loading = true;
-                    await onRestoreViewpoint();
-                    btn.loading = false;
-                  }}></bim-button>
-                ` : ""}
-              </div>
-            ` : ""}
-          </div>
         </div>
+      </div>
 
-        <!-- Right Half: Comments (Optional) -->
-        ${state.commentsUI ? BUI.html`
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--bim-ui_bg-contrast-20); padding-left: 0.5rem;">
-            ${state.commentsUI}
-          </div>
-        ` : ""}
+        <!-- Right Half: Comments -->
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--bim-ui_bg-contrast-20); padding-left: 0.5rem;">
+          ${state.commentsUI ? state.commentsUI : (!topic ? BUI.html`
+            <div style="display: flex; flex-direction: column; height: 100%; justify-content: center; align-items: center; opacity: 0.5; gap: 0.5rem;">
+              <bim-label icon="majesticons:comment-line" style="--bim-icon--fz: 3rem;"></bim-label>
+              <bim-label style="font-style: italic;">You can add comments after creating the topic.</bim-label>
+            </div>
+          ` : "")}
+        </div>
       </div>
 
       <!-- Bottom Actions -->
@@ -291,11 +292,6 @@ export const topicFormTemplate = (state: TopicFormUI) => {
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--bim-ui_bg-contrast-20); border-radius: 4px; }
           .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: var(--bim-ui_bg-contrast-40); }
-
-          /* Shadow DOM 내부의 textarea가 부모 높이를 꽉 채우도록 강제 설정 */
-          bim-text-input[name="description"]::part(root) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-          bim-text-input[name="description"]::part(input-wrapper) { flex: 1; min-height: 0; }
-          bim-text-input[name="description"]::part(input) { height: 100%; resize: none; }
         </style>
         <bim-button id=${cancelBtnID} style="flex: 0" @click=${onCancel} label="Cancel"></bim-button>
         <bim-button id=${acceptBtnID} style="flex: 0" @click=${onAddTopic} ${BUI.ref(submitButton)} label=${topic ? "Update Topic" : "Add Topic"} icon=${topic ? "tabler:refresh" : "mi:add"}></bim-button>

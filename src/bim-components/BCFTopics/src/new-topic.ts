@@ -6,7 +6,7 @@ import { topicFormTemplate, TopicFormUI } from "../../../ui-components/TopicsLis
 export const newTopic = (components: OBC.Components) => {
   const formTemplate = (state: TopicFormUI) => {
     return BUI.html`
-      <div style="flex: 1; display: flex; flex-direction: column; padding: 0.5rem; box-sizing: border-box; min-height: 0;">
+      <div style="flex: 1; display: flex; flex-direction: column; padding: 0; box-sizing: border-box; min-height: 0;">
         ${topicFormTemplate(state)}
       </div>
     `;

@@ -25,7 +25,7 @@ export const updateTopic = (bcfTopics: any) => {
 
   const panel = BUI.Component.create<HTMLDivElement>(() => {
     return BUI.html`
-       <div style="flex: 1; display: flex; flex-direction: column; padding: 0.5rem; box-sizing: border-box; min-height: 0;">
+       <div style="flex: 1; display: flex; flex-direction: column; padding: 0; box-sizing: border-box; min-height: 0;">
           ${topicForm}
        </div>
     `;
