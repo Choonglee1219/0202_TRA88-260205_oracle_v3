@@ -595,7 +595,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     },
     Group: (value, _rowData, group) => {
       if (group && ((group as any)._isComputedGroup || (group.data as any)?._isComputedGroup)) {
-        return BUI.html`<bim-label icon="material-symbols:folder-open" style="font-weight: bold;">${value}</bim-label>`;
+        return BUI.html`<bim-label icon=${appIcons.FOLDEROPEN} style="font-weight: bold;">${value}</bim-label>`;
       }
       return value;
     }
@@ -730,7 +730,7 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     },
     Group: (value, _rowData, group) => {
       if (group && ((group as any)._isComputedGroup || (group.data as any)?._isComputedGroup)) {
-        return BUI.html`<bim-label icon="material-symbols:folder-open" style="font-weight: bold;">${value}</bim-label>`;
+        return BUI.html`<bim-label icon=${appIcons.FOLDEROPEN} style="font-weight: bold;">${value}</bim-label>`;
       }
       return value;
     }

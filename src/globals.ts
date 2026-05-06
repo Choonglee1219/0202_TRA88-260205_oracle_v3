@@ -65,6 +65,9 @@ export const appIcons = {
   COMPASS: "/icons/mdi--compass.svg",
   LAYERS: "/icons/mdi--layers-outline.svg",
   COMMENT: "/icons/majesticons--comment-line.svg",
+  FOLDEROPEN: "/icons/material-symbols--folder-open.svg",
+  WARNING: "/icons/ic--round-warning.svg",
+  ERRORALT: "/icons/bxs--error-alt.svg",
 };
 
 // 테이블 내 아이콘 버튼들의 공통 컴팩트 스타일

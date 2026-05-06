@@ -178,7 +178,7 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
         infoCard.style.textAlign = "center";
 
         const infoIcon = document.createElement("bim-label") as any;
-        infoIcon.icon = "majesticons:camera-line";
+        infoIcon.icon = appIcons.CAMERA;
         infoIcon.style.setProperty("--bim-icon--fz", "2rem");
 
         const infoText = document.createElement("bim-label");
@@ -277,7 +277,7 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
       });
 
       const cancelBtn = document.createElement("bim-button") as BUI.Button;
-      cancelBtn.icon = appIcons.CLEAR || "majesticons:close";
+      cancelBtn.icon = appIcons.CLEAR;
       cancelBtn.style.flex = "0";
       cancelBtn.style.margin = "0";
       cancelBtn.style.height = "2rem";
@@ -456,7 +456,7 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
       });
 
       const cancelBtn = document.createElement("bim-button") as BUI.Button;
-      cancelBtn.icon = appIcons.CLEAR || "majesticons:close";
+      cancelBtn.icon = appIcons.CLEAR;
       cancelBtn.style.flex = "0";
       cancelBtn.style.margin = "0";
       cancelBtn.style.height = "2rem";

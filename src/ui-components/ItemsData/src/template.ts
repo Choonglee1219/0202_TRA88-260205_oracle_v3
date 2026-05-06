@@ -2,7 +2,7 @@ import * as FRAGS from "@thatopen/fragments";
 import * as BUI from "@thatopen/ui";
 import * as OBC from "@thatopen/components";
 import { ItemsDataState, ItemsDataTableData, ModelIdMap } from "./types";
-import { tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated } from "../../../globals";
+import { tableDefaultContentTemplate, onTableCellCreated, onTableRowCreated, appIcons } from "../../../globals";
 
 let itemsRowsCache: { [modelID: string]: Map<number, BUI.TableGroupData> } = {};
 
@@ -264,13 +264,13 @@ export const itemsDataTemplate = (_state: ItemsDataState) => {
       ${
         emptySelectionWarning
           ? BUI.html`
-            <bim-label slot="missing-data" style="--bim-icon--c: gold" icon="ic:round-warning">
+            <bim-label slot="missing-data" style="--bim-icon--c: gold" icon=${appIcons.WARNING}>
               Select some elements to display its properties
             </bim-label>
             `
           : null
       }
-      <bim-label slot="error-loading" style="--bim-icon--c: #e72e2e" icon="bxs:error-alt">
+      <bim-label slot="error-loading" style="--bim-icon--c: #e72e2e" icon=${appIcons.ERRORALT}>
         Something went wrong with the properties
       </bim-label>
     </bim-table>
