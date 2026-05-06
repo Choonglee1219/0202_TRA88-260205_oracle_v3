@@ -64,6 +64,7 @@ export const appIcons = {
   FLY: "/icons/mdi--airplane.svg",
   COMPASS: "/icons/mdi--compass.svg",
   LAYERS: "/icons/mdi--layers-outline.svg",
+  COMMENT: "/icons/majesticons--comment-line.svg",
 };
 
 // 테이블 내 아이콘 버튼들의 공통 컴팩트 스타일

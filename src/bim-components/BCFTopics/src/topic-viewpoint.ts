@@ -81,7 +81,6 @@ export class TopicViewpointManager {
       }
       if (bcfPlanes.length > 0) {
         (viewpoint as any).clipping_planes = bcfPlanes;
-        console.log("[DEBUG] Captured Clipping Planes:", bcfPlanes);
       }
     }
 
@@ -97,26 +96,18 @@ export class TopicViewpointManager {
     topic.comments.onItemSet.add(({ value: comment }) => {
       comment.viewpoint = viewpoint.guid;
     });
-
-    topic.comments.onItemUpdated.add(({ value: comment }) => {
-      console.log("The following comment has been updated:", comment);
-    });
   }
 
   async restoreViewpoint(topic: EngineTopic, options?: { updateSnapshot?: boolean, viewpointGuid?: string }): Promise<boolean> {
     // 지정된 뷰포인트가 없으면 토픽 자체 뷰포인트나 코멘트의 뷰포인트를 수집합니다.
-    console.log(`[DEBUG] --- Start Restoring Viewpoint for Topic: ${topic.title} ---`);
 
     let viewpointGuid = options?.viewpointGuid;
 
     if (!viewpointGuid) {
-      console.log(`[DEBUG] 1. Topic has ${topic.viewpoints.size} direct viewpoint(s).`);
       const allViewpointGuids = new Set<string>();
       for (const vp of topic.viewpoints) allViewpointGuids.add(vp);
-      console.log(`[DEBUG] 2. Topic has ${topic.comments.size} comment(s).`);
       for (const [_, comment] of topic.comments) {
         if (comment.viewpoint) allViewpointGuids.add(comment.viewpoint);
-        console.log(`[DEBUG]    - Comment (${comment.guid}) has ${comment.viewpoint ? 1 : 0} viewpoint(s).`);
       }
       if (allViewpointGuids.size > 0) {
         viewpointGuid = allViewpointGuids.values().next().value;
@@ -211,7 +202,6 @@ export class TopicViewpointManager {
           // Restore Clipping Planes
             const vpJson = viewpoint.toJSON();
             const clippingPlanes = (viewpoint as any).clipping_planes || vpJson.clipping_planes || [];
-            console.log(`[DEBUG] Final collected Clipping Planes for Viewpoint (${viewpointGuid}):`, clippingPlanes);
 
             if (clippingPlanes && clippingPlanes.length > 0) {
               for (const cp of clippingPlanes) {

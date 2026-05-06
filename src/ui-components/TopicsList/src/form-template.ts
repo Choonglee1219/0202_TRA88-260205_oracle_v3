@@ -242,7 +242,7 @@ export const topicFormTemplate = (state: TopicFormUI) => {
                   <img src="${snapshot}" style="width: 100%; aspect-ratio: 4 / 3; flex: none; box-sizing: border-box; object-fit: contain; border-radius: 0.25rem; border: 1px solid var(--bim-ui_bg-contrast-20); background-color: var(--bim-ui_bg-base, transparent); cursor: zoom-in; transition: filter 0.2s;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'" @click=${() => showLightbox(snapshot)}>
                 ` : BUI.html`
                   <div style="width: 100%; aspect-ratio: 4 / 3; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed var(--bim-ui_bg-contrast-40); border-radius: 0.25rem; background-color: var(--bim-ui_bg-base, transparent); color: var(--bim-ui_gray-10);">
-                    <bim-label icon="majesticons:camera-line" style="--bim-icon--fz: 2rem;"></bim-label>
+                    <bim-label icon=${appIcons.CAMERA} style="--bim-icon--fz: 2rem;"></bim-label>
                     <bim-label style="font-size: 0.75rem; font-style: italic; text-align: center; white-space: pre-wrap;">Manual Capture Required\n(Click Capture)</bim-label>
                   </div>
                 `}
@@ -302,7 +302,7 @@ export const topicFormTemplate = (state: TopicFormUI) => {
         <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--bim-ui_bg-contrast-20); padding-left: 0.5rem;">
           ${state.commentsUI ? state.commentsUI : (!topic ? BUI.html`
             <div style="display: flex; flex-direction: column; height: 100%; justify-content: center; align-items: center; opacity: 0.5; gap: 0.5rem;">
-              <bim-label icon="majesticons:comment-line" style="--bim-icon--fz: 3rem;"></bim-label>
+              <bim-label icon=${appIcons.COMMENT} style="--bim-icon--fz: 3rem;"></bim-label>
               <bim-label style="font-style: italic;">You can add comments after creating the topic.</bim-label>
             </div>
           ` : "")}
@@ -322,7 +322,7 @@ export const topicFormTemplate = (state: TopicFormUI) => {
           .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: var(--bim-ui_bg-contrast-40); }
         </style>
         <bim-button id=${cancelBtnID} style="flex: 0" @click=${onCancel} label="Cancel"></bim-button>
-        <bim-button id=${acceptBtnID} style="flex: 0" @click=${onAddTopic} ${BUI.ref(submitButton)} label=${topic ? "Update Topic" : "Add Topic"} icon=${topic ? "tabler:refresh" : "mi:add"}></bim-button>
+        <bim-button id=${acceptBtnID} style="flex: 0" @click=${onAddTopic} ${BUI.ref(submitButton)} label=${topic ? "Update Topic" : "Add Topic"} icon=${topic ? appIcons.REFRESH : appIcons.ADD}></bim-button>
       </div>
     </div>
   `;
