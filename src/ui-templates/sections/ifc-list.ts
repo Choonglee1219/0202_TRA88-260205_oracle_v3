@@ -283,13 +283,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     await processAndSaveIfc(processedFile);
   });
 
-  const onAddFragmentsModel = createFileInputHandler(".frag", false, async (file) => {
-    const buffer = await file.arrayBuffer();
-    const model = await fragments.core.load(buffer, { modelId: file.name.replace(".frag", "") });
-    (model as any).name = file.name.replace(".frag", "");
-    updateLoadedModelsList();
-  });
-  
   const onSearch = (e: Event) => {
     const input = e.target as BUI.TextInput;
     loadedTable.queryString = input.value;
@@ -298,29 +291,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
     fragTable.queryString = input.value;
     // IFC 테이블도 자체 검색 기능을 사용합니다.
     ifcTable.queryString = input.value;
-  };
-  
-  const onSave = async (e: Event) => {
-    const target = (e.target as HTMLElement).closest("bim-button") as BUI.Button | null;
-    if (target) target.loading = true;
-    try {
-      const models = [...fragments.list.values()];
-      for (const model of models) {
-        if (model.isDeltaModel) continue;
-        const buffer = await (model as any).getBuffer(false);
-        const blob = new Blob([buffer], { type: "application/octet-stream" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${(model as any).name || "model"}.frag`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-    } finally {
-      if (target) target.loading = false;
-    }
   };
 
   const loadIFCModel = async (ifcid: number) => {
@@ -633,38 +603,6 @@ export const ifcListPanelTemplate: BUI.StatefullComponent<IFCListPanelState> = (
 
   // 일괄 Load를 위해 선택된 IFC 모델 ID 추적
   const selectedIfcModels = new Set<number>();
-
-  const onSelectAllIfcModels = () => {
-    // 그룹 헤더 등 id가 없는 computed row를 제외하고 실제 모델 데이터만 필터링
-    const visibleData = ifcTable.value.map(v => v.data).filter(d => d.id !== undefined);
-    const allSelected = visibleData.length > 0 && visibleData.every(d => selectedIfcModels.has(d.id as number));
-    if (allSelected) {
-      visibleData.forEach(d => selectedIfcModels.delete(d.id as number));
-    } else {
-      visibleData.forEach(d => selectedIfcModels.add(d.id as number));
-    }
-    updateIFCTableData();
-  };
-
-  const onLoadSelectedIfcModels = async (target: BUI.Button) => {
-    if (selectedIfcModels.size === 0) {
-      alert("선택된 모델이 없습니다.");
-      return;
-    }
-    target.loading = true;
-    try {
-      for (const id of selectedIfcModels) {
-        await loadIFCModel(id);
-      }
-      selectedIfcModels.clear();
-      updateIFCTableData();
-    } catch (error) {
-      console.error("Error loading selected models:", error);
-      alert("선택된 모델을 로드하는 중 오류가 발생했습니다.");
-    } finally {
-      target.loading = false;
-    }
-  };
 
   const updateIFCTableData = () => {
     const filteredList = activeGroupFilter 
