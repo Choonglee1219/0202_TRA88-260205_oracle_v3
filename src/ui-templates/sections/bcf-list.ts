@@ -137,6 +137,10 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
           <div style="display: flex; gap: 0.25rem; flex-shrink: 0; margin: 0; padding: 0;">
             <bim-button style=${tableButtonStyle} icon=${appIcons.MODEL} tooltip-title="Connected Models" tooltip-text=${models.join(", ")}></bim-button>
             <bim-button style=${tableButtonStyle} @click=${async (e: Event) => {
+              if ((bcfTopics as any).isEditingTopic) {
+                alert("Topic List에서 토픽을 작성하거나 수정 중일 때에는 BCF를 불러올 수 없습니다. 작업을 완료하거나 취소한 후 다시 시도해주세요.");
+                return;
+              }
               const btn = (e.target as HTMLElement).closest("bim-button") as BUI.Button;
               if (btn) btn.loading = true;
               try { await loadBCF(id); } finally { if (btn) btn.loading = false; }
@@ -225,8 +229,20 @@ export const bcfListPanelTemplate: BUI.StatefullComponent<BCFListPanelState> = (
     <bim-panel-section fixed icon=${appIcons.TASK} label="BCF List">
       <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
         <bim-text-input @input=${onSearch} vertical placeholder="Search..." debounce="200" style="flex: 1;"></bim-text-input>
-        <bim-button style="flex: 0;" @click=${() => bcfTopics.saveBCFToDB()} icon=${appIcons.ADD} tooltip-title="Import BCF"></bim-button>
-        <bim-button style="flex: 0;" @click=${() => bcfTopics.openClashDetectionModal()} icon=${appIcons.CLASH} tooltip-title="Clash Detection"></bim-button>
+        <bim-button style="flex: 0;" @click=${() => {
+          if ((bcfTopics as any).isEditingTopic) {
+            alert("Topic List에서 토픽을 작성하거나 수정 중일 때에는 BCF를 불러올 수 없습니다. 작업을 완료하거나 취소한 후 다시 시도해주세요.");
+            return;
+          }
+          bcfTopics.saveBCFToDB();
+        }} icon=${appIcons.ADD} tooltip-title="Import BCF"></bim-button>
+        <bim-button style="flex: 0;" @click=${() => {
+          if ((bcfTopics as any).isEditingTopic) {
+            alert("Topic List에서 토픽을 작성하거나 수정 중일 때에는 간섭 체크를 실행할 수 없습니다. 작업을 완료하거나 취소한 후 다시 시도해주세요.");
+            return;
+          }
+          bcfTopics.openClashDetectionModal();
+        }} icon=${appIcons.CLASH} tooltip-title="Clash Detection"></bim-button>
         <bim-button style="flex: 0;" @click=${refreshSharedBCFList} icon=${appIcons.REFRESH} tooltip-title="Refresh"></bim-button>
       </div>
       <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--bim-ui_gray-10); border: 1px solid var(--bim-ui_bg-contrast-20); border-radius: 4px; padding: 0rem; flex: 1; min-height: 0; overflow-y: auto;">

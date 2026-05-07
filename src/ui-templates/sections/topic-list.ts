@@ -38,6 +38,8 @@ export const topicListTemplate: BUI.StatefullComponent<
   let updateContainer: HTMLDivElement;
 
   const setView = (view: "list" | "new" | "update") => {
+    (bcfTopics as any).isEditingTopic = view !== "list";
+
     if (listContainer) listContainer.style.display = view === "list" ? "flex" : "none";
     if (newContainer) newContainer.style.display = view === "new" ? "flex" : "none";
     if (updateContainer) updateContainer.style.display = view === "update" ? "flex" : "none";

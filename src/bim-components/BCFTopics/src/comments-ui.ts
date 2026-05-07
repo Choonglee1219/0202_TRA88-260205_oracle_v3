@@ -50,7 +50,7 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
     commentsContainer.innerHTML = "";
     paginationContainer.innerHTML = "";
 
-    if (topic.comments.size === 0 && !isAddingNewComment) {
+    if (topic.comments.size === 0 && topic.viewpoints.size === 0 && !isAddingNewComment) {
       isAddingNewComment = true;
     }
 
@@ -71,8 +71,20 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
     for (const [vpGuid, cmts] of vpMap.entries()) {
       groups.push({ viewpointGuid: vpGuid, comments: cmts });
     }
+
+    // 코멘트가 없는 고아(Orphan) 뷰포인트 추가
+    for (const vpGuid of topic.viewpoints) {
+      if (!vpMap.has(vpGuid)) {
+        groups.push({ viewpointGuid: vpGuid, comments: [] });
+      }
+    }
+
     // 각 그룹의 가장 처음 작성된 코멘트 시간을 기준으로 그룹 정렬
-    groups.sort((a, b) => a.comments[0].date.getTime() - b.comments[0].date.getTime());
+    groups.sort((a, b) => {
+      const timeA = a.comments.length > 0 ? a.comments[0].date.getTime() : 0;
+      const timeB = b.comments.length > 0 ? b.comments[0].date.getTime() : 0;
+      return timeA - timeB;
+    });
 
     const totalPages = groups.length;
 
@@ -318,8 +330,14 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
     pageWrapper.style.overflow = "hidden";
 
     // 1. 고정된 스냅샷 이미지 (그룹의 첫번째 코멘트 기준)
-    const firstComment = currentGroup.comments[0];
-    const snapshotUrl = getCommentSnapshotUrl(firstComment);
+    let snapshotUrl = null;
+    if (currentGroup.comments.length > 0) {
+      snapshotUrl = getCommentSnapshotUrl(currentGroup.comments[0]);
+    }
+    if (!snapshotUrl && currentGroup.viewpointGuid) {
+      // 코멘트가 없는 경우 뷰포인트 GUID를 래핑하여 기존 스냅샷 추출 로직을 재사용
+      snapshotUrl = getCommentSnapshotUrl({ viewpoint: currentGroup.viewpointGuid });
+    }
     if (snapshotUrl) {
       const snapshotWrapper = document.createElement("div");
       snapshotWrapper.style.width = "12rem";
