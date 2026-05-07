@@ -4,7 +4,7 @@ import { Highlighter } from "../../bim-components/Highlighter";
 
 export const CustomBoxSelector = {
   isActive: false,
-  onIntersect: null as ((topLeft: THREE.Vector2, bottomRight: THREE.Vector2) => OBC.ModelIdMap) | null
+  onIntersect: null as ((topLeft: THREE.Vector2, bottomRight: THREE.Vector2, fullyIncluded: boolean) => OBC.ModelIdMap) | null
 };
 
 export function setupBoxSelection(
@@ -31,8 +31,8 @@ export function setupBoxSelection(
 
     selectionBox = document.createElement("div");
     selectionBox.style.position = "absolute";
-    selectionBox.style.border = "1px solid rgba(143, 188, 12, 0.8)";
-    selectionBox.style.backgroundColor = "rgba(143, 188, 12, 0.2)";
+    selectionBox.style.border = "1px solid rgba(0, 120, 215, 0.8)";
+    selectionBox.style.backgroundColor = "rgba(0, 120, 215, 0.2)";
     selectionBox.style.pointerEvents = "none";
     selectionBox.style.zIndex = "999";
     selectionBox.style.left = `${selectionStart.x}px`;
@@ -61,6 +61,15 @@ export function setupBoxSelection(
     const width = Math.abs(selectionStart.x - current.x);
     const height = Math.abs(selectionStart.y - current.y);
 
+    const isLeftToRight = current.x >= selectionStart.x;
+    if (isLeftToRight) {
+      selectionBox.style.border = "1px solid rgba(0, 120, 215, 0.8)";
+      selectionBox.style.backgroundColor = "rgba(0, 120, 215, 0.2)";
+    } else {
+      selectionBox.style.border = "1px dashed rgba(143, 188, 12, 0.8)";
+      selectionBox.style.backgroundColor = "rgba(143, 188, 12, 0.2)";
+    }
+
     selectionBox.style.left = `${minX}px`;
     selectionBox.style.top = `${minY}px`;
     selectionBox.style.width = `${width}px`;
@@ -87,6 +96,8 @@ export function setupBoxSelection(
     const rect = viewport.getBoundingClientRect();
     const end = new THREE.Vector2(event.clientX - rect.left, event.clientY - rect.top);
 
+    const fullyIncluded = end.x >= selectionStart.x;
+
     const topLeft = new THREE.Vector2(Math.min(selectionStart.x, end.x), Math.min(selectionStart.y, end.y));
     const bottomRight = new THREE.Vector2(Math.max(selectionStart.x, end.x), Math.max(selectionStart.y, end.y));
 
@@ -105,7 +116,7 @@ export function setupBoxSelection(
     let modelIdMap: OBC.ModelIdMap = {};
 
     if (CustomBoxSelector.isActive && CustomBoxSelector.onIntersect) {
-      modelIdMap = CustomBoxSelector.onIntersect(raycastTopLeft, raycastBottomRight);
+      modelIdMap = CustomBoxSelector.onIntersect(raycastTopLeft, raycastBottomRight, fullyIncluded);
     } else {
       for (const [, model] of fragments.list) {
         if (!model.object.visible) continue;
@@ -115,7 +126,7 @@ export function setupBoxSelection(
           dom: world.renderer!.three.domElement,
           topLeft: raycastTopLeft,
           bottomRight: raycastBottomRight,
-          fullyIncluded: true,
+          fullyIncluded: fullyIncluded,
         });
   
         if (res && res.localIds.length) {
