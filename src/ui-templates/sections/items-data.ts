@@ -109,6 +109,16 @@ export const itemsDataPanelTemplate: BUI.StatefullComponent<
     });
 
     highlighter.events.select.onClear.add(() => {
+      // 현재 남아있는 선택 목록이 있는지 확인
+      const currentSelection = highlighter.selection.select;
+      const hasSelection = !OBC.ModelIdMapUtils.isEmpty(currentSelection);
+      
+      if (hasSelection) {
+        // 부분 해제인 경우 남아있는 객체들로 리스트를 다시 구성
+        processSelection(currentSelection);
+        return;
+      }
+
       allItemsCache = [];
       totalItems = 0;
       totalPages = 0;

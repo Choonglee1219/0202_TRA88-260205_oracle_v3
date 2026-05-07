@@ -622,7 +622,34 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
       if (activeSection) activeSection.label = `Quantity Table (${currentItemCount})`;
     });
 
-    highlighter.events.select.onClear.add(() => {
+    highlighter.events.select.onClear.add(async () => {
+      const currentSelection = highlighter.selection.select;
+      const hasSelection = !OBC.ModelIdMapUtils.isEmpty(currentSelection);
+      
+      if (hasSelection) {
+        if (activeSection) activeSection.label = "Quantity Table (Loading...)";
+
+        quantityTable.data = [];
+        (quantityTable as any).columns = [];
+        summaryTable.data = [];
+        (summaryTable as any).columns = [];
+
+        await extractSelectionData(components, currentSelection);
+        
+        selectedSummaryKeys.clear();
+        currentPage = 0;
+
+        currentItemCount = 0;
+        for (const ids of Object.values(currentSelection)) currentItemCount += ids.size;
+        
+        if (activeUpdateFilters) activeUpdateFilters();
+        if (activeUpdateSummary) activeUpdateSummary();
+        if (activeApplyFilters) activeApplyFilters();
+        
+        if (activeSection) activeSection.label = `Quantity Table (${currentItemCount})`;
+        return;
+      }
+
       // 테이블 캐시 강제 초기화
       quantityTable.data = [];
       (quantityTable as any).columns = [];
@@ -654,7 +681,33 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
 
   return BUI.html`
     <bim-panel-section ${BUI.ref((e) => { 
+        if (!e) return;
         activeSection = e as BUI.PanelSection; 
+        
+        // 1. 패널 최초 렌더링 시점에 이미 선택된 객체가 있다면 데이터 강제 추출 (초기 빈 화면 방지)
+        const currentSelection = highlighter.selection.select;
+        if (allData.length === 0 && !OBC.ModelIdMapUtils.isEmpty(currentSelection)) {
+          activeSection.label = "Quantity Table (Loading...)";
+          extractSelectionData(components, currentSelection).then(() => {
+            currentItemCount = 0;
+            for (const ids of Object.values(currentSelection)) currentItemCount += ids.size;
+            if (activeUpdateFilters) activeUpdateFilters();
+            if (activeUpdateSummary) activeUpdateSummary();
+            if (activeApplyFilters) activeApplyFilters();
+            if (activeSection) activeSection.label = `Quantity Table (${currentItemCount})`;
+          });
+        }
+
+        // 2. QuantityTable 레이아웃으로 진입하여 화면에 나타날 때 UI 렌더링 강제 새로고침
+        const observer = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting) {
+            setTimeout(() => {
+              if (activeApplyFilters) activeApplyFilters();
+            }, 50);
+          }
+        });
+        observer.observe(e);
+        
     })} fixed icon=${appIcons.TASK} label=${`Quantity Table (${currentItemCount})`}>
       <div style="display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 0.5rem;">
         ${filtersContainer}

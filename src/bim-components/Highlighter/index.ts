@@ -507,13 +507,20 @@ export class Highlighter
           }
           items.add(id);
         }
+        // 특정 모델에서 선택된 객체가 더 이상 없으면 Map에서 해당 모델을 완전히 제거
+        if (ids.size === 0) {
+          delete modelIdMap[modelId];
+        }
       }
       if (Object.keys(clearedItems).length > 0) {
         this.events[style].onClear.trigger(clearedItems);
       }
 
       // Clean up selection map for this style
-      this.selection[style] = {};
+      // filter가 없을 때(전체 해제일 때)만 맵을 초기화하도록 조건 추가
+      if (!filter) {
+        this.selection[style] = {};
+      }
     }
 
     if (!this._fromHighlight) {
@@ -681,6 +688,27 @@ export class Highlighter
     }
     this._mouseState.moved = false;
     if (autoHighlightOnClick && selectEnabled) {
+      // Shift 키가 눌린 상태인지 확인하여 선택 해제 로직 수행
+      if (event.shiftKey) {
+        const casters = this.components.get(OBC.Raycasters);
+        const caster = casters.get(world);
+        const result = (await caster.castRay()) as any;
+
+        if (result && result.localId !== undefined && result.localId !== null) {
+          const {
+            localId,
+            fragments: { modelId },
+          } = result;
+
+          const currentSelection = this.selection[this.config.selectName];
+          if (currentSelection && currentSelection[modelId]?.has(localId)) {
+            // 이미 선택된 객체라면 해당 객체만 선택 해제 (this.clear의 filter 기능 사용)
+            await this.clear(this.config.selectName, { [modelId]: new Set([localId]) });
+            return; // 해제 후 일반 하이라이트 로직이 실행되지 않도록 종료
+          }
+        }
+      }
+
       const mult = this.multiple === "none" ? true : !event[this.multiple];
       await this.highlight(this.config.selectName, mult, this.zoomToSelection);
     }
