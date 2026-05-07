@@ -434,7 +434,6 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
             opt.value = "";
             opt.checked = true;
             dropdown.append(opt);
-            dropdown.value = [];
           } else {
             numKeysArr.forEach(key => {
               const opt = document.createElement("bim-option") as BUI.Option;
@@ -443,7 +442,6 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
               opt.checked = selectedSummaryKeys.has(key);
               dropdown.append(opt);
             });
-            dropdown.value = Array.from(selectedSummaryKeys);
           }
         })}
         @change=${(e: Event) => {
@@ -490,15 +488,7 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
           <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
             <bim-label style="font-size: 0.8rem; color: var(--bim-ui_gray-10);">Categorical Filters</bim-label>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <bim-dropdown style="flex: 1;" required 
-              ${BUI.ref(e => {
-                const dropdown = e as BUI.Dropdown;
-                if (dropdown && selectedCatKey && dropdown.value[0] !== selectedCatKey) {
-                  setTimeout(() => {
-                    dropdown.value = [selectedCatKey];
-                  }, 0);
-                }
-              })}
+            <bim-dropdown style="flex: 1;" required
               @change=${(e: Event) => {
                 const dropdown = e.target as BUI.Dropdown;
                 dropdown.visible = false;
@@ -541,7 +531,6 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
                   opt.value = "";
                   opt.checked = true;
                   dropdown.append(opt);
-                  dropdown.value = [""];
                 } else {
                   numKeysArr.forEach(key => {
                     const opt = document.createElement("bim-option") as BUI.Option;
@@ -550,7 +539,6 @@ export const quantityTablePanelTemplate: BUI.StatefullComponent<QuantityTablePan
                     opt.checked = selectedNumKey === key;
                     dropdown.append(opt);
                   });
-                  if (selectedNumKey) dropdown.value = [selectedNumKey];
                 }
               })}
               @change=${(e: Event) => {
