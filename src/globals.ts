@@ -68,6 +68,9 @@ export const appIcons = {
   FOLDEROPEN: "/icons/material-symbols--folder-open.svg",
   WARNING: "/icons/ic--round-warning.svg",
   ERRORALT: "/icons/bxs--error-alt.svg",
+  LENGTH: "/icons/lucide--ruler-dimension-line.svg",
+  AREA: "/icons/radix-icons--dimensions.svg",
+  CLEARANCE: "/icons/material-symbols--social-distance.svg",
 };
 
 // 테이블 내 아이콘 버튼들의 공통 컴팩트 스타일

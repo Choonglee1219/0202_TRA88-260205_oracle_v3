@@ -4,6 +4,7 @@ import * as BUI from "@thatopen/ui";
 import { ViewerToolbarState, viewerToolbarTemplate } from "..";
 import { appIcons } from "../../globals";
 import { Highlighter } from "../../bim-components/Highlighter";
+import { Measurer } from "../../bim-components/Measurer";
 
 type BottomToolbar = { name: "bottomToolbar"; state: ViewerToolbarState };
 type LeftToolbar = { name: "leftToolbar"; state: {} };
@@ -27,6 +28,7 @@ export const viewportGridTemplate: BUI.StatefullComponent<ViewportGridState> = (
     const lengthMeasurer = components.get(OBF.LengthMeasurement);
     const areaMeasurer = components.get(OBF.AreaMeasurement);
     const clipper = components.get(OBC.Clipper);
+    const measurer = components.get(Measurer);
 
     const updateHighlighter = () => {
       highlighter.enabled = !lengthMeasurer.enabled && !areaMeasurer.enabled;
@@ -71,10 +73,32 @@ export const viewportGridTemplate: BUI.StatefullComponent<ViewportGridState> = (
       update();
     };
 
+    const onClipperClearAll = () => {
+      if (clipper.deleteAll) clipper.deleteAll();
+      else if ((clipper as any).clear) (clipper as any).clear();
+      clipper.enabled = false;
+      update();
+    };
+
     const onMeasurementsClick = () => {
       lengthMeasurer.enabled = false;
       areaMeasurer.enabled = false;
       highlighter.enabled = true;
+      update();
+    };
+
+    const onMeasure = async (e: Event) => {
+      const target = e.target as BUI.Button;
+      target.loading = true;
+      await measurer.getMeasure();
+      target.loading = false;
+      BUI.ContextMenu.removeMenus();
+    };
+
+    const onClearAllMeasurements = () => {
+      lengthMeasurer.list.clear();
+      areaMeasurer.list.clear();
+      BUI.ContextMenu.removeMenus();
       update();
     };
 
@@ -83,11 +107,22 @@ export const viewportGridTemplate: BUI.StatefullComponent<ViewportGridState> = (
         <bim-toolbar-section>
           <bim-button @click=${onMeasurementsClick} ?active=${areMeasurementsEnabled} label="Measurements" tooltip-title="Measurements" icon=${appIcons.RULER}>
             <bim-context-menu>
-              <bim-button ?active=${lengthMeasurer.enabled} label="Length" @click=${onLengthMeasurement}></bim-button>
-              <bim-button ?active=${areaMeasurer.enabled} label="Area" @click=${onAreaMeasurement}></bim-button>
+              <div style="display: flex; gap: 0.25rem; overflow: hidden; width: max-content;">
+                <bim-button ?active=${lengthMeasurer.enabled} icon=${appIcons.LENGTH} @click=${onLengthMeasurement}></bim-button>
+                <bim-button ?active=${areaMeasurer.enabled} icon=${appIcons.AREA} @click=${onAreaMeasurement}></bim-button>
+                <bim-button icon=${appIcons.CLEARANCE} @click=${onMeasure}></bim-button>
+                <bim-button icon=${appIcons.CLEAR} @click=${onClearAllMeasurements}></bim-button>
+              </div>
             </bim-context-menu>
           </bim-button>
-          <bim-button ?active=${clipper.enabled} @click=${onModelSection} label="Section" tooltip-title="Model Section" icon=${appIcons.CLIPPING}></bim-button> 
+          <bim-button ?active=${clipper.enabled} label="Section" tooltip-title="Model Section" icon=${appIcons.CLIPPING}>
+            <bim-context-menu>
+              <div style="display: flex; gap: 0.25rem; overflow: hidden; width: max-content;">
+                <bim-button ?active=${clipper.enabled} icon=${appIcons.CLIPPING} @click=${onModelSection}></bim-button>
+                <bim-button icon=${appIcons.CLEAR} @click=${onClipperClearAll}></bim-button>
+              </div>
+            </bim-context-menu>
+          </bim-button> 
         </bim-toolbar-section>
       </bim-toolbar>
     `;

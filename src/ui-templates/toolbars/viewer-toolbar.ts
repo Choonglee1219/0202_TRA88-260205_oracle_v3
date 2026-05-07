@@ -3,7 +3,6 @@ import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import * as FRAGS from "@thatopen/fragments";
 import { appIcons, tooltips } from "../../globals";
-import { MeasurerUI } from "../../bim-components/Measurer/src";
 import { Colorize } from "../../ui-components/Colorize";
 import { Highlighter } from "../../bim-components/Highlighter";
 import { CustomCameraControl } from "../../bim-components/CustomCameraControl";
@@ -407,9 +406,6 @@ ViewerToolbarState
             }} style="width: 100%; cursor: pointer;">
           </div>
         </div>
-      </bim-toolbar-section>
-      <bim-toolbar-section>
-        ${MeasurerUI(components)}
       </bim-toolbar-section>
     </bim-toolbar>
   `;
