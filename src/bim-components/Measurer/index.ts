@@ -161,5 +161,3 @@ export class Measurer extends OBC.Component {
     return closestPair;
   };
 }
-
-export * from "./src";

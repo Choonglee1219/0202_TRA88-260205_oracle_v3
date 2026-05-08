@@ -54,6 +54,25 @@ export class BCFFileOperations {
       for (const topic of topics) {
         const folder = zip.folder(topic.guid);
         if (!folder) continue;
+        
+        // --- 새로 추가된 로직: 원본 파일에서 진짜 대표 뷰포인트의 GUID를 찾아 메모리에 기억해둡니다 ---
+        const markupFile = folder.file("markup.bcf");
+        if (markupFile) {
+          const xmlStr = await markupFile.async("string");
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+          const vps = xmlDoc.getElementsByTagName("Viewpoints");
+          for (let i = 0; i < vps.length; i++) {
+            const vpNode = vps[i].getElementsByTagName("Viewpoint")[0];
+            const snapNode = vps[i].getElementsByTagName("Snapshot")[0];
+            if ((vpNode && vpNode.textContent === "viewpoint.bcfv") || (snapNode && snapNode.textContent === "snapshot.png")) {
+              const guid = vps[i].getAttribute("Guid");
+              if (guid) (topic as any).representativeViewpointGuid = guid;
+              break;
+            }
+          }
+        }
+
         const snapshotFile = folder.file("snapshot.png");
         if (snapshotFile) {
           const base64 = await snapshotFile.async("base64");
@@ -104,7 +123,127 @@ export class BCFFileOperations {
       }
     }
     const blob = await this._bcf.export();
-    return { blob, name };
+
+    // Post-process the blob to standardize the representative viewpoint filename.
+    try {
+      const zip = new JSZip();
+      await zip.loadAsync(blob);
+
+      const topicFolders = new Set<string>();
+      zip.forEach((relativePath) => {
+        if (relativePath.endsWith("markup.bcf")) {
+          const folder = relativePath.substring(0, relativePath.lastIndexOf("/") + 1);
+          topicFolders.add(folder);
+        }
+      });
+
+      // --- 새로 추가된 로직: 저장하기 전, 모든 토픽의 대표 뷰포인트 GUID 매핑 테이블을 생성합니다 ---
+      const repMap = new Map<string, string>();
+      for (const topic of this._bcf.list.values()) {
+        if ((topic as any).representativeViewpointGuid) {
+          repMap.set(topic.guid, (topic as any).representativeViewpointGuid);
+        } else if (topic.viewpoints.size > 0) {
+          // 새로 생성된 토픽이라 지정된 대표 GUID가 없다면 캡처된 첫 번째 뷰포인트를 대표로 지정
+          repMap.set(topic.guid, topic.viewpoints.values().next().value!);
+        }
+      }
+
+      for (const folder of topicFolders) {
+        const markupPath = folder + "markup.bcf";
+        const markupFile = zip.file(markupPath);
+        const topicGuid = folder.replace(/\/$/, ""); // 폴더 경로에서 토픽 GUID만 추출
+
+        if (markupFile) {
+          const xmlStr = await markupFile.async("string");
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+
+          const viewpointsBlocks = Array.from(xmlDoc.getElementsByTagName("Viewpoints"));
+          let markupModified = false;
+          
+          // 이 토픽의 진짜 대표 뷰포인트 GUID
+          const repGuid = repMap.get(topicGuid);
+
+          // BCF 2.1 spec doesn't strictly enforce order, so we sort by the <Index> tag to be safe.
+          viewpointsBlocks.sort((a, b) => {
+            const guidA = a.getAttribute("Guid");
+            const guidB = b.getAttribute("Guid");
+            
+            // 메모리에 기억해둔 진짜 대표 뷰포인트의 GUID와 일치하는 블록을 무조건 1순위로 정렬
+            if (repGuid) {
+              if (guidA === repGuid && guidB !== repGuid) return -1;
+              if (guidB === repGuid && guidA !== repGuid) return 1;
+            }
+
+            const indexAEl = a.getElementsByTagName("Index")[0];
+            const indexBEl = b.getElementsByTagName("Index")[0];
+            const indexA = indexAEl ? parseInt(indexAEl.textContent || '999', 10) : 999;
+            const indexB = indexBEl ? parseInt(indexBEl.textContent || '999', 10) : 999;
+            return indexA - indexB;
+          });
+
+          if (viewpointsBlocks.length > 0) {
+            // 모든 뷰포인트 블록에 순서대로 <Index> 0, 1, 2... 명시적 주입 (오염 완벽 방지)
+            for (let i = 0; i < viewpointsBlocks.length; i++) {
+              const block = viewpointsBlocks[i];
+              let indexNode = block.getElementsByTagName("Index")[0];
+              if (!indexNode) {
+                indexNode = xmlDoc.createElement("Index");
+                indexNode.textContent = i.toString();
+                block.appendChild(indexNode);
+                markupModified = true;
+              } else if (indexNode.textContent !== i.toString()) {
+                indexNode.textContent = i.toString();
+                markupModified = true;
+              }
+            }
+
+            const firstBlock = viewpointsBlocks[0];
+
+            const vpNode = firstBlock.getElementsByTagName("Viewpoint")[0];
+            const snapNode = firstBlock.getElementsByTagName("Snapshot")[0];
+
+            const originalVpName = vpNode?.textContent;
+            const originalSnapName = snapNode?.textContent;
+
+            if (originalVpName && originalVpName !== "viewpoint.bcfv") {
+              const originalVpFile = zip.file(folder + originalVpName);
+              if (originalVpFile) {
+                const content = await originalVpFile.async("arraybuffer");
+                zip.file(folder + "viewpoint.bcfv", content);
+                zip.remove(originalVpFile.name);
+                vpNode.textContent = "viewpoint.bcfv";
+                markupModified = true;
+              }
+            }
+
+            if (originalSnapName && originalSnapName !== "snapshot.png") {
+              const originalSnapFile = zip.file(folder + originalSnapName);
+              if (originalSnapFile) {
+                const content = await originalSnapFile.async("blob");
+                zip.file(folder + "snapshot.png", content);
+                zip.remove(originalSnapFile.name);
+                snapNode.textContent = "snapshot.png";
+                markupModified = true;
+              }
+            }
+            
+            if (markupModified) {
+              const serializer = new XMLSerializer();
+              const newXmlStr = serializer.serializeToString(xmlDoc);
+              zip.file(markupPath, newXmlStr);
+            }
+          }
+        }
+      }
+
+      const newBlob = await zip.generateAsync({ type: "blob" });
+      return { blob: newBlob, name };
+
+    } catch (e) {
+      console.error("Error post-processing BCF for viewpoint standardization:", e);
+      return { blob, name }; // Return original blob on failure
+    }
   }
 
   async exportBCF(name?: string) {

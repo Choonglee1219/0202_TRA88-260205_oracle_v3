@@ -50,10 +50,6 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
     commentsContainer.innerHTML = "";
     paginationContainer.innerHTML = "";
 
-    if (topic.comments.size === 0 && topic.viewpoints.size === 0 && !isAddingNewComment) {
-      isAddingNewComment = true;
-    }
-
     // 코멘트들을 시간 순으로 정렬
     const commentsArray = Array.from(topic.comments.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
 
@@ -72,11 +68,18 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
       groups.push({ viewpointGuid: vpGuid, comments: cmts });
     }
 
-    // 코멘트가 없는 고아(Orphan) 뷰포인트 추가
+    // 코멘트가 없는 고아(Orphan) 뷰포인트 찾기
+    const orphanViewpoints: string[] = [];
     for (const vpGuid of topic.viewpoints) {
       if (!vpMap.has(vpGuid)) {
-        groups.push({ viewpointGuid: vpGuid, comments: [] });
+        orphanViewpoints.push(vpGuid);
       }
+    }
+
+    // 첫 번째 Orphan 뷰포인트는 대표 뷰포인트(viewpoint.bcfv, snapshot.png)이므로 Comments 탭에서 제외하고
+    // 두 번째부터만 그룹에 추가합니다.
+    for (let i = 1; i < orphanViewpoints.length; i++) {
+      groups.push({ viewpointGuid: orphanViewpoints[i], comments: [] });
     }
 
     // 각 그룹의 가장 처음 작성된 코멘트 시간을 기준으로 그룹 정렬
@@ -85,6 +88,11 @@ export const createCommentsUI = (components: OBC.Components, bcfTopics: any) => 
       const timeB = b.comments.length > 0 ? b.comments[0].date.getTime() : 0;
       return timeA - timeB;
     });
+
+    // 표시할 그룹이 전혀 없다면 (코멘트도 없고, 두 번째 뷰포인트도 없다면) 새 코멘트 강제 진입
+    if (groups.length === 0 && !isAddingNewComment) {
+      isAddingNewComment = true;
+    }
 
     const totalPages = groups.length;
 
