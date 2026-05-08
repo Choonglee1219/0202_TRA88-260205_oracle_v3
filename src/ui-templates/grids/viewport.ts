@@ -77,6 +77,7 @@ export const viewportGridTemplate: BUI.StatefullComponent<ViewportGridState> = (
       if (clipper.deleteAll) clipper.deleteAll();
       else if ((clipper as any).clear) (clipper as any).clear();
       clipper.enabled = false;
+      BUI.ContextMenu.removeMenus();
       update();
     };
 

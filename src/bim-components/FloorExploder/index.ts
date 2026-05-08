@@ -16,6 +16,7 @@ export class FloorExploder {
   private components: OBC.Components;
   public isExploded = false;
   public yScale: number = 5;
+  public isGhostMode = false;
   
   private storeyData: FloorGroupData[] = [];
   private originalHiddenItems: OBC.ModelIdMap = {};
@@ -30,6 +31,19 @@ export class FloorExploder {
     transparent: true,
     opacity: 0.85,
     depthWrite: false
+  });
+  private ghostMaterial = new THREE.MeshStandardMaterial({
+    color: 0x2FA4D7,
+    transparent: true,
+    opacity: 0.1,
+    depthWrite: false
+  });
+  private hiddenItemMaterial = new THREE.MeshStandardMaterial({
+    color: 0x00ffff,
+    transparent: true,
+    opacity: 0.1,
+    depthWrite: false,
+    side: THREE.DoubleSide
   });
 
   constructor(components: OBC.Components) {
@@ -150,12 +164,18 @@ export class FloorExploder {
       if (hasSelection && selection[modelId]?.has(localId)) {
         mesh.material = this.highlightMaterial;
       } else {
-        mesh.material = originalMaterial;
+        mesh.material = this.isGhostMode ? this.ghostMaterial : originalMaterial;
       }
     }
   };
 
-  private handleBoxSelection(topLeft: THREE.Vector2, bottomRight: THREE.Vector2): OBC.ModelIdMap {
+  public setGhostMode(active: boolean) {
+    this.isGhostMode = active;
+    if (!this.isExploded) return;
+    this.syncHologramHighlight();
+  }
+
+  private handleBoxSelection(topLeft: THREE.Vector2, bottomRight: THREE.Vector2, fullyIncluded: boolean): OBC.ModelIdMap {
     const worlds = this.components.get(OBC.Worlds);
     const world = worlds.list.values().next().value;
     if (!world || !world.renderer) return {};
@@ -167,18 +187,53 @@ export class FloorExploder {
     const maxY = -((topLeft.y - rect.top) / rect.height) * 2 + 1;
 
     const newSelection: OBC.ModelIdMap = {};
-    const vec = new THREE.Vector3();
+    const box3 = new THREE.Box3();
+    const corners = [
+      new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(),
+      new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()
+    ];
     
     world.camera.three.updateMatrixWorld();
 
     for (const mesh of this.allHologramMeshes) {
+      if (!mesh.visible) continue;
       mesh.updateMatrixWorld();
-      if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
-      vec.copy(mesh.geometry.boundingSphere?.center || new THREE.Vector3());
-      mesh.localToWorld(vec);
-      vec.project(world.camera.three);
-      
-      if (vec.x >= minX && vec.x <= maxX && vec.y >= minY && vec.y <= maxY && vec.z >= -1 && vec.z <= 1) {
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      box3.copy(mesh.geometry.boundingBox!);
+      box3.applyMatrix4(mesh.matrixWorld);
+
+      corners[0].set(box3.min.x, box3.min.y, box3.min.z);
+      corners[1].set(box3.min.x, box3.min.y, box3.max.z);
+      corners[2].set(box3.min.x, box3.max.y, box3.min.z);
+      corners[3].set(box3.min.x, box3.max.y, box3.max.z);
+      corners[4].set(box3.max.x, box3.min.y, box3.min.z);
+      corners[5].set(box3.max.x, box3.min.y, box3.max.z);
+      corners[6].set(box3.max.x, box3.max.y, box3.min.z);
+      corners[7].set(box3.max.x, box3.max.y, box3.max.z);
+
+      let meshMinX = Infinity, meshMaxX = -Infinity;
+      let meshMinY = Infinity, meshMaxY = -Infinity;
+      let isInFrontOfCamera = false;
+
+      for (const corner of corners) {
+        corner.project(world.camera.three);
+        if (corner.z >= -1 && corner.z <= 1) isInFrontOfCamera = true;
+        meshMinX = Math.min(meshMinX, corner.x);
+        meshMaxX = Math.max(meshMaxX, corner.x);
+        meshMinY = Math.min(meshMinY, corner.y);
+        meshMaxY = Math.max(meshMaxY, corner.y);
+      }
+
+      if (!isInFrontOfCamera) continue;
+
+      let isSelected = false;
+      if (fullyIncluded) {
+        isSelected = meshMinX >= minX && meshMaxX <= maxX && meshMinY >= minY && meshMaxY <= maxY;
+      } else {
+        isSelected = meshMinX <= maxX && meshMaxX >= minX && meshMinY <= maxY && meshMaxY >= minY;
+      }
+
+      if (isSelected) {
         const { modelId, localId } = mesh.userData;
         if (!newSelection[modelId]) newSelection[modelId] = new Set();
         newSelection[modelId].add(localId);
@@ -262,6 +317,13 @@ export class FloorExploder {
 
     const fragments = this.components.get(OBC.FragmentsManager);
     if (fragments.list.size === 0) return;
+
+    const classifier = this.components.get(OBC.Classifier);
+    const hiddenGroup = classifier.list.get("PermanentHidden")?.get("HiddenItems");
+    let hiddenItemsMap: OBC.ModelIdMap = {};
+    if (hiddenGroup) {
+      hiddenItemsMap = await hiddenGroup.get();
+    }
 
     const globalStoreyMap = new Map<string, Record<string, Set<number>>>();
     
@@ -363,7 +425,8 @@ export class FloorExploder {
             }
 
             const idToUse = geom.localId ?? localId;
-            const mat = materialCache.get(idToUse) || defaultMat;
+            const isHiddenItem = hiddenItemsMap[modelId]?.has(idToUse);
+            const mat = isHiddenItem ? this.hiddenItemMaterial : (materialCache.get(idToUse) || defaultMat);
 
             const mesh = new THREE.Mesh(bufferGeometry, mat);
             if (geom.transform) mesh.applyMatrix4(geom.transform);
@@ -446,6 +509,28 @@ export class FloorExploder {
         box.getBoundingSphere(sphere);
         world.camera.controls.fitToSphere(sphere, true);
       }
+    }
+  }
+
+  public setVisibility(show: boolean, selection?: OBC.ModelIdMap) {
+    if (!this.isExploded) return;
+    if (!selection) {
+      for (const mesh of this.allHologramMeshes) {
+        mesh.visible = show;
+      }
+      return;
+    }
+    for (const mesh of this.allHologramMeshes) {
+      const { modelId, localId } = mesh.userData;
+      if (selection[modelId]?.has(localId)) mesh.visible = show;
+    }
+  }
+
+  public isolate(selection: OBC.ModelIdMap) {
+    if (!this.isExploded) return;
+    for (const mesh of this.allHologramMeshes) {
+      const { modelId, localId } = mesh.userData;
+      mesh.visible = !!(selection[modelId] && selection[modelId].has(localId));
     }
   }
 }

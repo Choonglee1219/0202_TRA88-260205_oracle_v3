@@ -169,6 +169,20 @@ if (!(window as any)._toolbarHotkeyRegistered) {
 }
 
 export const showAllItems = async (components: OBC.Components) => {
+  if (floorExploder?.isExploded) {
+    floorExploder.setVisibility(true);
+    const classifier = components.get(OBC.Classifier);
+    const hiddenItemsGroup = classifier.list.get("PermanentHidden")?.get("HiddenItems");
+    if (hiddenItemsGroup) {
+      const hiddenItems = await hiddenItemsGroup.get();
+      if (!OBC.ModelIdMapUtils.isEmpty(hiddenItems)) {
+        floorExploder.setVisibility(false, hiddenItems);
+      }
+    }
+    isCurrentlyHidden = false;
+    lastHiddenSelection = null;
+    return;
+  }
   const hider = components.get(OBC.Hider);
   await hider.set(true);
   const classifier = components.get(OBC.Classifier);
@@ -189,6 +203,9 @@ export const toggleGhostMode = (components: OBC.Components) => {
   } else {
     setModelTransparent(components);
   }
+  if (floorExploder) {
+    floorExploder.setGhostMode(isGhostModeActive);
+  }
   lastHiddenSelection = null;
   isCurrentlyHidden = false;
 };
@@ -200,11 +217,19 @@ export const hideSelection = async (components: OBC.Components) => {
   if (OBC.ModelIdMapUtils.isEmpty(selection)) return;
 
   if (areModelIdMapsEqual(selection, lastHiddenSelection) && isCurrentlyHidden) {
-    await hider.set(true, selection); // 이미 숨긴 상태에서 또 누르면 다시 표시
+    if (floorExploder?.isExploded) {
+      floorExploder.setVisibility(true, selection);
+    } else {
+      await hider.set(true, selection); // 이미 숨긴 상태에서 또 누르면 다시 표시
+    }
     isCurrentlyHidden = false;
     lastHiddenSelection = null;
   } else {
-    await hider.set(false, selection); // 처음 숨기는 경우
+    if (floorExploder?.isExploded) {
+      floorExploder.setVisibility(false, selection);
+    } else {
+      await hider.set(false, selection); // 처음 숨기는 경우
+    }
     isCurrentlyHidden = true;
     lastHiddenSelection = cloneModelIdMap(selection);
   }
@@ -215,7 +240,11 @@ export const isolateSelection = async (components: OBC.Components) => {
   const hider = components.get(OBC.Hider);
   const selection = highlighter.selection.select;
   if (OBC.ModelIdMapUtils.isEmpty(selection)) return;
-  await hider.isolate(selection);
+  if (floorExploder?.isExploded) {
+    floorExploder.isolate(selection);
+  } else {
+    await hider.isolate(selection);
+  }
 };
 
 export const viewerToolbarTemplate: BUI.StatefullComponent<
@@ -253,7 +282,11 @@ ViewerToolbarState
 
     target.loading = true;
     const show = !target.active;
-    await hider.set(show, hiddenItems);
+    if (floorExploder?.isExploded) {
+      floorExploder.setVisibility(show, hiddenItems);
+    } else {
+      await hider.set(show, hiddenItems);
+    }
     target.active = show;
     target.loading = false;
   };
@@ -367,11 +400,36 @@ ViewerToolbarState
     if (!floorExploder) return;
     target.loading = true;
     const wasExploded = floorExploder.isExploded;
+    floorExploder.setGhostMode(isGhostModeActive);
     const success = await floorExploder.toggleExplode();
     if (success) {
       target.active = !wasExploded;
       if (scaleContainer) {
         scaleContainer.style.display = target.active ? "flex" : "none";
+      }
+
+      const applyHiddenStates = async (isExploding: boolean) => {
+        if (hiddenItemsBtn && !hiddenItemsBtn.active) {
+          const classifier = components.get(OBC.Classifier);
+          const hiddenItemsGroup = classifier.list.get("PermanentHidden")?.get("HiddenItems");
+          if (hiddenItemsGroup) {
+            const hiddenItems = await hiddenItemsGroup.get();
+            if (!OBC.ModelIdMapUtils.isEmpty(hiddenItems)) {
+              if (isExploding) floorExploder!.setVisibility(false, hiddenItems);
+              else await components.get(OBC.Hider).set(false, hiddenItems);
+            }
+          }
+        }
+        if (hideBtn && isCurrentlyHidden && lastHiddenSelection) {
+          if (isExploding) floorExploder!.setVisibility(false, lastHiddenSelection);
+          else await components.get(OBC.Hider).set(false, lastHiddenSelection);
+        }
+      };
+
+      if (target.active) {
+        await applyHiddenStates(true);
+      } else {
+        setTimeout(() => { applyHiddenStates(false); }, 1100);
       }
     }
     target.loading = false;
